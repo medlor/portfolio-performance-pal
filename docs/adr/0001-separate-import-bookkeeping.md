@@ -1,0 +1,3 @@
+# Keep Import Bookkeeping Outside Portfolio Performance XML
+
+Store imported document hashes, broker references, and associated transaction IDs in a metadata file adjacent to the portfolio, while keeping financial transactions in Portfolio Performance XML. This enables reliable re-import detection without introducing custom XML fields or putting bookkeeping into user-visible transaction notes. The trade-off is that metadata can be lost or become inconsistent after external edits or restoring a backup; missing or inconsistent evidence must fall back to suspected-duplicate checks rather than authorizing a repeat import.
