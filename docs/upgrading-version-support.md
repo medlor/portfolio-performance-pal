@@ -1,25 +1,14 @@
-# Upgrading Portfolio Performance Version Support
+# Upgrading Portfolio Performance support
 
-The CLI writes only tested Portfolio Performance versions using ID-reference XML. A successful XML parse does not establish compatibility: the saved object graph, linked transactions, amounts, and unrelated content must remain correct.
+The wrapper reuses upstream Java persistence and models. This does not establish rewrite safety or promise stable exported APIs. No combinations or executable checks are validated yet; establish the following evidence before enabling writes.
 
-## Procedure
+1. Declare application release, exact upstream revision, XML model version/representation, container image identity, and reproducible build/JDK dependencies separately. Pin the target revision/image and verify that core persistence, models, and PDF extraction build and run headlessly.
+2. Review persistence/model changes, including `ClientFactory`, `Client`, `Transaction`, `AccountTransaction`, `PortfolioTransaction`, `BuySellEntry`, and reference relationships. Inspect scaled numbers, currencies, fees, taxes, new fields, and loader/save migrations. Adapt the Java integration; do not add a separate Python serializer.
+3. Create anonymized ID-reference XML fixtures for proposed supported combinations. Include multiple account pairs, purchases, partial/full sales, dividends, FX, and unrelated settings/classifications. Keep previously supported fixtures. Do not read or commit the real portfolio to establish fixtures.
+4. Document accepted input versions and whether loading/saving migrates them. Define allowed resulting versions and semantics per support-matrix entry. Reject untested representations/versions or unvalidated migrations before modifying the original.
+5. Test no-op load/save round trips and intended changes with the pinned core. Save to temporary files and compare financial semantics and unrelated data before atomic replacement. Inspect quantities, dates/times, amounts, fees, taxes, currencies/rates, references, and linked accounts; loading alone is insufficient. Verify older still-supported combinations remain correct.
+6. Run command/container checks for preview/apply, duplicates and metadata recovery, quantity history, atomic/stale writes, failure preservation, backups/retention, and host mounts/permissions. Record actual commands and results when they exist.
+7. Add only passing combinations to the explicit support matrix, with revision/image identities, migration behavior, limitations, and whether earlier entries remain supported. No release becomes supported automatically.
+8. Review extraction separately using [the broker-extractor guide](updating-broker-extractor.md). File compatibility and statement recognition are separate contracts.
 
-1. Record the currently supported Portfolio Performance release, exact source revision, and XML model version. These are distinct identifiers: do not infer XML compatibility from an application release number alone.
-2. Select the target release and pin its exact source revision. Read its contributor instructions for the required Java/build environment and core test procedure.
-3. Compare persistence and model code between the two pinned revisions, especially `ClientFactory`, `Client`, `Transaction`, `AccountTransaction`, `PortfolioTransaction`, `BuySellEntry`, and security/account references. Inspect migration logic, scaled numerical representations, currencies, fees, taxes, and newly introduced fields.
-4. Generate anonymized ID-reference XML fixtures with the target release. Include purchases, partial/full sales, dividends, foreign currencies, multiple account pairs, and unrelated settings/classifications. Keep fixtures for previously supported versions.
-5. Update format detection, parsing, writing, and validation where required. Preserve unrelated content and references. Do not bypass the version check merely because the new file parses.
-6. Run regression checks for existing supported versions and the target version. Verify no-op preservation, expected transaction changes, monetary consistency, duplicate detection, and failure without modification. Check daily backup behavior as well.
-7. Load modified fixtures with the target release's Java reader and inspect the resulting transactions and account links. Loading alone is insufficient: compare quantities, dates, amounts, fees, taxes, currencies, and preserved unrelated data against expectations.
-8. Add the target release/revision/model-format combination to the declared support matrix only after these checks pass. State whether earlier combinations remain supported and record any limitations.
-9. Review broker-extractor changes separately using [the extractor maintenance guide](updating-broker-extractor.md). File compatibility and PDF extraction are separate contracts.
-
-Exact repository test commands and support-matrix location must be added when the implementation exists; this guide does not assume commands that have not been created.
-
-## Upstream starting points
-
-- [Persistence and format detection](https://github.com/portfolio-performance/portfolio/blob/master/name.abuchen.portfolio/src/name/abuchen/portfolio/model/ClientFactory.java)
-- [Linked purchase/sale entries](https://github.com/portfolio-performance/portfolio/blob/master/name.abuchen.portfolio/src/name/abuchen/portfolio/model/BuySellEntry.java)
-- [Contributor and core test instructions](https://github.com/portfolio-performance/portfolio/blob/master/CONTRIBUTING.md)
-
-These links identify the relevant files. Use the pinned revisions when comparing or validating a release, rather than mutable `master`.
+Use the selected upstream checkout's contributor instructions and persistence/model tests as starting points. Concrete upgrade records must link to pinned revisions and include reproducible validation commands.
