@@ -1,6 +1,6 @@
 # Updating the upstream broker extractor
 
-The Java backend directly uses Portfolio Performance PDF extraction. Updates are manual changes to the pinned upstream dependency/image, not ports into Python. No extractor revision or layout has been validated yet.
+The Java backend directly uses Portfolio Performance PDF extraction. The [update workflow](upgrading-version-support.md) fetches and validates upstream/wrapper releases automatically; new fixture expectations, layouts, and adapter fixes still require maintenance. No extractor revision or layout has been validated yet.
 
 1. Record the current upstream revision, image identity, and tested layouts. Choose and pin the target revision; select the importer by document bank identifiers and layout. Smartbroker branding alone does not establish whether DAB, Baader, or another importer applies.
 2. Review importer, shared parser, PDF-to-text, dependency, and upstream fixture/test changes. Check transaction types, identifiers, quantities, dates/times, booked/gross amounts, fees, taxes, currencies, rates, and broker references.

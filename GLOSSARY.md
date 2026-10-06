@@ -39,3 +39,9 @@ _Avoid_: Remove stock, delete stock
 
 **FIFO (first in, first out)**:
 The rule that matches sold shares to the earliest remaining purchases first.
+
+**Confirmed re-import**:
+A document or transaction proposed for import that reliable identity evidence establishes is already recorded in the current portfolio.
+
+**Suspected duplicate**:
+A proposed transaction resembling an existing record without enough identity evidence to establish that it is the same transaction. Importing it requires an explicit override.
