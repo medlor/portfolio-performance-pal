@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+script=$(readlink -f -- "${BASH_SOURCE[0]}")
+root=$(cd "$(dirname "$script")" && pwd)
 for arg in "$@"; do
   if [[ $arg == --help ]]; then cat "$root/runtime/help.txt"; exit 0; fi
 done

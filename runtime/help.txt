@@ -7,6 +7,7 @@ Updates:
 Commands:
   holdings   Show recorded quantities by security and securities account.
   history    Show recorded transactions, including closed holdings and dividends.
+  purchase   Preview a same-currency purchase after mandatory release validation.
   configure  Save portfolio path and resolved default account IDs explicitly.
   backup-monthly  Check due launch protection without loading the financial model.
   backup-before-update  Preserve an exact snapshot before an actual upgrade attempt.
@@ -34,6 +35,18 @@ History options:
   --limit NUMBER             Default 15; 0 means unlimited.
   Shared-cash dividends appear once; ambiguous securities attribution is marked.
 
+Purchase preview options:
+  --security ID|IDENTIFIER|NAME  Exact existing security; no fuzzy names.
+  --security-id UUID          Stable ID; combine identifiers to disambiguate.
+  --isin ISIN | --wkn WKN | --ticker TICKER  Exact identifier constraints.
+  --quantity DECIMAL         Positive shares, exact 8-place scale.
+  --price DECIMAL             Positive unit price, exact 8-place scale.
+  --gross DECIMAL             Gross value; or --total DECIMAL booked debit.
+  --fees DECIMAL --taxes DECIMAL  Exact cents; omitted costs default zero.
+  --date YYYY-MM-DD           Required date; --time HH:MM[:SS[.fraction]].
+  Missing time uses 11:00:00. Both accounts are required, explicit or configured.
+  Price/gross/total must determine and agree on the amount. Preview never applies.
+
 Configuration defaults: pp-pal.properties in cwd; portfolio_performance.xml in cwd.
 Configured file paths resolve relative to the configuration directory.
 Queries preserve portfolio, metadata and configuration. No live prices or profit.
@@ -41,4 +54,4 @@ Launches create a due Berlin monthly backup; each backup-before-update call crea
 another exact backup. That command does not discover, build or activate updates.
 Exit codes: 0 success; 2 input/validation rejected; 3 operational failure;
 4 reserved for a completed financial change with failed follow-up work.
-Mutations and statement import are not implemented yet.
+Financial application, sales, dividends and statement import are pending.
