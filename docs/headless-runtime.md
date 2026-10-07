@@ -36,11 +36,15 @@ The wrapper provides `pal.Core.load(Path)`, `save(Client, Path)`,
 `inspect(Client)` and `semanticState(Client)` for downstream modules. The current
 container commands `inspect`, `roundtrip`, `prove`, and `pdf` are developer proof
 commands; `roundtrip` and `prove` write their explicitly selected disposable
-output. They are not yet the owner's transaction CLI or safe portfolio writer.
-The owner-facing launcher now provides read-only `holdings`/`history` and explicit
-`configure`; see `docs/cli.md`. Its cumulative gate is `tests/all.sh`.
+output. Use these proof commands only with disposable output files.
+The owner-facing launcher provides `holdings`/`history`, explicit `configure`, and
+same-currency `purchase` preview/application with verified recovery; see `docs/cli.md`.
+Its cumulative release/feature gate is `tests/updater.sh IMAGE --apply-slice`;
+`tests/all.sh` also runs the complete historical updater adversarial suite.
 Use temporary files when running them. The launcher now includes monthly/pre-upgrade protection and released-pair updates.
-Subsequent tickets add preview, writer coordination and financial atomic replacement.
+The shared Java writer owns same-filesystem replacement, pinned complete-model validation,
+writer coordination, daily protection and committed-only retention. Initial stable
+wrapper bootstrap publication remains a prerequisite for production mutations.
 
 ## Headless adapter change
 

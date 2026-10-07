@@ -59,27 +59,93 @@ public final class BackupService {
         return result[0];
     }
 
-    /** Caller must invoke only after a successful financial replacement, never on launch. */
-    public void pruneAdditionalAfterSuccessfulWrite() throws IOException {
+    /** Exact validated invocation input, preserved once per Berlin calendar day. */
+    public Path daily(FileSnapshot snapshot) throws IOException {
+        Path[] result = new Path[1];
         withLock(() -> {
             var records = records();
-            Instant cutoff = clock.instant().atZone(ZONE).minusYears(2).toInstant();
-            var removed = new ArrayList<String>();
+            String date = LocalDate.now(clock.withZone(ZONE)).toString();
+            String name = portfolio.getFileName() + "." + date + ".bak";
+            Path path = portfolio.resolveSibling(name);
+            if (records.containsKey(name + ".kind")) {
+                if (!"daily".equals(records.getProperty(name + ".kind"))) throw new IOException("Wrong ownership kind for required daily protection");
+                verifySnapshot(records, name); result[0] = path; return;
+            }
+            if (Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+                requireRegular(path);
+                if (!Files.isReadable(path)) throw new IOException("Existing daily protection is unreadable: " + path);
+                result[0] = path; return; // foreign regular file satisfies existence; never adopt it
+            }
+            if (Files.exists(index, LinkOption.NOFOLLOW_LINKS) && !Files.isWritable(index)) throw new IOException("Backup ownership index is not writable: " + index);
+            if (!portfolio.equals(snapshot.path())) throw new IOException("Daily protection snapshot belongs to a different portfolio");
+            snapshot.requireCurrent();
+            try (var channel = FileChannel.open(path, Set.of(StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS), PosixFilePermissions.asFileAttribute(PRIVATE))) {
+                var bytes = ByteBuffer.wrap(snapshot.bytes()); while (bytes.hasRemaining()) channel.write(bytes); channel.force(true);
+            }
+            forceDirectory();
+            records.setProperty(name + ".kind", "daily"); records.setProperty(name + ".date", date);
+            records.setProperty(name + ".created", clock.instant().toString()); records.setProperty(name + ".sha256", snapshot.sha256());
+            save(records); result[0] = path;
+        });
+        return result[0];
+    }
+
+    /** Call only for a committed financial write (including its verified recovery). */
+    public void pruneDailyAfterSuccessfulWrite() throws IOException {
+        prune(true);
+    }
+    public void pruneAdditionalAfterSuccessfulWrite() throws IOException {
+        prune(false);
+    }
+    private void prune(boolean daily) throws IOException {
+        withLock(() -> {
+            var records = records();
+            var selected = new TreeSet<String>();
+            var months = new TreeMap<YearMonth, TreeMap<LocalDate,String>>();
+            var now = clock.instant();
+            var today = LocalDate.now(clock.withZone(ZONE));
+            var oldest = YearMonth.from(today).minusMonths(23);
+            var cutoff = now.atZone(ZONE).minusYears(2).toInstant();
             for (String key : records.stringPropertyNames()) {
                 if (!key.endsWith(".kind")) continue;
-                if (!Set.of("monthly", "update").contains(records.getProperty(key))) continue;
                 String name = key.substring(0, key.length() - 5);
-                final Instant created;
-                try { created = Instant.parse(records.getProperty(name + ".created", "")); }
-                catch (DateTimeException e) { throw new IOException("Invalid backup creation date: " + name, e); }
-                if (!created.isBefore(cutoff)) continue;
-                verifySnapshot(records, name);
-                Files.delete(ownedPath(records, name));
-                removed.add(name);
+                String kind = records.getProperty(key);
+                ownedPath(records, name); // reject unsafe or unknown ownership, even if retained
+                if (daily && kind.equals("daily")) {
+                    final LocalDate date;
+                    try { date = LocalDate.parse(records.getProperty(name + ".date", "")); }
+                    catch (DateTimeException e) { throw new IOException("Invalid daily date: " + name, e); }
+                    if (date.isAfter(today)) continue; // never infer a future financial state
+                    var month = YearMonth.from(date);
+                    if (month.isBefore(oldest)) selected.add(name);
+                    else months.computeIfAbsent(month, m -> new TreeMap<>()).put(date, name);
+                } else if (!daily && Set.of("monthly", "update").contains(kind)) {
+                    final Instant created;
+                    try { created = Instant.parse(records.getProperty(name + ".created", "")); }
+                    catch (DateTimeException e) { throw new IOException("Invalid backup creation date: " + name, e); }
+                    if (created.isBefore(cutoff)) selected.add(name);
+                }
             }
-            for (String name : removed)
-                records.keySet().removeIf(key -> key.toString().startsWith(name + "."));
-            if (!removed.isEmpty()) save(records);
+            for (var dates : months.values()) {
+                int remove = Math.max(0, dates.size() - 3);
+                for (String name : dates.values()) { if (remove-- <= 0) break; selected.add(name); }
+            }
+            // A persisted intent makes partial unlink/index failures resumable.
+            for (String name : selected) {
+                Path path = ownedPath(records, name);
+                if (Files.exists(path, LinkOption.NOFOLLOW_LINKS)) verifySnapshot(records, name);
+                else if (!"pending".equals(records.getProperty(name + ".prune"))) throw new IOException("Owned backup unexpectedly missing: " + path);
+            }
+            if (selected.isEmpty()) return;
+            for (String name : selected) records.setProperty(name + ".prune", "pending");
+            save(records);
+            for (String name : selected) {
+                Path path = ownedPath(records, name);
+                if (Files.exists(path, LinkOption.NOFOLLOW_LINKS)) { verifySnapshot(records, name); Files.delete(path); }
+            }
+            forceDirectory();
+            for (String name : selected) records.keySet().removeIf(k -> k.toString().startsWith(name + "."));
+            save(records);
         });
     }
 
@@ -141,6 +207,12 @@ public final class BackupService {
 
     private Path ownedPath(Properties records, String name) throws IOException {
         String kind = records.getProperty(name + ".kind");
+        if ("daily".equals(kind)) {
+            String date = records.getProperty(name + ".date", "");
+            try { LocalDate.parse(date); } catch (DateTimeException e) { throw new IOException("Invalid owned daily date: " + name, e); }
+            if (!name.equals(portfolio.getFileName() + "." + date + ".bak")) throw new IOException("Unsafe daily ownership record: " + name);
+            return portfolio.resolveSibling(name);
+        }
         if (!Set.of("monthly", "update").contains(kind == null ? "" : kind)
                 || Path.of(name).getNameCount() != 1
                 || !name.startsWith(portfolio.getFileName() + ".pp-pal." + kind + ".") || !name.endsWith(".bak"))
@@ -149,6 +221,10 @@ public final class BackupService {
     }
 
     private void save(Properties records) throws IOException {
+        if (Files.exists(index, LinkOption.NOFOLLOW_LINKS)) {
+            requireRegular(index);
+            if (!Files.isWritable(index)) throw new IOException("Backup ownership index is not writable: " + index);
+        }
         Path temporary = Files.createTempFile(portfolio.getParent(), ".pp-pal-backup-index-", ".tmp",
                 PosixFilePermissions.asFileAttribute(PRIVATE));
         try {
