@@ -7,6 +7,7 @@
     "tests/holdings.sh",
     "tests/history.sh",
     "tests/backups.sh",
-    "tests/purchase.sh"
+    "tests/purchase.sh",
+    "tests/purchase-apply.sh"
   ]
 }

@@ -47,6 +47,7 @@ mount "$config_parent" ro
 base=(docker run --rm --network none --user "$(id -u):$(id -g)" --workdir "$cwd")
 base+=(--env "PP_PAL_ENGINE_IMAGE=$image")
 if [[ -n ${PP_PAL_NOW+x} ]]; then base+=(--env PP_PAL_NOW); fi
+if [[ -n ${PP_PAL_WRITE_OBSERVER+x} ]]; then base+=(--env PP_PAL_WRITE_OBSERVER); fi
 status() {
   case $1 in 0|2|3|4) exit "$1";; *) echo "ERROR: Docker command failed (status $1)" >&2; exit 3;; esac
 }

@@ -229,6 +229,56 @@
         "bash tests/updater.sh sha256:1c10ae5ae30305afe1cfc441879bc0415a6cea036da1d0c2d9ab29618b383ffa"
       ],
       "validationNotes": "The all.sh run passed runtime, holdings/configuration, history and backup suites, then stopped on a literal-parenthesis typo in the purchase midnight assertion. Only that assertion was corrected. The complete updater suite then exited 0 on the unchanged image and host code, repeating all trusted candidate gates including purchase, its independent upstream model oracle and exact-qualification refusal. No all.sh exit-0 claim is made."
+    },
+    {
+      "upstreamRelease": "0.88.0",
+      "upstreamRevision": "8de1fe41d71a2c1b74a6bfbe913f885899aaf123",
+      "sourceArchiveSha256": "ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656",
+      "dependencyReleaseArchiveSha256": "1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2",
+      "jdk": "Temurin 21.0.11+10-LTS",
+      "platform": "linux/amd64",
+      "input": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "output": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "migrations": [],
+      "fixtureVersion": "v1",
+      "image": "sha256:ef6c75e4ee83101698ff7e74c45bf3bfd1d8b4edfd41a9d90df69b786afe4136",
+      "retentionTag": "pp-pal:retained-issue24-recovery",
+      "validatedOn": "2026-10-07",
+      "validatedBy": "tests/updater.sh IMAGE --apply-slice and tests/purchase-apply.sh IMAGE --boundaries-only",
+      "features": [
+        "headless-core-proof",
+        "holdings",
+        "configuration",
+        "history",
+        "monthly-launch-backups",
+        "exact-pre-upgrade-backups",
+        "released-wrapper-upstream-resolution",
+        "independent-candidate-validation",
+        "isolated-selected-copy-validation",
+        "atomic-released-engine-activation",
+        "unchanged-release-cache-reuse",
+        "immutable-image-retention",
+        "same-currency-purchase-preview",
+        "exact-fixed-check-candidate-qualification",
+        "installed-symlink-launcher",
+        "atomic-same-currency-purchase-application",
+        "verified-financial-write-recovery",
+        "successful-write-backup-retention"
+      ],
+      "releasedCandidateImage": "sha256:bf9f4e0705d6a1ea4345af020ed0285d9a5014ba804aa06fa3903508a27738d3",
+      "releasedWrapperRevision": "75c913c4e5e7f920d5df03afe26bc43b21c21884",
+      "validationCommands": [
+        "bash tests/purchase-apply.sh sha256:ef6c75e4ee83101698ff7e74c45bf3bfd1d8b4edfd41a9d90df69b786afe4136 --boundaries-only",
+        "bash tests/updater.sh sha256:ef6c75e4ee83101698ff7e74c45bf3bfd1d8b4edfd41a9d90df69b786afe4136 --apply-slice"
+      ],
+      "validationNotes": "Both commands exited 0. The scoped updater runs every registered trusted fixture gate on a real stable tagged local wrapper plus official pinned upstream archives, isolated selected-copy validation, activation and mandatory fixed-image owner apply/failure checks. It stops before unrelated historical adversarial release/retry scenarios already validated in #23; no all.sh exit-0 claim. Real Linux tests cover required-backup failures, stale byte/inode/stage checks, locks and permissions, exact original snapshots, committed exit4/recovery without replay, deterministic process interruption, literal daily/additional retention and Berlin calendar boundaries. Only documentation/evidence metadata was added after the frozen passing gate.",
+      "releaseValidation": "Actual local stable release pair and fixed owner application; initial official stable wrapper bootstrap publication remains prerequisite."
     }
   ]
 }

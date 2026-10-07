@@ -7,7 +7,7 @@ Updates:
 Commands:
   holdings   Show recorded quantities by security and securities account.
   history    Show recorded transactions, including closed holdings and dividends.
-  purchase   Preview a same-currency purchase after mandatory release validation.
+  purchase   Preview or apply a same-currency purchase after mandatory release validation.
   import     Preview all purchases in one proved Baader EUR statement PDF.
   configure  Save portfolio path and resolved default account IDs explicitly.
   backup-monthly  Check due launch protection without loading the financial model.
@@ -36,7 +36,7 @@ History options:
   --limit NUMBER             Default 15; 0 means unlimited.
   Shared-cash dividends appear once; ambiguous securities attribution is marked.
 
-Purchase preview options:
+Purchase options:
   --security ID|IDENTIFIER|NAME  Exact existing security; no fuzzy names.
   --security-id UUID          Stable ID; combine identifiers to disambiguate.
   --isin ISIN | --wkn WKN | --ticker TICKER  Exact identifier constraints.
@@ -46,7 +46,12 @@ Purchase preview options:
   --fees DECIMAL --taxes DECIMAL  Exact cents; omitted costs default zero.
   --date YYYY-MM-DD           Required date; --time HH:MM[:SS[.fraction]].
   Missing time uses 11:00:00. Both accounts are required, explicit or configured.
-  Price/gross/total must determine and agree on the amount. Preview never applies.
+  Price/gross/total must determine and agree on the amount. Default is preview.
+  --apply --desktop-closed    Commit a fresh validated purchase with PP closed.
+  --recover-write --desktop-closed  Finish verified pending cleanup only; no inputs.
+  Apply uses a per-portfolio writer lock; Portfolio Performance does not use it.
+  Daily backups are exact original snapshots; committed cleanup failures exit 4.
+  Never repeat an apply reported as committed; recover the pending cleanup.
 
 PDF purchase preview:
   import --pdf PATH          One readable .pdf; preview only, no --apply.
@@ -65,5 +70,5 @@ Queries preserve portfolio, metadata and configuration. No live prices or profit
 Launches create a due Berlin monthly backup; each backup-before-update call creates
 another exact backup. That command does not discover, build or activate updates.
 Exit codes: 0 success; 2 input/validation rejected; 3 operational failure;
-4 reserved for a completed financial change with failed follow-up work.
-Financial application and sale/dividend/FX statement layouts are pending.
+4 completed financial change with failed follow-up work.
+Sale/dividend/FX statement layouts and PDF application are pending.

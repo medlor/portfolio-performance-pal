@@ -278,6 +278,32 @@ with released_work() as temporary, server() as api:
     finally: api.routes[wrapper_route] = wrapper_release
     check(selected.read_bytes() == original and metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Failed preview protection changed financial bytes')
     print('PASS owner-injected/forged qualification refused, fixed active image, selected stale and release failure stop before preview')
+    if '--apply-slice' in sys.argv[2:]:
+        api.before[wrapper_route] = lambda: selected.write_bytes(original + b'\n')
+        try:
+            result = run(work, api, *purchase_args, '--apply', '--desktop-closed')
+            check(result.returncode == 3 and 'changed' in result.stderr.lower() and 'APPLIED PURCHASE' not in result.stdout, result.stderr)
+        finally:
+            api.before.pop(wrapper_route); selected.write_bytes(original)
+        wrapper_release = api.routes.pop(wrapper_route)
+        try:
+            result = run(work, api, *purchase_args, '--apply', '--desktop-closed')
+            check(result.returncode == 3 and 'released wrapper' in result.stderr.lower() and 'APPLIED PURCHASE' not in result.stdout, result.stderr)
+        finally: api.routes[wrapper_route] = wrapper_release
+        check(selected.read_bytes() == original and not list(work.glob('selected portfolio.xml.????-??-??.bak')), 'Rejected apply created financial/daily changes')
+        request_count = len(api.requests)
+        result = run(work, api, *purchase_args, '--apply', '--desktop-closed')
+        check(result.returncode == 0 and 'APPLIED PURCHASE' in result.stdout and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+        check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:] and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'Apply omitted mandatory release checks')
+        check((work / 'selected portfolio.xml.2026-10-07.bak').read_bytes() == original, 'Owner application daily backup not exact original')
+        check(metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Owner application changed metadata')
+        output = selected.read_bytes()
+        receipt = work / 'selected portfolio.xml.pp-pal-write.properties'
+        check('state=complete' in receipt.read_text(), 'Owner application receipt not finalized')
+        result = run(work, api, 'purchase', '--file', str(selected), '--recover-write', '--desktop-closed')
+        check(result.returncode == 2 and 'No pending' in result.stderr and selected.read_bytes() == output, 'Completed receipt allowed replay/recovery')
+        print('PASS actual released-owner apply uses mandatory fixed pair, exact original daily snapshot and completed nonreplay receipt on ' + active['image'])
+        sys.exit(0)
     if '--purchase-slice' in sys.argv[2:]:
         sys.exit(0)
 
