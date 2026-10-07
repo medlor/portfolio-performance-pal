@@ -48,6 +48,37 @@
         "holdings",
         "configuration"
       ]
+    },
+    {
+      "upstreamRelease": "0.88.0",
+      "upstreamRevision": "8de1fe41d71a2c1b74a6bfbe913f885899aaf123",
+      "sourceArchiveSha256": "ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656",
+      "dependencyReleaseArchiveSha256": "1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2",
+      "jdk": "Temurin 21.0.11+10-LTS",
+      "platform": "linux/amd64",
+      "image": "sha256:4f386e29190b6ccffab438721fd026e5f6dd7766dc18be9f3acfde47efe11573",
+      "input": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "output": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "migrations": [],
+      "fixtureVersion": "v1",
+      "validatedBy": "tests/all.sh",
+      "validatedOn": "2026-10-07",
+      "features": [
+        "headless-core-proof",
+        "holdings",
+        "configuration",
+        "monthly-launch-backups",
+        "exact-pre-upgrade-backups"
+      ],
+      "pendingValidation": [
+        "Monthly/update two-year pruning after successful financial replacement is wired and tested in #24."
+      ]
     }
   ]
 }
