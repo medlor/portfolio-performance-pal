@@ -4,7 +4,7 @@ import java.util.*;
 
 /** Shared command arguments. Each command explicitly validates its own options. */
 public record CommandLine(String command, Map<String, String> options) {
-    private static final Set<String> FLAGS = Set.of("help", "ascending", "include-zero", "resolve-file");
+    private static final Set<String> FLAGS = Set.of("help", "ascending", "include-zero", "resolve-file", "apply", "desktop-closed", "recover-write");
     public static CommandLine parse(String... args) {
         String command = null;
         var values = new LinkedHashMap<String, String>();

@@ -24,6 +24,9 @@
     "monthly-launch-backups",
     "exact-pre-upgrade-backups",
     "released-pair-updates",
-    "same-currency-purchase-preview"
+    "same-currency-purchase-preview",
+    "atomic-same-currency-purchase-application",
+    "verified-financial-write-recovery",
+    "successful-write-backup-retention"
   ]
 }

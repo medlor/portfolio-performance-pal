@@ -10,11 +10,10 @@ Current owner commands are `holdings`, `history`, `purchase`, `configure`, `back
 and `--update`. Developer diagnostics
 `inspect`, `roundtrip`, `prove` and `pdf` remain available through the **container**
 entry point for the runtime fixture gates; the host launcher exposes owner commands.
-Financial application and PDF import remain pending. Release discovery/validation/activation
+PDF import remains pending. Release discovery/validation/activation
 is implemented, with the initial released bootstrap package still a prerequisite.
 
-Exit 0 means a successful query/configuration/preview operation (later also
-successful write or confirmed re-import skip). Exit 2 rejects input or validation,
+Exit 0 means a successful query/configuration/preview or financial operation. Exit 2 rejects input or validation,
 including unknown/ambiguous account selectors, invalid options and unsupported
 portfolio representations. Exit 3 reports an operational failure, including an
 unavailable local image or inability to write explicit configuration. Exit 4 is
@@ -135,8 +134,8 @@ configuration bytes remain unchanged.
 
 ## Purchase preview
 
-`purchase` previews a same-currency purchase of an existing security; financial
-application is added separately by #24. Supply a required securities/cash account
+`purchase` defaults to a same-currency purchase preview of an existing security;
+`--apply --desktop-closed` commits a fresh plan as described below. Supply a required securities/cash account
 pair explicitly or through configuration, an exact `--security` selector, ISO
 `--date`, positive `--quantity`, and one or more of `--price`, `--gross`, or
 `--total` (booked debit). Optional `--fees` and `--taxes`
@@ -349,3 +348,72 @@ input and failed release discovery stopped before preview. Full updater isolatio
 retry and interruption checks also passed. The support matrix records these exact
 commands and distinguishes their composite result from an `all.sh` exit-0 result.
 Financial application and successful-write retention remain #24 work.
+
+## Purchase application and recovery
+
+`purchase --apply --desktop-closed` computes a fresh plan from this invocation's
+exact input snapshot after mandatory released-pair validation. Close Portfolio
+Performance before invoking it. `--desktop-closed` is your explicit declaration;
+the GUI does not participate in the persistent per-file `.pp-pal-write.lock`.
+Other wrapper writers fail rather than waiting or guessing. Preview is still the
+default, and no persisted preview approval is required.
+
+The shared Java `AtomicWriter` accepts a planner over an isolated pinned client
+and explicit appended transaction IDs/owners and optional new security IDs.
+It serializes in a private adjacent directory, reloads with the same pinned core,
+compares the complete planned state and verifies the complete original state after
+stripping exactly the declared additions. An undeclared reference to a new
+security prevents its removal from this validation projection. It preserves host
+ownership and permissions, forces staged bytes, checks exact input bytes, inode,
+parent identity, timestamps and permissions immediately before replacement, and
+uses [`SecureDirectoryStream.move`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/SecureDirectoryStream.html#move(T,java.nio.file.SecureDirectoryStream,T))
+within one filesystem; the Java API specifies an atomic move, with existing-target
+replacement determined by the provider. Linux acceptance tests
+exercise real replacement and refusal; there is no copy fallback. Filesystem
+permissions and explicit desktop closure remain prerequisites; an uncooperative
+external writer cannot be coordinated through a wrapper-only lock.
+
+Before replacement, `<filename>.YYYY-MM-DD.bak` protects the exact original input
+for the Berlin day. A pre-existing readable regular file satisfies this existence
+requirement and is never overwritten or adopted, even if its contents differ.
+A symlink, special file, unreadable file or required backup failure stops the
+write. Owned backups and receipts use mode 0600; the financial output retains the
+input's restrictive permissions. Import metadata and configuration are unchanged.
+
+Only a committed financial write prunes owned daily backups: the three most
+recent dates per month in the current and preceding 23 Berlin calendar months,
+or every date if fewer than three. Future dates and foreign lookalikes remain.
+Monthly/update backups use their separate strict two-year creation-time cutoff.
+The `pp-pal-backups-v1` ownership index records each basename's `kind`, `created`,
+`sha256`, and `date` (daily) or `month` (monthly). Daily names must agree exactly
+with their date. Cleanup validates candidate hashes before deleting and persists
+`<basename>.prune=pending` first, so partial unlink/index failures can resume.
+Launches, previews and failed plans never prune. Malformed/tampered ownership
+refuses deletion and reports recovery after a committed write.
+
+A private `.pp-pal-write.properties` receipt records exact input/output hashes,
+new IDs, daily protection and `prepared`, `committed` or `complete` state. The
+receipt is durable before rename. Once rename returns, every later failure,
+including receipt, observer, retention or resource-close errors, reports the
+financial change as committed with exit 4 and recovery information. **Do not
+repeat that application.** Ordinary apply seeing a pending committed receipt
+also returns 4 without inserting records.
+
+`purchase --recover-write --desktop-closed` accepts only shared path/config
+options and no financial inputs. Under the same lock, exact output hash and
+present-once transaction identities permit cleanup only, with no replanning or
+insertion. Exact unchanged input with a prepared intent permits aborting its
+verified private staging, reporting `NO FINANCIAL CHANGE` without pruning.
+Any other current state refuses automatic recovery. A complete receipt does not
+block a later explicitly requested fresh manual purchase; it is not duplicate
+import metadata.
+
+`PP_PAL_WRITE_OBSERVER` is a test-only Unix socket inside an explicitly marked
+disposable fixture directory (`.pp-pal-disposable-fixture` contains
+`pp-pal-write-observer-v1` and a newline). The peer must share the container/host
+UID. It acknowledges `before-final-check` and `committed-before-follow-up` within
+ten seconds, with no operation bypass or executable hook. Wrong peers, replies
+and timeouts fail closed; a failure after rename remains committed/exit 4.
+`tests/purchase-apply.sh` exercises the real owner and disposable container
+filesystem, including deterministic interruption, stale bytes/inodes, unsafe
+staging, Linux permissions, calendar cutoffs and independent pinned model checks.

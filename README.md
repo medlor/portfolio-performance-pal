@@ -1,6 +1,6 @@
 # Portfolio Performance Pal
 
-A Linux CLI around Portfolio Performance's Java core. Holdings, transaction history, explicit account configuration and monthly/pre-upgrade backups and validated local release updates are implemented. Same-currency manual purchase preview is implemented with mandatory release validation. Financial application, sales/dividends and Smartbroker import are pending.
+A Linux CLI around Portfolio Performance's Java core. Holdings, transaction history, explicit account configuration and monthly/pre-upgrade backups and validated local release updates are implemented. Same-currency manual purchase preview/application is implemented with mandatory release validation, atomic replacement, daily protection and verified cleanup recovery. Sales/dividends and Smartbroker import are pending.
 
 Build the pinned local Java/Docker runtime and run the cumulative fixture checks:
 
