@@ -1,8 +1,8 @@
 # Upgrading Portfolio Performance support
 
-The wrapper reuses upstream Java persistence and models. This does not establish rewrite safety or promise stable exported APIs. No combinations or executable checks are validated yet; establish the following evidence before enabling writes.
+The wrapper reuses upstream Java persistence and models. This does not establish rewrite safety or promise stable exported APIs. The pinned model 70 headless runtime and cumulative query/backup checks are validated in `runtime/support-matrix.json`. Financial writes remain pending; preserve the following evidence requirements before enabling them.
 
-Normal commands use a pinned Portfolio Performance version and locally built image. Provide a documented upgrade script through the shell launcher's `--update` option, targeting the latest stable upstream release. Build the candidate locally and activate it only after compatibility checks pass. If building or validation fails, keep the previous working image active and leave the portfolio untouched; report adapter maintenance required when upstream changes prevent an upgrade. The command does not exist yet. The workflow must not publish the wrapper image to an external registry.
+Normal commands use a pinned Portfolio Performance version and locally built image. Provide a documented upgrade script through the shell launcher's `--update` option, targeting the latest stable upstream release. Build the candidate locally and activate it only after compatibility checks pass. If building or validation fails, keep the previous working image active and leave the portfolio untouched; report adapter maintenance required when upstream changes prevent an upgrade. The command is implemented; [local updater and bootstrap packaging](local-updater.md) documents its release prerequisite and gates. The workflow must not publish the wrapper image to an external registry.
 
 Also fetch released wrapper updates through explicit tags resolved to immutable revisions. Build in isolated checkouts without altering the owner's repository or generating code/test fixes. Validate and activate the wrapper/upstream pair together, recording both revisions and retaining the previous pair on failure.
 
@@ -21,7 +21,7 @@ Create a portfolio backup before each actual upgrade attempt; unchanged-release 
 
 ## Automated update design
 
-Automate the mechanical procedure while keeping validation rules and expected fixture results independent of the candidate release. This is the selected design, not an implemented updater; [ADR 0004](adr/0004-validate-local-updates-before-processing.md) records its trade-off.
+Automate the mechanical procedure while keeping validation rules and expected fixture results independent of the candidate release. The implemented updater follows this procedure; [ADR 0004](adr/0004-validate-local-updates-before-processing.md) records its trade-off.
 
 [Upstream research notes](update-automation-research.md) document release discovery, immutable source resolution, build dependencies, and the headless packaging questions still to prove.
 
@@ -33,6 +33,6 @@ Automate the mechanical procedure while keeping validation rules and expected fi
 5. Activate only a passing candidate through an atomic change to the active manifest selecting the released wrapper implementation and image together, retaining the previous validated pair. Interruptions before activation leave the previous manifest usable. Updating does not modify the portfolio or import bookkeeping.
 6. Start the requested preview/import with the selected image fixed for the invocation. Report update failures and stop the requested operation rather than silently continuing with the older image.
 
-`--update` activates a passing candidate automatically; it does not require `--apply`. Reserve `--apply` for recording financial changes. Update-only invocations leave the original portfolio unchanged. The initial headless build/runtime proof must determine the packaging recipe; it has not been established yet.
+`--update` activates a passing candidate automatically; it does not require `--apply`. Reserve `--apply` for recording financial changes. Update-only invocations leave the original portfolio unchanged. The source-built core recipe is proved for upstream 0.88.0; candidates use its reviewed archive-input variant with immutable revisions and verified digests. Unknown adapter changes stop the update.
 
 Use the selected upstream checkout's contributor instructions and persistence/model tests as starting points. Concrete upgrade records must link to pinned revisions and include reproducible validation commands.

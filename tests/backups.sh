@@ -2,12 +2,13 @@
 set -euo pipefail
 if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
 root=$(cd "$(dirname "$0")/.." && pwd)
+launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 fail_with() {
   local expected=$1; shift
   set +e
-  "$root/pp-pal" "$@" > "$work/rejected-output" 2> "$work/rejected-error"
+  "$launcher" "$@" > "$work/rejected-output" 2> "$work/rejected-error"
   local status=$?
   set -e
   test "$status" = "$expected"
@@ -18,7 +19,7 @@ cp "$root/fixtures/v1/portfolio.xml" "$work/working directory/portfolio_performa
 chmod 600 "$work/working directory/portfolio_performance.xml"
 cd "$work/working directory"
 export PP_PAL_NOW=2026-03-31T21:59:59Z
-"$root/pp-pal" holdings > "$work/holdings"
+"$launcher" holdings > "$work/holdings"
 mapfile -t snapshots < <(find . -maxdepth 1 -name 'portfolio_performance.xml.pp-pal.monthly.2026-03.*.bak')
 test "${#snapshots[@]}" = 1
 cmp "${snapshots[0]}" "$root/fixtures/v1/portfolio.xml"
@@ -29,19 +30,19 @@ printf 'unchanged adjacent metadata\n' > portfolio_performance.xml.pp-pal.json
 cp portfolio_performance.xml.pp-pal.json "$work/metadata-before"
 index=portfolio_performance.xml.pp-pal-backups.properties
 cp "$index" "$work/index-before"
-"$root/pp-pal" holdings > "$work/holdings"
+"$launcher" holdings > "$work/holdings"
 cmp "$work/index-before" "$index"
 test "$(find . -maxdepth 1 -name 'portfolio_performance.xml.pp-pal.monthly.*.bak' | wc -l)" = 1
 export PP_PAL_NOW=2026-03-31T22:00:00Z
-"$root/pp-pal" holdings > "$work/holdings"
+"$launcher" holdings > "$work/holdings"
 test "$(find . -maxdepth 1 -name 'portfolio_performance.xml.pp-pal.monthly.2026-04.*.bak' | wc -l)" = 1
 cmp "${snapshots[0]}" "$root/fixtures/v1/portfolio.xml"
 echo 'PASS launch protects the selected portfolio with an exact Berlin-month snapshot'
-"$root/pp-pal" backup-before-update > "$work/update-result"
+"$launcher" backup-before-update > "$work/update-result"
 mapfile -t updates < <(find . -maxdepth 1 -name 'portfolio_performance.xml.pp-pal.update.*.bak')
 test "${#updates[@]}" = 1
 cmp "${updates[0]}" "$root/fixtures/v1/portfolio.xml"
-"$root/pp-pal" backup-before-update > "$work/update-result"
+"$launcher" backup-before-update > "$work/update-result"
 mapfile -t updates < <(find . -maxdepth 1 -name 'portfolio_performance.xml.pp-pal.update.*.bak')
 test "${#updates[@]}" = 2
 cmp "${updates[0]}" "${updates[1]}"
@@ -51,17 +52,17 @@ echo 'PASS each upgrade attempt preserves an exact, nonoverwriting snapshot'
 # Old tool-owned snapshots survive launch and upgrade protection. Only a later
 # successful financial write is permitted to call the two-year pruning hook.
 export PP_PAL_NOW=2023-01-15T12:00:00Z
-"$root/pp-pal" backup-before-update > "$work/old-update-result"
+"$launcher" backup-before-update > "$work/old-update-result"
 old_update=$(cat "$work/old-update-result")
 mapfile -t old_monthly < <(find . -maxdepth 1 -name 'portfolio_performance.xml.pp-pal.monthly.2023-01.*.bak')
 test "${#old_monthly[@]}" = 1
 printf 'unowned lookalike\n' > portfolio_performance.xml.pp-pal.monthly.2023-02.external.bak
 export PP_PAL_NOW=2026-10-31T22:59:59Z
-"$root/pp-pal" holdings > "$work/holdings"
+"$launcher" holdings > "$work/holdings"
 test "$(find . -maxdepth 1 -name 'portfolio_performance.xml.pp-pal.monthly.2026-10.*.bak' | wc -l)" = 1
 test "$(find . -maxdepth 1 -name 'portfolio_performance.xml.pp-pal.monthly.2026-09.*.bak' | wc -l)" = 0
 export PP_PAL_NOW=2026-10-31T23:00:00Z
-"$root/pp-pal" backup-before-update > "$work/update-result"
+"$launcher" backup-before-update > "$work/update-result"
 test "$(find . -maxdepth 1 -name 'portfolio_performance.xml.pp-pal.monthly.2026-11.*.bak' | wc -l)" = 1
 cmp "$old_update" "$root/fixtures/v1/portfolio.xml"
 cmp "${old_monthly[0]}" "$root/fixtures/v1/portfolio.xml"
@@ -78,13 +79,13 @@ cp "$root/fixtures/v1/portfolio.xml" "$work/portfolio location/selected portfoli
 printf 'file=../portfolio location/selected portfolio.xml\n' > "$work/config location/external.properties"
 cp "$work/config location/external.properties" "$work/config-before"
 ln -s "$work/config location/external.properties" config-link.properties
-"$root/pp-pal" backup-before-update --config config-link.properties > "$work/config-backup"
+"$launcher" backup-before-update --config config-link.properties > "$work/config-backup"
 mapfile -t configured < <(find "$work/portfolio location" -maxdepth 1 -name 'selected portfolio.xml.pp-pal.update.*.bak')
 test "${#configured[@]}" = 1
 cmp "${configured[0]}" "$root/fixtures/v1/portfolio.xml"
 cmp "$work/config-before" "$work/config location/external.properties"
 cp "$root/fixtures/v1/portfolio.xml" override.xml
-"$root/pp-pal" backup-before-update --config config-link.properties --file override.xml > "$work/override-backup"
+"$launcher" backup-before-update --config config-link.properties --file override.xml > "$work/override-backup"
 mapfile -t overridden < <(find . -maxdepth 1 -name 'override.xml.pp-pal.update.*.bak')
 test "${#overridden[@]}" = 1
 cmp "${overridden[0]}" "$root/fixtures/v1/portfolio.xml"
@@ -92,7 +93,7 @@ echo 'PASS backup selection preserves external configuration paths and explicit 
 
 # Backup raw input without requiring the active reader to support its model.
 printf '<future-model>raw immutable bytes</future-model>\n' > future.xml
-"$root/pp-pal" backup-before-update --file future.xml > "$work/future-backup"
+"$launcher" backup-before-update --file future.xml > "$work/future-backup"
 cmp future.xml "$(cat "$work/future-backup")"
 fail_with 2 holdings --file future.xml
 cmp future.xml "$(cat "$work/future-backup")"
@@ -119,7 +120,7 @@ echo 'PASS unrecognized ownership markers and symlinked backup paths stop protec
 # A replaced or removed required monthly snapshot is uncertainty, not permission
 # to overwrite it or to continue the protected command.
 cp "$root/fixtures/v1/portfolio.xml" tampered.xml
-"$root/pp-pal" holdings --file tampered.xml > "$work/holdings"
+"$launcher" holdings --file tampered.xml > "$work/holdings"
 mapfile -t tampered < <(find . -maxdepth 1 -name 'tampered.xml.pp-pal.monthly.*.bak')
 printf 'changed by another writer\n' > "${tampered[0]}"
 fail_with 3 backup-before-update --file tampered.xml
@@ -135,7 +136,7 @@ cmp "$work/read only directory/selected.xml" "$root/fixtures/v1/portfolio.xml"
 chmod 700 "$work/read only directory"
 test "$(find "$work/read only directory" -maxdepth 1 -name '*.bak' | wc -l)" = 0
 cp "$root/fixtures/v1/portfolio.xml" readonly-index.xml
-"$root/pp-pal" holdings --file readonly-index.xml > "$work/holdings"
+"$launcher" holdings --file readonly-index.xml > "$work/holdings"
 chmod 400 readonly-index.xml.pp-pal-backups.properties
 fail_with 3 backup-before-update --file readonly-index.xml
 cmp readonly-index.xml "$root/fixtures/v1/portfolio.xml"

@@ -2,6 +2,7 @@
 set -euo pipefail
 if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
 root=$(cd "$(dirname "$0")/.." && pwd)
+launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 mkdir "$work/history directory"
@@ -11,7 +12,7 @@ cp "$root/fixtures/v1/history-portfolio.xml" history-portfolio.xml
 printf 'unchanged sidecar\n' > portfolio_performance.xml.pp-pal.json
 cp portfolio_performance.xml.pp-pal.json "$work/metadata-before"
 docker run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "${PP_PAL_IMAGE:-pp-pal:0.88.0}" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/DividendRelevanceOracle.java /fixtures/v1/history-portfolio.xml
-"$root/pp-pal" history --security Beta --limit 0 > "$work/actual"
+"$launcher" history --security Beta --limit 0 > "$work/actual"
 cat > "$work/expected" <<'EXPECTED'
 DATE/TIME | TYPE | SECURITY | QUANTITY | RECORDED AMOUNT | SECURITIES ACCOUNT | CASH ACCOUNT
 2025-01-21T11:00:00 | DIVIDEND | Beta Instrument | 0 | EUR 1.00 | Twin Depot [30000000-0000-4000-8000-000000000001] | Shared Cash
@@ -19,12 +20,12 @@ DATE/TIME | TYPE | SECURITY | QUANTITY | RECORDED AMOUNT | SECURITIES ACCOUNT | 
 2025-01-09T08:00:00 | PURCHASE | Beta Instrument | 5 | EUR 50.00 | Twin Depot [30000000-0000-4000-8000-000000000001] | Shared Cash
 EXPECTED
 diff -u "$work/expected" "$work/actual"
-"$root/pp-pal" history --file history-portfolio.xml --security Beta --limit 0 > "$work/actual"
+"$launcher" history --file history-portfolio.xml --security Beta --limit 0 > "$work/actual"
 diff -u "$work/expected" "$work/actual"
-"$root/pp-pal" history --file history-portfolio.xml --security Alpha --type dividend --limit 0 > "$work/actual"
+"$launcher" history --file history-portfolio.xml --security Alpha --type dividend --limit 0 > "$work/actual"
 test "$(rg -c '^2025-01-20T11:00:00' "$work/actual")" = 2
 test "$(wc -l < "$work/actual")" = 4
-query() { "$root/pp-pal" history "$@"; }
+query() { "$launcher" history "$@"; }
 query --security Alpha --type dividend --limit 0 > "$work/actual"
 cat > "$work/expected" <<'EXPECTED'
 DATE/TIME | TYPE | SECURITY | QUANTITY | RECORDED AMOUNT | SECURITIES ACCOUNT | CASH ACCOUNT

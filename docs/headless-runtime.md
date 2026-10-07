@@ -39,8 +39,8 @@ commands; `roundtrip` and `prove` write their explicitly selected disposable
 output. They are not yet the owner's transaction CLI or safe portfolio writer.
 The owner-facing launcher now provides read-only `holdings`/`history` and explicit
 `configure`; see `docs/cli.md`. Its cumulative gate is `tests/all.sh`.
-Use temporary files when running them. Subsequent tickets add preview, update,
-backup, writer coordination and atomic replacement at the owner-facing boundary.
+Use temporary files when running them. The launcher now includes monthly/pre-upgrade protection and released-pair updates.
+Subsequent tickets add preview, writer coordination and financial atomic replacement.
 
 ## Headless adapter change
 

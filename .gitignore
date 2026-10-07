@@ -1,3 +1,6 @@
 portfolio_performance.xml
 *.backup.xml
 *.backup-after-open.xml
+# Local build inputs and Python host-orchestration bytecode
+runtime/build-inputs/
+__pycache__/
