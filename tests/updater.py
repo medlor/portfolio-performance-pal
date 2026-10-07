@@ -220,6 +220,53 @@ with released_work() as temporary, server() as api:
     check(metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Metadata changed')
     print('PASS released immutable pair builds, passes trusted gates, validates local selected copy and activates')
 
+    purchase_args = ('purchase', '--file', str(selected), '--security', 'DE0000000001',
+        '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A',
+        '--date', '2025-03-01', '--quantity', '2.5', '--price', '10', '--fees', '1', '--taxes', '0.50')
+    request_count = len(api.requests)
+    result = run(work, api, *purchase_args)
+    check(result.returncode == 0 and 'PREVIEW PURCHASE' in result.stdout and 'BOOKED DEBIT EUR 26.50 (derived' in result.stdout, result.stderr + result.stdout)
+    check('UNCHANGED' in result.stderr and 'ENGINE IMAGE ' + active['image'] in result.stdout, 'Preview did not use the freshly checked fixed pair')
+    check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:] and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'Preview omitted mandatory releases')
+    check(selected.read_bytes() == original and metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Preview changed financial/import bytes')
+    check(not list(work.glob('selected portfolio.xml.????-??-??.bak')) and not list(work.glob('selected portfolio.xml.pp-pal.migration.*.bak')), 'Preview created daily/migration backups')
+    print('PASS mandatory-release fixed-engine purchase preview on released image ' + active['image'])
+    # Owner supplied qualification signals never grant candidate reuse.
+    result = run(work, api, *purchase_args, PP_PAL_GATE_SOCKET=str(work / 'expired.sock'))
+    check(result.returncode == 3 and 'qualification' in result.stderr.lower() and 'PREVIEW PURCHASE' not in result.stdout, result.stderr)
+    import socket
+    fake = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    fake_path = str(work / 'fake.sock'); fake.bind(fake_path); fake.listen(1)
+    def fake_qualifier():
+        connection, _ = fake.accept()
+        with connection:
+            try: connection.sendall(json.dumps(active).encode())
+            except BrokenPipeError: pass
+    fake_thread = threading.Thread(target=fake_qualifier, daemon=True); fake_thread.start()
+    try:
+        result = run(work, api, *purchase_args, PP_PAL_GATE_SOCKET=fake_path)
+        check(result.returncode == 3 and 'trusted updater' in result.stderr.lower() and 'PREVIEW PURCHASE' not in result.stdout, result.stderr)
+    finally: fake.close(); fake_thread.join(timeout=5)
+    # A generic development-image override cannot change the checked active pair.
+    result = run(work, api, *purchase_args, PP_PAL_IMAGE='missing-owner-image')
+    check(result.returncode == 0 and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr)
+    wrapper_route = '/repos/medlor/portfolio-performance-pal/releases/latest'
+    api.before[wrapper_route] = lambda: selected.write_bytes(original + b'\n')
+    try:
+        result = run(work, api, *purchase_args)
+        check(result.returncode == 3 and 'changed' in result.stderr.lower() and 'PREVIEW PURCHASE' not in result.stdout, result.stderr)
+    finally:
+        api.before.pop(wrapper_route); selected.write_bytes(original)
+    wrapper_release = api.routes.pop(wrapper_route)
+    try:
+        result = run(work, api, *purchase_args)
+        check(result.returncode == 3 and 'released wrapper' in result.stderr.lower() and 'PREVIEW PURCHASE' not in result.stdout, result.stderr)
+    finally: api.routes[wrapper_route] = wrapper_release
+    check(selected.read_bytes() == original and metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Failed preview protection changed financial bytes')
+    print('PASS owner-injected/forged qualification refused, fixed active image, selected stale and release failure stop before preview')
+    if '--purchase-slice' in sys.argv[2:]:
+        sys.exit(0)
+
     expected_attempts = len(list(work.glob('selected portfolio.xml.pp-pal.update.*.bak')))
     before = (work / 'state/active.json').read_bytes()
     request_count = len(api.requests)

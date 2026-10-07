@@ -91,3 +91,19 @@ pre-activation failure or interruption.
 API or a loopback HTTP fixture server. The integration gate serves actual tagged
 Git snapshots and pinned public upstream archives through this boundary; it does
 not bypass building, independent gates, selected-copy validation or activation.
+
+Purchase preview always calls `prepare_processing` before constructing its financial
+plan. Compatibility checks need to exercise that same boundary on a candidate
+which is still under validation. A private 0600 Unix socket owned by the live
+trusted updater qualifies only its descendant check processes. The client verifies
+the peer PID, ancestry and exact trusted bootstrap bytes; reuse additionally checks
+the wrapper/upstream tags and revisions, image identity, trusted suite, candidate
+tree, official dependency digest and the previously downloaded archives. Release
+discovery, disposable selected-file validation and stale checks still run. The
+qualification lasts only for fixed checks and cannot activate the pair. Generic
+owner environment injection, expired/fake parents or any mismatch fail closed.
+
+The reviewed release package now declares purchase preview in its feature policy,
+and its trusted gate registry includes `tests/purchase.sh`. A wrapper changing the
+feature policy or host validator still requires reviewed bootstrap maintenance.
+Financial application and successful-write backup retention remain separate work.

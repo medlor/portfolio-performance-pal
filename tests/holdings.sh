@@ -133,7 +133,7 @@ cmp query.xml "$root/fixtures/v1/query-portfolio.xml"
 cmp query.xml.pp-pal.json "$work/metadata-before"
 test ! -e pp-pal.properties
 mkdir "$work/help-bin"
-for tool in bash cat dirname; do ln -s "$(command -v "$tool")" "$work/help-bin/$tool"; done
+for tool in bash cat dirname readlink; do ln -s "$(command -v "$tool")" "$work/help-bin/$tool"; done
 PATH="$work/help-bin" "$launcher" --config /absent --help > "$work/help"
 rg -q '^Usage: pp-pal COMMAND' "$work/help"
 echo 'PASS holdings controls, stable ties, transfer/delivery, configuration paths/IDs, host ownership, immutability, errors, Docker-free help'

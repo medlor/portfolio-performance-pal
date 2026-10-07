@@ -6,14 +6,14 @@ unknown options fail. Names and paths with spaces must be quoted. `--help` is
 handled by the host launcher before Docker, configuration or portfolio lookup.
 The Java dispatcher uses the same `runtime/help.txt` text.
 
-Current owner commands are `holdings`, `history`, `configure`, `backup-before-update`,
+Current owner commands are `holdings`, `history`, `purchase`, `configure`, `backup-before-update`,
 and `--update`. Developer diagnostics
 `inspect`, `roundtrip`, `prove` and `pdf` remain available through the **container**
 entry point for the runtime fixture gates; the host launcher exposes owner commands.
-Transactions and PDF import remain pending. Release discovery/validation/activation
+Financial application and PDF import remain pending. Release discovery/validation/activation
 is implemented, with the initial released bootstrap package still a prerequisite.
 
-Exit 0 means a successful query/configuration operation (later also preview,
+Exit 0 means a successful query/configuration/preview operation (later also
 successful write or confirmed re-import skip). Exit 2 rejects input or validation,
 including unknown/ambiguous account selectors, invalid options and unsupported
 portfolio representations. Exit 3 reports an operational failure, including an
@@ -133,6 +133,58 @@ valid records and irrelevant security/cash combinations; it is copied into a
 temporary directory for owner CLI tests. Financial portfolio, import sidecar and
 configuration bytes remain unchanged.
 
+## Purchase preview
+
+`purchase` previews a same-currency purchase of an existing security; financial
+application is added separately by #24. Supply a required securities/cash account
+pair explicitly or through configuration, an exact `--security` selector, ISO
+`--date`, positive `--quantity`, and one or more of `--price`, `--gross`, or
+`--total` (booked debit). Optional `--fees` and `--taxes`
+default to zero. Security selection accepts an exact stable UUID, external
+identifier, or exact name. `--security-id`, `--isin`, `--wkn`, and `--ticker`
+add exact constraints; their intersection must select one existing definition.
+An ambiguous name plus a stable UUID can resolve one security; contradictory
+constraints reject. Fuzzy query name filtering does not select
+financial records. Currency must agree between the security and selected cash
+account. Linked proposed records use the upstream BuySellEntry and monetary units.
+
+The launcher performs mandatory release discovery and selected-file validation
+before constructing a plan, then fixes the selected immutable image for that
+invocation. Preview shows that image, the input/output model version, accounts,
+existing security, quantity, currencies, fee/tax/booked values and their origins.
+Missing time defaults to `11:00:00` and is marked as a fallback. Explicit local
+times, including midnight and fractional seconds, retain their supplied value.
+Portfolio, import metadata and configuration remain byte-for-byte unchanged;
+permitted launch/update protection is distinct from financial daily/migration
+backups. No FIFO, profit, prices or rates are fetched or persisted.
+
+Share quantities and supplied prices must be exactly representable at upstream
+8-place scales; explicit fees/taxes are exact cents. Trailing zeros are harmless.
+Price times quantity is multiplied exactly before derived gross is rounded
+HALF_UP to cents; booked debit adds fees and taxes with checked integer arithmetic.
+Gross/booked values are exact cents too. Supplied values must agree with rounded
+quantity times price and gross plus costs. When price is absent, gross divided by
+quantity gives a display value rounded HALF_EVEN to eight places, checked against
+the upstream quote range. The derived quote is not persisted as a price record.
+Values exceeding scaled integer range or containing nonzero excess precision
+reject. Positive-quantity purchases can have zero booked value when their gross
+rounds to zero; preview explicitly shows the zero and its derivation.
+
+`Purchase.plan(Client, Portfolio, Account, CommandLine)` returns one detached
+`Purchase.Plan` containing the actual linked upstream entry and its amount origins;
+it does not insert into account lists or save anything. The subsequent writer can
+consume that plan once against its invocation's snapshot; a PDF planner can share
+`Amounts` and exact `Securities.existing` selection. Each invocation plans anew.
+
+The fixed updater gates exercise the real released purchase launcher. During those
+checks, only descendants of the live identical trusted updater can obtain a
+temporary Unix-socket qualification for its exact built wrapper/upstream/image,
+reviewed suite and checked archive bytes. They still discover releases, validate
+the selected disposable portfolio and recheck staleness; they reuse the built pair
+without recursively invoking its gates. Qualification cannot activate a production
+pair. Owner-injected, expired, foreign-parent or mismatching qualifications fail
+closed; there is no owner option to skip the update workflow.
+
 ## Linux launcher and maintenance seams
 
 The host dispatcher requires Python 3.10+, Docker and standard Linux core utilities. It resolves
@@ -162,7 +214,11 @@ resolved-path options are reserved and cannot be supplied by an owner invocation
 
 `tests/all.sh [IMAGE]` is the cumulative compatibility gate. It currently runs
 real core/PDF runtime tests and the owner-facing holdings/configuration/history/backup
-and released-pair updater tests.
+and released-pair updater tests, including trusted purchase compatibility checks.
+`tests/purchase.sh` runs within the real updater's candidate qualification so it
+exercises mandatory preparation without a developer/owner bypass. Its expected
+financial values and `PurchaseOracle.java` come from the trusted bundle, while
+released candidate archives contain no fixtures.
 Each new feature must append its independent fixture-backed gate there so an
 update candidate cannot validate only the earlier core smoke test. The updater
 must use checked-in expectations, never regenerate them from the candidate.
@@ -271,3 +327,25 @@ cache reuse, discovery and integrity failures, stale input, safe retry and
 interrupted activation. The separate official GitHub prerequisite check confirmed
 that absence of a stable wrapper release stops without activating or changing the
 synthetic selected portfolio.
+
+The purchase preview boundary passed on 2026-10-07 with retained local image
+`sha256:1c10ae5ae30305afe1cfc441879bc0415a6cea036da1d0c2d9ab29618b383ffa`
+(`pp-pal:validated-issue23-1c10ae5ae303`). Composite verification consists of the
+runtime, holdings/configuration, history and backup suites passing in `tests/all.sh`,
+then the complete `tests/updater.sh` exiting 0 on the same image and host code.
+The original cumulative run stopped at a midnight assertion's regular-expression
+typo; only that assertion was corrected before the scoped updater rerun. Its
+trusted candidate gates repeat every feature suite, including exact purchase
+amount/range/contradiction cases, required accounts and identifiers, configured
+paths/overrides and installed symlinks, timestamps, preserved financial/metadata/
+configuration and old daily/migration backups, and the public upstream model oracle.
+
+The actual tagged released candidate
+`sha256:6b2b9d014316c4af0e89fbd2c8d6e826c0cd44f52a0ca1de043cbbc3a4d97863`
+passed activation and mandatory owner preview. Live fixed-check qualification
+rejected changed images, candidate trees, trusted bundles, wrapper/upstream
+revisions and dependency digests. Owner-forged/expired qualification, stale selected
+input and failed release discovery stopped before preview. Full updater isolation,
+retry and interruption checks also passed. The support matrix records these exact
+commands and distinguishes their composite result from an `all.sh` exit-0 result.
+Financial application and successful-write retention remain #24 work.
