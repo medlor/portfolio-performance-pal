@@ -16,5 +16,14 @@
   "layouts": [
     "Baader synthetic domestic purchase PDF/text v1 only"
   ],
-  "bootstrapProtocol": 1
+  "bootstrapProtocol": 1,
+  "features": [
+    "holdings",
+    "history",
+    "configuration",
+    "monthly-launch-backups",
+    "exact-pre-upgrade-backups",
+    "released-pair-updates",
+    "same-currency-purchase-preview"
+  ]
 }
