@@ -27,6 +27,9 @@
     "exact-pre-upgrade-backups",
     "released-pair-updates",
     "same-currency-purchase-preview",
-    "baader-purchase-pdf-preview"
+    "baader-purchase-pdf-preview",
+    "atomic-same-currency-purchase-application",
+    "verified-financial-write-recovery",
+    "successful-write-backup-retention"
   ]
 }
