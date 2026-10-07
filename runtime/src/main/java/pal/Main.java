@@ -18,7 +18,7 @@ public final class Main {
                 case "holdings" -> line.allow(Set.of("securities-account", "cash-account", "security", "sort", "ascending", "limit", "include-zero"));
                 case "history" -> line.allow(Set.of("securities-account", "cash-account", "security", "type", "from", "to", "sort", "ascending", "limit"));
                 case "configure" -> line.allow(Set.of("securities-account", "cash-account"));
-                case "backup-before-update" -> line.allow(Set.of());
+                case "backup-monthly", "backup-before-update" -> line.allow(Set.of());
                 default -> throw new IllegalArgumentException("Unknown command: " + line.command());
             }
             var cwd = Path.of(System.getProperty("user.dir"));
@@ -28,6 +28,7 @@ public final class Main {
             if (!Files.isRegularFile(file) || !Files.isReadable(file)) throw new IllegalArgumentException("Portfolio is not a readable regular file: " + file);
             var backups = new BackupService(file, BackupService.launchClock());
             backups.monthly();
+            if (line.command().equals("backup-monthly")) return 0;
             if (line.command().equals("backup-before-update")) {
                 System.out.println(backups.beforeUpgrade());
                 return 0;
