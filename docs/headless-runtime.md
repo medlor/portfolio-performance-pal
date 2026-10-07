@@ -37,6 +37,8 @@ The wrapper provides `pal.Core.load(Path)`, `save(Client, Path)`,
 container commands `inspect`, `roundtrip`, `prove`, and `pdf` are developer proof
 commands; `roundtrip` and `prove` write their explicitly selected disposable
 output. They are not yet the owner's transaction CLI or safe portfolio writer.
+The owner-facing launcher now provides read-only `holdings` and explicit
+`configure`; see `docs/cli.md`. Its cumulative gate is `tests/all.sh`.
 Use temporary files when running them. Subsequent tickets add preview, update,
 backup, writer coordination and atomic replacement at the owner-facing boundary.
 

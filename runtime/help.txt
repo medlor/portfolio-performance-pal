@@ -1,0 +1,26 @@
+Usage: pp-pal COMMAND [OPTIONS]
+
+Commands:
+  holdings   Show recorded quantities by security and securities account.
+  configure  Save portfolio path and resolved default account IDs explicitly.
+
+Shared options:
+  --file PATH                 Override selected portfolio (relative to cwd).
+  --config PATH               Select UTF-8 pp-pal.properties configuration.
+  --securities-account ID|NAME  Stable ID or exact unique securities account name.
+  --cash-account ID|NAME      Stable ID or exact unique cash account name.
+  --help                     Show this help without Docker or a portfolio.
+
+Holdings options:
+  --security IDENTIFIER|TEXT  Exact ID/ISIN/WKN/ticker, or name substring.
+  --sort updated|name|quantity  Default updated, descending.
+  --ascending                Reverse the primary sort; stable ties remain ascending.
+  --include-zero             Include closed holdings.
+  --limit NUMBER             Default 15; 0 means unlimited.
+
+Configuration defaults: pp-pal.properties in cwd; portfolio_performance.xml in cwd.
+Configured file paths resolve relative to the configuration directory.
+Queries preserve portfolio, metadata and configuration. No live prices or profit.
+Exit codes: 0 success; 2 input/validation rejected; 3 operational failure;
+4 reserved for a completed financial change with failed follow-up work.
+History, mutations, updates and statement import are not implemented yet.
