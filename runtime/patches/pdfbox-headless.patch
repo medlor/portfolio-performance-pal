@@ -1,0 +1,12 @@
+--- a/name.abuchen.portfolio.pdfbox3/src/name/abuchen/portfolio/pdfbox3/PDFBox3Adapter.java
++++ b/name.abuchen.portfolio.pdfbox3/src/name/abuchen/portfolio/pdfbox3/PDFBox3Adapter.java
+@@ -22,6 +22,8 @@
+ 
+     public String getPDFBoxVersion()
+     {
+-        return FrameworkUtil.getBundle(PDDocument.class).getVersion().toString();
++        var bundle = FrameworkUtil.getBundle(PDDocument.class);
++        return bundle != null ? bundle.getVersion().toString()
++                        : org.apache.pdfbox.util.Version.getVersion();
+     }
+ }
