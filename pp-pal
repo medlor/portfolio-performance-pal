@@ -37,6 +37,7 @@ mount() {
 mount "$cwd" ro
 mount "$config_parent" ro
 base=(docker run --rm --network none --user "$(id -u):$(id -g)" --workdir "$cwd")
+if [[ -n ${PP_PAL_NOW+x} ]]; then base+=(--env PP_PAL_NOW); fi
 status() {
   case $1 in 0|2|3|4) exit "$1";; *) echo "ERROR: Docker command failed (status $1)" >&2; exit 3;; esac
 }
@@ -45,10 +46,10 @@ if file=$("${base[@]}" "${mounts[@]}" "$image" "${args[@]}" --resolved-config "$
 file=$(realpath -e -- "$file") || fail "Portfolio does not exist: $file"
 [[ -f $file && -r $file ]] || fail "Portfolio is not a readable regular file: $file"
 mounts=(); mounted=()
+mount "$(dirname "$file")" rw
 if [[ ${args[0]} == configure ]]; then
   mount "$config_parent" rw
 fi
 mount "$cwd" ro
 mount "$config_parent" ro
-mount "$(dirname "$file")" ro
 if "${base[@]}" "${mounts[@]}" "$image" "${args[@]}" --resolved-config "$config" --resolved-file "$file"; then exit 0; else status "$?"; fi

@@ -1,6 +1,6 @@
 # Portfolio Performance Pal
 
-A Linux CLI around Portfolio Performance's Java core. Holdings queries and explicit account configuration are implemented. Transaction history, manual purchases/sales/dividends, updates, backups and Smartbroker import are still pending implementation.
+A Linux CLI around Portfolio Performance's Java core. Holdings queries, explicit account configuration and monthly/pre-upgrade backups are implemented. Transaction history, manual purchases/sales/dividends, release updates and Smartbroker import are still pending implementation.
 
 Build the pinned local Java/Docker runtime and run the cumulative fixture checks:
 
@@ -22,6 +22,13 @@ The default portfolio is `portfolio_performance.xml` in the working directory. D
 ```
 
 Queries preserve the portfolio, import metadata and configuration. Holdings omit zero quantities by default, sort newest quantity updates first and show 15 rows; `--include-zero`, `--ascending`, and `--limit 0` adjust those controls. [Command conventions and reusable interfaces](docs/cli.md) describe exact filters, ties, exit codes and path behavior. `--help` requires neither Docker nor a portfolio.
+
+Launches create a due Europe/Berlin monthly snapshot of the current selected file
+alongside it, using the host UID/GID and mode 0600. The selected parent directory
+must allow required backup creation even for queries. `./pp-pal backup-before-update`
+preserves an additional exact snapshot for each actual upgrade attempt; it does
+not discover or activate updates. Launches never prune recovery files. Two-year
+additional-backup pruning will be wired only after successful financial writes.
 
 The selected design will check for updates before preview/import. Planned `--update` builds and validates changed upstream/wrapper release pairs locally before activation, including checks against a disposable copy of the selected portfolio. Planned `--apply` records financial changes. These commands are not implemented yet. Desktop application updates remain the owner's responsibility.
 
