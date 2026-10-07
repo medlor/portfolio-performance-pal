@@ -15,10 +15,18 @@ fi
 cwd=$(pwd -P)
 config="$cwd/pp-pal.properties"
 args=("$@")
+pdf=
 for ((i=0; i<${#args[@]}; i++)); do
   if [[ ${args[i]} == --config ]]; then
     ((i+1 < ${#args[@]})) || fail 'Missing value for --config'
     config=$(realpath -m -- "${args[i+1]}")
+  fi
+  if [[ ${args[i]} == --pdf ]]; then
+    ((i+1 < ${#args[@]})) || fail 'Missing value for --pdf'
+    [[ -z $pdf ]] || fail 'Select exactly one --pdf'
+    pdf=$(realpath -e -- "${args[i+1]}") || fail 'PDF does not exist'
+    [[ -f $pdf && -r $pdf && $pdf != *:* && $pdf != *$'\n'* ]] || fail 'PDF must be a readable regular file with a supported bind path'
+    args[i+1]=$pdf
   fi
   [[ ${args[i]} != --resolve-file && ${args[i]} != --resolved-file && ${args[i]} != --resolved-config ]] || fail 'Reserved launcher option'
 done
@@ -54,4 +62,5 @@ if [[ ${args[0]} == configure ]]; then
 fi
 mount "$cwd" ro
 mount "$config_parent" ro
+if [[ -n $pdf ]]; then mounts+=(-v "$pdf:$pdf:ro"); fi
 if "${base[@]}" "${mounts[@]}" "$image" "${args[@]}" --resolved-config "$config" --resolved-file "$file"; then exit 0; else status "$?"; fi

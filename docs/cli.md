@@ -6,11 +6,11 @@ unknown options fail. Names and paths with spaces must be quoted. `--help` is
 handled by the host launcher before Docker, configuration or portfolio lookup.
 The Java dispatcher uses the same `runtime/help.txt` text.
 
-Current owner commands are `holdings`, `history`, `purchase`, `configure`, `backup-before-update`,
+Current owner commands are `holdings`, `history`, `purchase`, `import`, `configure`, `backup-before-update`,
 and `--update`. Developer diagnostics
 `inspect`, `roundtrip`, `prove` and `pdf` remain available through the **container**
 entry point for the runtime fixture gates; the host launcher exposes owner commands.
-Financial application and PDF import remain pending. Release discovery/validation/activation
+Financial application and additional PDF layouts remain pending. Release discovery/validation/activation
 is implemented, with the initial released bootstrap package still a prerequisite.
 
 Exit 0 means a successful query/configuration/preview operation (later also
@@ -184,6 +184,70 @@ the selected disposable portfolio and recheck staleness; they reuse the built pa
 without recursively invoking its gates. Qualification cannot activate a production
 pair. Owner-injected, expired, foreign-parent or mismatching qualifications fail
 closed; there is no owner option to skip the update workflow.
+
+## PDF purchase preview
+
+```sh
+pp-pal import --pdf 'statements/purchase statement.pdf' \
+  --securities-account 'My Securities' --cash-account 'My Cash'
+```
+
+`import` reads one PDF, performs mandatory released-pair preparation, and previews
+all supported purchase members together. No `--apply` option exists for PDF import.
+The source file is individually mounted read-only, including when its parent is
+also the writable portfolio directory. Paths with spaces, relative paths and
+absolute external PDF paths follow the launcher rules. The Java planner snapshots
+the actual bytes before conversion, converts those bytes through upstream
+`PDFInputFile.convertPDFtoText()`, and rechecks source bytes before returning output.
+
+Supported profiles are the independently invented German Baader EUR purchase
+fixtures: one flat single-page member, or one or more one-page members with an
+exact `Baader Bank AG` header immediately followed by `Seite 1/1`. The number of
+proved page starts must match the physical PDF page count. Each member requires
+its own unique broker reference, purchase heading and ISIN/WKN section. All
+nonblank lines must match the reviewed grammar, including the security name
+continuation. Other issuers, Smartbroker branding alone, unknown/trailing lines,
+continuations, FX, sales and dividends reject the entire PDF before any preview.
+This proves fixture-scoped grammar, not support for every current Baader layout.
+
+Raw German decimal tokens are checked against the exact shared `Amounts` rules
+before comparison with actual upstream extracted models. Booked debit is
+authoritative; quantity, price, gross, fees and taxes must agree. Present ignored,
+malformed, duplicated or contradictory values cannot be replaced by CLI options.
+ISIN and WKN jointly resolve one existing security, with any CLI constraints also
+intersected. Extraction uses an isolated security cache and then binds the detached
+entry to that exact existing definition, preserving its currency/name/settings.
+No definition is created or modified in the owner portfolio.
+
+The existing purchase value options can supplement truly absent fields in a
+single-member PDF. An absent quantity/price section requires both `--quantity` and
+`--price`; an absent booked debit requires explicit `--total`. Missing fees/taxes
+may be supplied, otherwise default to zero. A missing date needs `--date`; source
+value date is used when trade date is absent, following upstream extraction.
+Missing time defaults to 11:00:00, while explicit midnight stays midnight; an
+absent time can be supplied at whole-second precision. Supplements are inserted
+only into temporary extraction text and upstream extraction is rerun. Missing
+identity, malformed partial sections and unsupported layouts conservatively reject.
+Financial supplements for multiple members reject because no member selector has
+been defined. Origins distinguish `PDF`, `SUPPLEMENT`, derivation, default zero and
+fallback time. Statement values supplied identically through CLI retain `PDF` origin.
+
+`PdfPurchase.plan(Client, Portfolio, Account, CommandLine)` returns a detached
+`Document` with ordered `Member` plans, origins, broker references and an immutable
+byte snapshot/hash. All members must validate before output. The upstream entry
+retains legitimate bank/reference notes and source filename. Snapshot, hash,
+coverage and origin bookkeeping stay in wrapper records, never financial notes or
+XML. The plan does not insert records or save the portfolio. Later application
+must use its own request snapshot and consume the complete batch once.
+
+`tests/pdf-purchase.sh` is the first trusted candidate gate and uses the real
+qualified release launcher, actual PDF conversion and independent literal values.
+It also checks read-only PDF binds, host UID/GID, input/metadata immutability,
+ambiguous identities and malformed later members. `PdfTextOracle.java` compares
+all committed paired text to real upstream conversion. `tests/updater.sh IMAGE
+--pdf-slice` runs every registered candidate gate, selected-copy validation,
+activation and mandatory fixed-image owner PDF preview, then stops before unrelated
+already-tested updater adversity cases. The complete registry remains intact.
 
 ## Linux launcher and maintenance seams
 

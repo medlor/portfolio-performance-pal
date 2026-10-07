@@ -14,7 +14,9 @@
   },
   "migrations": [],
   "layouts": [
-    "Baader synthetic domestic purchase PDF/text v1 only"
+    "Baader synthetic domestic purchase PDF/text v1 only",
+    "baader-german-eur-purchase-flat-v1",
+    "baader-german-eur-purchase-page1-of1-v1"
   ],
   "bootstrapProtocol": 1,
   "features": [
@@ -24,6 +26,7 @@
     "monthly-launch-backups",
     "exact-pre-upgrade-backups",
     "released-pair-updates",
-    "same-currency-purchase-preview"
+    "same-currency-purchase-preview",
+    "baader-purchase-pdf-preview"
   ]
 }
