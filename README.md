@@ -1,10 +1,29 @@
 # Portfolio Performance Pal
 
-A design baseline for a CLI around Portfolio Performance's Java core: query holdings and transaction history, record purchases, sales, and dividends, and import Smartbroker PDFs into an existing portfolio.
+A Linux CLI around Portfolio Performance's Java core. Holdings queries and explicit account configuration are implemented. Transaction history, manual purchases/sales/dividends, updates, backups and Smartbroker import are still pending implementation.
 
-Each command will run in a short-lived Docker container. The Java backend will own the CLI and directly reuse upstream persistence, financial models, and PDF extraction, with a small shell launcher for invocation. Images will be built locally; no wrapper image will be uploaded to an external registry. There is no application, Dockerfile, build setup, or validated compatibility matrix yet. Headless build and runtime feasibility must be established first.
+Build the pinned local Java/Docker runtime and run the cumulative fixture checks:
 
-The selected design checks for updates before preview/import. `--update` builds and validates changed upstream/wrapper release pairs locally before activation, including checks against a disposable copy of the selected portfolio. `--apply` records financial changes. Linux is the initial supported host; desktop application updates remain the owner's responsibility.
+```sh
+docker build --platform linux/amd64 -t pp-pal:0.88.0 .
+bash tests/all.sh
+./pp-pal --help
+./pp-pal holdings --file '/path/to/portfolio.xml'
+./pp-pal holdings --security 'Instrument name' --sort quantity --limit 0
+```
+
+The launcher fixes the selected local image identity for each invocation. A read-only Java container resolves configuration, then a short-lived command container reads the selected portfolio with the host UID/GID. Java reuses upstream persistence, financial models and PDF extraction. Images stay local; no wrapper image is published. [Headless build evidence and limits](docs/headless-runtime.md) and the [support matrix](runtime/support-matrix.json) record the tested upstream 0.88.0, ID-reference XML model 70, Linux amd64 combination.
+
+The default portfolio is `portfolio_performance.xml` in the working directory. Discover `pp-pal.properties` there or select another with `--config`. Its UTF-8 Java Properties keys are `file`, `securities-account`, and `cash-account`; configured relative file paths resolve from the configuration directory, while explicit `--file` paths resolve from the working directory. Account selectors accept a stable ID or exact unique name. Save resolved account IDs explicitly:
+
+```sh
+./pp-pal configure --file '/path/to/portfolio.xml' \
+  --securities-account 'My securities account' --cash-account 'My cash account'
+```
+
+Queries preserve the portfolio, import metadata and configuration. Holdings omit zero quantities by default, sort newest quantity updates first and show 15 rows; `--include-zero`, `--ascending`, and `--limit 0` adjust those controls. [Command conventions and reusable interfaces](docs/cli.md) describe exact filters, ties, exit codes and path behavior. `--help` requires neither Docker nor a portfolio.
+
+The selected design will check for updates before preview/import. Planned `--update` builds and validates changed upstream/wrapper release pairs locally before activation, including checks against a disposable copy of the selected portfolio. Planned `--apply` records financial changes. These commands are not implemented yet. Desktop application updates remain the owner's responsibility.
 
 - [Current requirements and architecture](docs/spec.md)
 - [Domain glossary](GLOSSARY.md) and architectural decisions: [import bookkeeping](docs/adr/0001-separate-import-bookkeeping.md), [Java reuse](docs/adr/0002-reuse-portfolio-performance-java-core.md), [tested migrations](docs/adr/0003-allow-tested-migrations-with-transactions.md), [validated local updates](docs/adr/0004-validate-local-updates-before-processing.md)
