@@ -6,10 +6,12 @@ unknown options fail. Names and paths with spaces must be quoted. `--help` is
 handled by the host launcher before Docker, configuration or portfolio lookup.
 The Java dispatcher uses the same `runtime/help.txt` text.
 
-Current owner commands are `holdings`, `history`, `configure`, and `backup-before-update`. Developer diagnostics
+Current owner commands are `holdings`, `history`, `configure`, `backup-before-update`,
+and `--update`. Developer diagnostics
 `inspect`, `roundtrip`, `prove` and `pdf` remain available through the **container**
 entry point for the runtime fixture gates; the host launcher exposes owner commands.
-Transactions, PDF import and release discovery/activation remain pending.
+Transactions and PDF import remain pending. Release discovery/validation/activation
+is implemented, with the initial released bootstrap package still a prerequisite.
 
 Exit 0 means a successful query/configuration operation (later also preview,
 successful write or confirmed re-import skip). Exit 2 rejects input or validation,
@@ -133,11 +135,13 @@ configuration bytes remain unchanged.
 
 ## Linux launcher and maintenance seams
 
-The Bash launcher requires Docker and standard Linux core utilities. It resolves
+The host dispatcher requires Python 3.10+, Docker and standard Linux core utilities. It resolves
 the selected **local** image once to an immutable identity before either container
-runs. It does not pull a missing wrapper image. `PP_PAL_IMAGE` selects a candidate
-local tag or image identity for development and compatibility gates; the default
-is `pp-pal:0.88.0`.
+runs. It does not pull a missing wrapper image. Without an active release pair,
+`PP_PAL_IMAGE` selects a local tag or image identity for development and compatibility
+gates; the default is `pp-pal:0.88.0`. Once activated, the integrity-checked manifest
+selects the released launcher and immutable image together, taking precedence over
+that development variable.
 
 A read-only Java invocation resolves configuration using the same parser used by
 the command. A second invocation mounts the selected portfolio parent and required
@@ -157,7 +161,8 @@ interfaces; new boolean flags are registered in `CommandLine`. Launcher-only
 resolved-path options are reserved and cannot be supplied by an owner invocation.
 
 `tests/all.sh [IMAGE]` is the cumulative compatibility gate. It currently runs
-real core/PDF runtime tests and the owner-facing holdings/configuration/history/backup tests.
+real core/PDF runtime tests and the owner-facing holdings/configuration/history/backup
+and released-pair updater tests.
 Each new feature must append its independent fixture-backed gate there so an
 update candidate cannot validate only the earlier core smoke test. The updater
 must use checked-in expectations, never regenerate them from the candidate.
@@ -183,7 +188,7 @@ boundary for the updater. It creates any due monthly protection and then an exac
 snapshot named `<filename>.pp-pal.update.<UTC-instant-without-colons>.<uuid>.bak`,
 printing its absolute path. Every call is an **actual-attempt** operation, including
 retries at the same instant. It does not discover releases, build or activate a
-candidate. The following updater ticket must call it only after detecting a changed
+candidate. The updater calls it only after detecting a changed
 pair; unchanged release checks must not call it and create no update backup.
 Configured account selections are irrelevant to copying raw bytes.
 
@@ -245,3 +250,24 @@ on 2026-10-07. This gate includes runtime/PDF, holdings/configuration, history
 and launch/pre-upgrade protection, including competing backup writers. The image
 is retained as `pp-pal:validated-integration20-21-6ef50141fe94`; the support matrix
 keeps each earlier image's evidence separate from this combined result.
+
+The stable host dispatcher now requires Python 3.10+ for commands and updates;
+`--help` remains Bash-only. `--update [--file PATH] [--config PATH]` follows the
+same separate-value, repeated-option and path conventions. The active manifest
+selects a released `tools/run-container` implementation and immutable image together.
+The bootstrap validator stays fixed and rejects changed candidate bootstrap files.
+Its trusted candidate gates are registered in `runtime/candidate-gates.json`; add
+each implemented command's fixed independent checks there as well as `tests/all.sh`.
+`tools/update.py:prepare_processing` is the shared automatic preparation boundary
+for purchase, sale, dividend and import dispatch. It runs before planning/processing
+and has no preview/import bypass option. [Local updater](local-updater.md) describes
+release/bootstrap prerequisites, cache/report integrity and retained recovery pairs.
+
+On 2026-10-07, the full cumulative suite passed with image
+`sha256:030e992423b2736c23baa50e07799ac35cb5e32c4787fb673f459a69c9c44736`,
+retained as `pp-pal:validated-issue22-030e992423b2`. It includes actual released
+snapshot builds, independent candidate gates, selected-copy isolation, unchanged
+cache reuse, discovery and integrity failures, stale input, safe retry and
+interrupted activation. The separate official GitHub prerequisite check confirmed
+that absence of a stable wrapper release stops without activating or changing the
+synthetic selected portfolio.

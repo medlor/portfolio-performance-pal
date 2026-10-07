@@ -140,6 +140,46 @@
         "Monthly/update two-year pruning after successful financial replacement is wired and tested in #24."
       ],
       "retentionTag": "pp-pal:validated-integration20-21-6ef50141fe94"
+    },
+    {
+      "upstreamRelease": "0.88.0",
+      "upstreamRevision": "8de1fe41d71a2c1b74a6bfbe913f885899aaf123",
+      "sourceArchiveSha256": "ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656",
+      "dependencyReleaseArchiveSha256": "1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2",
+      "jdk": "Temurin 21.0.11+10-LTS",
+      "platform": "linux/amd64",
+      "image": "sha256:030e992423b2736c23baa50e07799ac35cb5e32c4787fb673f459a69c9c44736",
+      "input": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "output": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "migrations": [],
+      "fixtureVersion": "v1",
+      "validatedBy": "tests/all.sh",
+      "validatedOn": "2026-10-07",
+      "features": [
+        "headless-core-proof",
+        "holdings",
+        "configuration",
+        "history",
+        "monthly-launch-backups",
+        "exact-pre-upgrade-backups",
+        "released-wrapper-upstream-resolution",
+        "independent-candidate-validation",
+        "isolated-selected-copy-validation",
+        "atomic-released-engine-activation",
+        "unchanged-release-cache-reuse",
+        "immutable-image-retention"
+      ],
+      "pendingValidation": [
+        "Monthly/update two-year pruning after successful financial replacement is wired and tested in #24."
+      ],
+      "retentionTag": "pp-pal:validated-issue22-030e992423b2",
+      "releaseValidation": "Real local stable tagged wrapper snapshots and pinned official upstream archives; official production discovery correctly rejects absent wrapper bootstrap release."
     }
   ]
 }

@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "buildRecipe": 1,
+  "platform": "linux/amd64",
+  "jdk": "Temurin 21.0.11+10-LTS",
+  "baseImage": "eclipse-temurin:21.0.11_10-jdk-jammy@sha256:dbfd085220ae632a0830166e443747d1ee89e9038d92e3b48c3e5e9d8292b9a7",
+  "input": {
+    "representation": "XML-ID-references",
+    "modelVersion": 70
+  },
+  "output": {
+    "representation": "XML-ID-references",
+    "modelVersion": 70
+  },
+  "migrations": [],
+  "layouts": [
+    "Baader synthetic domestic purchase PDF/text v1 only"
+  ],
+  "bootstrapProtocol": 1
+}
