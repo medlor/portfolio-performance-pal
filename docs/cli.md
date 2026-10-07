@@ -6,10 +6,10 @@ unknown options fail. Names and paths with spaces must be quoted. `--help` is
 handled by the host launcher before Docker, configuration or portfolio lookup.
 The Java dispatcher uses the same `runtime/help.txt` text.
 
-Current owner commands are `holdings`, `history` and `configure`. Developer diagnostics
+Current owner commands are `holdings`, `history`, `configure`, and `backup-before-update`. Developer diagnostics
 `inspect`, `roundtrip`, `prove` and `pdf` remain available through the **container**
 entry point for the runtime fixture gates; the host launcher exposes owner commands.
-Transactions, PDF import, updates and launch-time backups remain pending.
+Transactions, PDF import and release discovery/activation remain pending.
 
 Exit 0 means a successful query/configuration operation (later also preview,
 successful write or confirmed re-import skip). Exit 2 rejects input or validation,
@@ -142,8 +142,9 @@ is `pp-pal:0.88.0`.
 A read-only Java invocation resolves configuration using the same parser used by
 the command. A second invocation mounts the selected portfolio parent and required
 configuration/working directories at their canonical host absolute paths, preserving
-relative-path semantics and symlinks. Queries mount them read-only; `configure`
-allows writing its configuration directory. Both run without network/display and
+relative-path semantics and symlinks. The selected portfolio parent is writable
+to create required adjacent backups even for queries; other mounts are read-only
+unless `configure` needs to write its configuration directory. Both run without network/display and
 with the numeric host UID/GID. Mount arguments use shell arrays, including paths
 with spaces. Bind paths containing a colon or newline are rejected explicitly
 because they cannot be represented in this launcher's Docker volume syntax.
@@ -156,10 +157,72 @@ interfaces; new boolean flags are registered in `CommandLine`. Launcher-only
 resolved-path options are reserved and cannot be supplied by an owner invocation.
 
 `tests/all.sh [IMAGE]` is the cumulative compatibility gate. It currently runs
-real core/PDF runtime tests and the owner-facing holdings/configuration/history tests.
+real core/PDF runtime tests and the owner-facing holdings/configuration/history/backup tests.
 Each new feature must append its independent fixture-backed gate there so an
 update candidate cannot validate only the earlier core smoke test. The updater
 must use checked-in expectations, never regenerate them from the candidate.
+
+## Launch and pre-upgrade protection
+
+After resolving a readable regular selected file, every owner launch creates one
+due **Europe/Berlin** monthly snapshot alongside it. This copies exact bytes before
+financial-model loading, so future unsupported input can still receive upgrade
+protection. A query can subsequently reject its unsupported representation; a
+raw backup does not declare that model financially supported. Help and path-only
+resolution do not create backups. A symlinked selected portfolio is resolved by
+the Linux launcher to its real file; backups live beside that target.
+
+Monthly names are `<filename>.pp-pal.monthly.YYYY-MM.<uuid>.bak`. A launch after
+inactivity captures the present state once for the current month; it never
+fabricates missed monthly snapshots or runs a background timer. The ownership
+index records the month and hash. Later launches in the same month verify the
+existing indexed snapshot and leave its bytes and index unchanged.
+
+`pp-pal backup-before-update [--file PATH] [--config PATH]` is the public maintenance
+boundary for the updater. It creates any due monthly protection and then an exact
+snapshot named `<filename>.pp-pal.update.<UTC-instant-without-colons>.<uuid>.bak`,
+printing its absolute path. Every call is an **actual-attempt** operation, including
+retries at the same instant. It does not discover releases, build or activate a
+candidate. The following updater ticket must call it only after detecting a changed
+pair; unchanged release checks must not call it and create no update backup.
+Configured account selections are irrelevant to copying raw bytes.
+
+Backups, the adjacent `<filename>.pp-pal-backups.properties` ownership index, and
+its advisory `.pp-pal-backups.lock` file use host UID/GID and mode **0600**. Required
+snapshots are exclusively created, flushed with their containing directory, and
+never overwritten. UUID names isolate collisions, including same-instant retries.
+Only index-listed names and hashes authorize tool ownership; unindexed lookalikes
+remain unowned. Snapshot/index/lock symlinks, foreign index formats, altered or
+missing required indexed monthly snapshots, unwritable paths, and a concurrent
+backup lock stop the protected operation with operational exit 3. A failed index
+installation can leave an unindexed protective snapshot; leave it intact and repair
+the index deliberately instead of treating it as automatically owned.
+
+Launch and backup-only operations never prune any backups, write the selected
+portfolio, change import metadata, or create daily/migration backups. The shared
+Java `BackupService(Path, Clock)` exposes `monthly()`, `beforeUpgrade()` and
+`pruneAdditionalAfterSuccessfulWrite()`. The latter retains monthly/update backups
+until two calendar years after their creation in Berlin (the exact cutoff is
+retained), verifies owned snapshot hashes, and preserves unowned files. Only the
+future safe financial writer calls it after successful replacement. It is not
+wired to an owner command here; end-to-end successful-write retention and daily
+backup gates belong to #24, and migration protection to #29. No passing retention
+integration result is claimed yet.
+
+The explicit clock boundary `PP_PAL_NOW` accepts an ISO UTC instant for reproducible
+compatibility gates; when unset, the system UTC clock is converted to Berlin for
+calendar decisions. The launcher passes it to both fixed-image invocations. It
+changes backup timing only, never transaction dates. Keep it unset for ordinary
+use. `tests/backups.sh IMAGE` exercises real launcher/container snapshots, spring
+and autumn month boundaries, unchanged months and catch-up, repeated attempts,
+selected paths, private permissions and ownership, old/unowned retention during
+launch, raw future input, uncertainty and permission failures.
+
+On 2026-10-07, `bash tests/all.sh
+sha256:4f386e29190b6ccffab438721fd026e5f6dd7766dc18be9f3acfde47efe11573`
+passed the cumulative core/PDF, holdings/configuration and launch/update-backup
+gates. `runtime/support-matrix.json` records this image separately and explicitly
+leaves successful-financial-write additional retention validation pending #24.
 
 The enlarged core/holdings/configuration boundary passed on 2026-10-07 using local
 image `sha256:e7457b460368fb12241d229c75a82d8ea5a6756eb7f0da7f23920890dd4e213c`,
@@ -175,3 +238,10 @@ retained locally as `pp-pal:validated-issue20-ba64923a7d89`. History checks use
 fixed original recorded amounts, dates and quantities; the public upstream
 `PortfolioClientFilter` independently verifies dividend relevance for shared
 reference cash accounts and closed securities histories.
+
+The combined history and backup integration passed `bash tests/all.sh
+sha256:6ef50141fe9448bf8da781d81539195bde2dc88dec6e5a560fc3307041ac28d4`
+on 2026-10-07. This gate includes runtime/PDF, holdings/configuration, history
+and launch/pre-upgrade protection, including competing backup writers. The image
+is retained as `pp-pal:validated-integration20-21-6ef50141fe94`; the support matrix
+keeps each earlier image's evidence separate from this combined result.
