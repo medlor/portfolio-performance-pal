@@ -1,4 +1,4 @@
-# Command conventions and holdings
+# Command conventions and queries
 
 Use `pp-pal COMMAND [OPTIONS]`, with the command first. Options can appear in any
 order after it. Each value option requires a separate value argument; repeated or
@@ -6,10 +6,10 @@ unknown options fail. Names and paths with spaces must be quoted. `--help` is
 handled by the host launcher before Docker, configuration or portfolio lookup.
 The Java dispatcher uses the same `runtime/help.txt` text.
 
-Current owner commands are `holdings` and `configure`. Developer diagnostics
+Current owner commands are `holdings`, `history` and `configure`. Developer diagnostics
 `inspect`, `roundtrip`, `prove` and `pdf` remain available through the **container**
 entry point for the runtime fixture gates; the host launcher exposes owner commands.
-History, transactions, PDF import, updates and launch-time backups remain pending.
+Transactions, PDF import, updates and launch-time backups remain pending.
 
 Exit 0 means a successful query/configuration operation (later also preview,
 successful write or confirmed re-import skip). Exit 2 rejects input or validation,
@@ -79,6 +79,58 @@ holding last updated. There are no live prices, valuations or calculated profits
   object modification timestamps are excluded. Supplied transaction times are
   displayed with their recorded precision.
 
+## History controls and dividend relevance
+
+`pp-pal history` shows actual securities-account records and relevant original
+cash-account dividends. Purchase/sale records remain after the holding closes;
+security definitions and closed history are retained. Each linked purchase/sale
+appears as its securities-account record, with the cash owner of its linked entry,
+instead of displaying the companion cash entry as a second trade. Transfers and
+deliveries retain their recorded upstream types. A transfer has one record in
+each affected securities account. Records without a cash transaction show `—` in
+the cash-owner column. Quantities and currency/booked amounts are recorded values;
+there are no live valuations or calculated profits.
+
+- `--security` uses the same identifier/name filter as holdings.
+- `--securities-account ID|NAME` resolves one exact account. Configured account
+  defaults and explicit overrides follow the shared configuration rules.
+- `--type purchase|sale|dividend` selects the exact recorded type. Transfers and
+  deliveries are distinct; their filters are `transfer-in`, `transfer-out`,
+  `delivery-inbound`, and `delivery-outbound`.
+- `--from YYYY-MM-DD` and `--to YYYY-MM-DD` are inclusive calendar-date bounds.
+  Invalid dates or a start after the end are rejected. A bound includes every
+  recorded time on that day; the query does not change timestamps.
+- `--sort date` is the supported sort. Dates are newest first by default;
+  `--ascending` reverses only dates. Equal timestamps always use ascending original
+  transaction UUIDs, independent of list/loading order.
+- `--limit` defaults to 15; 0 means unlimited. Filtering and sorting precede the
+  limit. Empty results show the column heading without records.
+
+For a dividend, a securities account is relevant when its **reference cash
+account is the original cash owner** and its **complete transaction history
+contains that security**. This follows the pinned upstream
+[`PortfolioClientFilter` reference-cash/security rule](https://github.com/portfolio-performance/portfolio/blob/8de1fe41d71a2c1b74a6bfbe913f885899aaf123/name.abuchen.portfolio/src/name/abuchen/portfolio/snapshot/filter/PortfolioClientFilter.java).
+Relevance is computed before the query's type/date filters and does not depend on
+the current holding. Closed holdings and a delivery/transfer history can therefore
+make a dividend relevant. With no selected securities account, the query includes
+the union of dividends relevant to any securities account; truly unrelated cash
+owners/security combinations are excluded.
+
+Every original dividend is listed once, with its owning cash account. Distinct
+transactions with identical dates, amounts and security remain distinct records.
+When several securities accounts share that cash account and security history,
+the row says `AMBIGUOUS:` and lists all relevant account names and UUIDs. A filter
+selecting one of those accounts retains the ambiguity marker and complete relevant
+list: relevance does not prove ownership. The query does not emit the upstream
+filter's synthetic balancing deposit/removal records as real history.
+
+`tests/history.sh` verifies independent fixture output through the launcher, and
+`DividendRelevanceOracle.java` also checks independently specified 3/2/1 dividend
+counts through the pinned upstream public filter. The edge fixture contains equal
+valid records and irrelevant security/cash combinations; it is copied into a
+temporary directory for owner CLI tests. Financial portfolio, import sidecar and
+configuration bytes remain unchanged.
+
 ## Linux launcher and maintenance seams
 
 The Bash launcher requires Docker and standard Linux core utilities. It resolves
@@ -98,13 +150,13 @@ because they cannot be represented in this launcher's Docker volume syntax.
 
 Shared public Java interfaces are `CommandLine.parse/allow/value/flag/limit`,
 `Configuration.load/portfolio/selection/path/save`, `Accounts.securities/cash`, and
-`Holdings.query/text`. `Main.run` centralizes command dispatch and exit handling.
+`Holdings.query/text`, and `History.query/date/text`. `Main.run` centralizes command dispatch and exit handling.
 Later commands extend the dispatch/allowed option sets and use these account/path
 interfaces; new boolean flags are registered in `CommandLine`. Launcher-only
 resolved-path options are reserved and cannot be supplied by an owner invocation.
 
 `tests/all.sh [IMAGE]` is the cumulative compatibility gate. It currently runs
-real core/PDF runtime tests and the owner-facing holdings/configuration tests.
+real core/PDF runtime tests and the owner-facing holdings/configuration/history tests.
 Each new feature must append its independent fixture-backed gate there so an
 update candidate cannot validate only the earlier core smoke test. The updater
 must use checked-in expectations, never regenerate them from the candidate.
@@ -116,3 +168,10 @@ The cumulative suite checks actual default/unlimited limits, stable ties and eve
 promised sort/filter, all upstream quantity directions, shared/ambiguous accounts,
 explicit and discovered external/symlinked configuration paths, overrides, exact
 portfolio/sidecar/configuration immutability, read-only files and host ownership.
+
+The history boundary and the full cumulative gate passed on 2026-10-07 using
+image `sha256:ba64923a7d8958e1d96760692829262277d732e18052677321ee2cc23025e1b6`,
+retained locally as `pp-pal:validated-issue20-ba64923a7d89`. History checks use
+fixed original recorded amounts, dates and quantities; the public upstream
+`PortfolioClientFilter` independently verifies dividend relevance for shared
+reference cash accounts and closed securities histories.

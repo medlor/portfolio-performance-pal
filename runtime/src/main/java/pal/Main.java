@@ -16,6 +16,7 @@ public final class Main {
             if (line.command() == null) throw new IllegalArgumentException("Select a command; use --help");
             switch (line.command()) {
                 case "holdings" -> line.allow(Set.of("securities-account", "cash-account", "security", "sort", "ascending", "limit", "include-zero"));
+                case "history" -> line.allow(Set.of("securities-account", "cash-account", "security", "type", "from", "to", "sort", "ascending", "limit"));
                 case "configure" -> line.allow(Set.of("securities-account", "cash-account"));
                 default -> throw new IllegalArgumentException("Unknown command: " + line.command());
             }
@@ -31,6 +32,10 @@ public final class Main {
             var cash = Accounts.cash(client, config.selection(line, "cash-account"), false);
             switch (line.command()) {
                 case "holdings" -> System.out.print(Holdings.text(Holdings.query(client, securities, line.value("security"), line.flag("include-zero"), line.value("sort", "updated"), line.flag("ascending"), line.limit())));
+                case "history" -> {
+                    if (!line.value("sort", "date").equals("date")) throw new IllegalArgumentException("History --sort must be date");
+                    System.out.print(History.text(History.query(client, securities, line.value("security"), line.value("type"), History.date(line.value("from"), "from"), History.date(line.value("to"), "to"), line.flag("ascending"), line.limit())));
+                }
                 case "configure" -> {
                     if (cash == null) cash = securities.getReferenceAccount();
                     if (cash == null) throw new IllegalArgumentException("Select a cash account by stable ID or exact unique name");

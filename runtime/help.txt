@@ -2,6 +2,7 @@ Usage: pp-pal COMMAND [OPTIONS]
 
 Commands:
   holdings   Show recorded quantities by security and securities account.
+  history    Show recorded transactions, including closed holdings and dividends.
   configure  Save portfolio path and resolved default account IDs explicitly.
 
 Shared options:
@@ -18,9 +19,18 @@ Holdings options:
   --include-zero             Include closed holdings.
   --limit NUMBER             Default 15; 0 means unlimited.
 
+History options:
+  --security IDENTIFIER|TEXT  Same exact identifier/name filters as holdings.
+  --type purchase|sale|dividend  Select a recorded transaction type.
+  --from YYYY-MM-DD          Inclusive start date.
+  --to YYYY-MM-DD            Inclusive end date.
+  --sort date                Newest first; --ascending reverses dates only.
+  --limit NUMBER             Default 15; 0 means unlimited.
+  Shared-cash dividends appear once; ambiguous securities attribution is marked.
+
 Configuration defaults: pp-pal.properties in cwd; portfolio_performance.xml in cwd.
 Configured file paths resolve relative to the configuration directory.
 Queries preserve portfolio, metadata and configuration. No live prices or profit.
 Exit codes: 0 success; 2 input/validation rejected; 3 operational failure;
 4 reserved for a completed financial change with failed follow-up work.
-History, mutations, updates and statement import are not implemented yet.
+Mutations, updates and statement import are not implemented yet.
