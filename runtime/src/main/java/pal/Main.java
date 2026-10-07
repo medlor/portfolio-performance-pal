@@ -18,7 +18,7 @@ public final class Main {
                 case "holdings" -> line.allow(Set.of("securities-account", "cash-account", "security", "sort", "ascending", "limit", "include-zero"));
                 case "history" -> line.allow(Set.of("securities-account", "cash-account", "security", "type", "from", "to", "sort", "ascending", "limit"));
                 case "configure" -> line.allow(Set.of("securities-account", "cash-account"));
-                case "purchase" -> line.allow(Set.of("securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time"));
+                case "purchase" -> line.allow(Set.of("securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write"));
                 case "backup-monthly", "backup-before-update" -> line.allow(Set.of());
                 default -> throw new IllegalArgumentException("Unknown command: " + line.command());
             }
@@ -33,6 +33,23 @@ public final class Main {
             if (line.command().equals("backup-before-update")) {
                 System.out.println(backups.beforeUpgrade());
                 return 0;
+            }
+            if (line.command().equals("purchase") && line.flag("recover-write")) {
+                line.allow(Set.of("recover-write", "desktop-closed"));
+                if (!line.flag("desktop-closed")) throw new IllegalArgumentException("--recover-write requires --desktop-closed");
+                var outcome = new AtomicWriter(file, BackupService.launchClock()).recover();
+                System.out.print(outcome.text()); return outcome.status();
+            }
+            if (line.command().equals("purchase") && line.flag("apply")) {
+                if (!line.flag("desktop-closed")) throw new IllegalArgumentException("--apply requires --desktop-closed: close Portfolio Performance before writing; the GUI does not participate in the writer lock");
+                var outcome = new AtomicWriter(file, BackupService.launchClock()).apply(invocation -> {
+                    var securities = Accounts.securities(invocation, config.selection(line, "securities-account"), true);
+                    var cash = Accounts.cash(invocation, config.selection(line, "cash-account"), true);
+                    var planned = Purchase.plan(invocation, securities, cash, line);
+                    planned.entry().insert();
+                    return AtomicWriter.Change.purchase(planned.entry());
+                });
+                System.out.print(outcome.text()); return outcome.status();
             }
             name.abuchen.portfolio.model.Client client;
             try { client = Core.load(file); }
