@@ -220,6 +220,20 @@ with released_work() as temporary, server() as api:
     check(metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Metadata changed')
     print('PASS released immutable pair builds, passes trusted gates, validates local selected copy and activates')
 
+    pdf = work / 'purchase statement.pdf'
+    shutil.copyfile(ROOT / 'fixtures/v1/pdf-purchase/paged.pdf', pdf)
+    pdf_original = pdf.read_bytes()
+    request_count = len(api.requests)
+    result = run(work, api, 'import', '--file', str(selected), '--pdf', str(pdf), '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A')
+    check(result.returncode == 0 and 'PREVIEW PDF PURCHASE DOCUMENT' in result.stdout and 'BOOKED DEBIT EUR 51.00 (PDF)' in result.stdout, result.stderr + result.stdout)
+    check('UNCHANGED' in result.stderr and 'ENGINE IMAGE ' + active['image'] in result.stdout, 'PDF preview did not use the freshly checked fixed pair')
+    check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:] and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'PDF preview omitted mandatory releases')
+    check(pdf.read_bytes() == pdf_original and selected.read_bytes() == original and metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'PDF preview changed document, portfolio or metadata')
+    check(not list(work.glob('selected portfolio.xml.????-??-??.bak')) and not list(work.glob('selected portfolio.xml.pp-pal.migration.*.bak')), 'PDF preview created daily/migration backups')
+    print('PASS mandatory-release fixed-engine PDF preview preserves statement, financial input and opaque sidecar on released image ' + active['image'])
+    if '--pdf-slice' in sys.argv[2:]:
+        sys.exit(0)
+
     purchase_args = ('purchase', '--file', str(selected), '--security', 'DE0000000001',
         '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A',
         '--date', '2025-03-01', '--quantity', '2.5', '--price', '10', '--fees', '1', '--taxes', '0.50')

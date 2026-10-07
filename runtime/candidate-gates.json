@@ -1,5 +1,12 @@
 {
   "schema": 1,
   "fixtureVersion": "v1",
-  "checks": ["tests/runtime.sh", "tests/holdings.sh", "tests/history.sh", "tests/backups.sh", "tests/purchase.sh"]
+  "checks": [
+    "tests/pdf-purchase.sh",
+    "tests/runtime.sh",
+    "tests/holdings.sh",
+    "tests/history.sh",
+    "tests/backups.sh",
+    "tests/purchase.sh"
+  ]
 }

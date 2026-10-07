@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "provenance": "Independent invented literal facts; never generated from an extractor or candidate",
+  "security": {"uuid": "00000000-0000-4000-8000-000000000001", "isin": "DE0000000001", "wkn": "TEST01", "currency": "EUR"},
+  "paged": {"members": 1, "reference": "SYNTHETIC-PAGED-0001", "dateTime": "2025-01-03T09:30:00", "quantity": "2", "price": "25", "gross": "50.00", "fees": "1.00", "taxes": "0.00", "booked": "51.00", "origins": {"quantity": "PDF", "price": "PDF", "gross": "PDF", "fees": "PDF", "taxes": "default zero", "booked": "PDF", "date": "PDF", "time": "PDF"}},
+  "midnight": {"dateTime": "2025-01-03T00:00:00", "timeOrigin": "PDF", "sameFinancialFactsAs": "paged"},
+  "missing-time": {"dateTime": "2025-01-06T11:00:00", "timeOrigin": "fallback time 11:00:00", "sameFinancialFactsAs": "paged"},
+  "missing-time-with-midnight-supplement": {"fixture": "missing-time", "options": ["--time", "00:00:00"], "dateTime": "2025-01-06T00:00:00", "timeOrigin": "SUPPLEMENT", "sameFinancialFactsAs": "paged"},
+  "missing-fee-with-supplement": {"fixture": "missing-fee", "options": ["--fees", "1"], "feeOrigin": "SUPPLEMENT", "sameFinancialFactsAs": "paged"},
+  "missing-quantity-price-with-supplements": {"fixture": "missing-quantity-price", "options": ["--quantity", "2", "--price", "25"], "quantityOrigin": "SUPPLEMENT", "priceOrigin": "SUPPLEMENT", "sameFinancialFactsAs": "paged"},
+  "missing-booked-with-supplement": {"fixture": "missing-booked", "options": ["--total", "51"], "bookedOrigin": "SUPPLEMENT", "sameFinancialFactsAs": "paged"},
+  "two-purchases": {"members": 2, "records": [{"reference": "SYNTHETIC-PAGED-0001", "dateTime": "2025-01-03T09:30:00", "quantity": "2", "price": "25", "gross": "50.00", "fees": "1.00", "taxes": "0.00", "booked": "51.00"}, {"reference": "SYNTHETIC-PAGED-0002", "dateTime": "2025-01-04T09:30:00", "quantity": "3", "price": "25", "gross": "75.00", "fees": "1.00", "taxes": "0.00", "booked": "76.00"}]},
+  "rejectWithoutFinancialChange": ["missing-fee", "missing-booked", "missing-quantity-price", "contradictory-gross", "zero-quantity", "excess-quantity-precision", "conflicting-identity", "unsupported-sale", "unsupported-bank", "unknown-trailing", "repeated-fee", "bad-time", "unsupported-continuation", "page-marker-on-wrong-page", "later-missing-reference", "later-unsupported-sale", "later-unknown-line"],
+  "rejectCli": [{"fixture": "paged", "options": ["--time", "25:00"]}, {"fixture": "paged", "options": ["--fees", "2"]}, {"fixture": "paged", "options": ["--isin", "US0000000002"]}, {"fixture": "two-purchases", "options": ["--fees", "1"]}]
+}

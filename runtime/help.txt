@@ -8,6 +8,7 @@ Commands:
   holdings   Show recorded quantities by security and securities account.
   history    Show recorded transactions, including closed holdings and dividends.
   purchase   Preview a same-currency purchase after mandatory release validation.
+  import     Preview all purchases in one proved Baader EUR statement PDF.
   configure  Save portfolio path and resolved default account IDs explicitly.
   backup-monthly  Check due launch protection without loading the financial model.
   backup-before-update  Preserve an exact snapshot before an actual upgrade attempt.
@@ -47,6 +48,17 @@ Purchase preview options:
   Missing time uses 11:00:00. Both accounts are required, explicit or configured.
   Price/gross/total must determine and agree on the amount. Preview never applies.
 
+PDF purchase preview:
+  import --pdf PATH          One readable .pdf; preview only, no --apply.
+  Requires existing securities and selected securities/cash accounts.
+  Supported: synthetic German Baader EUR flat single-page or page 1/1 members.
+  Every member/page must be covered. Other banks, continuations, FX, sale and
+  dividend layouts reject the whole document. Smartbroker branding is insufficient.
+  Purchase options supplement only absent fields; conflicting present values reject.
+  Absent quantity/price section needs both values; absent booked debit needs --total.
+  Financial supplements require a single member. Origins show PDF, SUPPLEMENT,
+  derivation/defaults or fallback 11:00:00; explicit midnight remains midnight.
+
 Configuration defaults: pp-pal.properties in cwd; portfolio_performance.xml in cwd.
 Configured file paths resolve relative to the configuration directory.
 Queries preserve portfolio, metadata and configuration. No live prices or profit.
@@ -54,4 +66,4 @@ Launches create a due Berlin monthly backup; each backup-before-update call crea
 another exact backup. That command does not discover, build or activate updates.
 Exit codes: 0 success; 2 input/validation rejected; 3 operational failure;
 4 reserved for a completed financial change with failed follow-up work.
-Financial application, sales, dividends and statement import are pending.
+Financial application and sale/dividend/FX statement layouts are pending.
