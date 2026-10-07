@@ -1,0 +1,160 @@
+[
+  {
+    "number": 1,
+    "title": "Prove a reproducible headless Java core and PDF runtime",
+    "blockers": [],
+    "delivery": "Build a local Docker image that can load, inspect, save, and reload an anonymized portfolio and convert and extract a representative PDF without launching the desktop application.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/01.md"
+  },
+  {
+    "number": 2,
+    "title": "Query holdings through the Linux launcher and configuration",
+    "blockers": [
+      1
+    ],
+    "delivery": "Run a short-lived container command to inspect holdings in the selected supported portfolio with predictable paths, account selection, filters, sorting, and limits.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/02.md"
+  },
+  {
+    "number": 3,
+    "title": "Query transaction history including dividend relevance",
+    "blockers": [
+      2
+    ],
+    "delivery": "Inspect purchases, sales, and dividends across open and closed holdings while making ambiguous securities-account attribution visible.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/03.md"
+  },
+  {
+    "number": 4,
+    "title": "Protect launch and upgrade attempts with retained backups",
+    "blockers": [
+      2
+    ],
+    "delivery": "Protect the selected portfolio with due monthly backups at launch and exact pre-upgrade backups before actual upgrade attempts.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/04.md"
+  },
+  {
+    "number": 5,
+    "title": "Validate and activate released wrapper/upstream pairs locally",
+    "blockers": [
+      1,
+      4
+    ],
+    "delivery": "Use --update to discover, build, validate, and automatically activate a released wrapper/upstream pair while preserving the selected portfolio and previous validated pair on failure.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/05.md"
+  },
+  {
+    "number": 6,
+    "title": "Preview a manual purchase with validated decimal amounts",
+    "blockers": [
+      5
+    ],
+    "delivery": "Preview a same-currency purchase of an existing security using resolved accounts and upstream financial models without recording financial changes.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/06.md"
+  },
+  {
+    "number": 7,
+    "title": "Apply purchases with atomic replacement and daily protection",
+    "blockers": [
+      6
+    ],
+    "delivery": "Record a validated purchase with --apply, preserving unrelated data and protected recovery state while refusing stale or unsafe writes.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/07.md"
+  },
+  {
+    "number": 8,
+    "title": "Create a security explicitly when recording its first purchase",
+    "blockers": [
+      7
+    ],
+    "delivery": "Preview and record a purchase that explicitly creates a required security while preserving existing definitions and avoiding ambiguous reuse.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/08.md"
+  },
+  {
+    "number": 9,
+    "title": "Record partial and full sales with complete quantity-history validation",
+    "blockers": [
+      7
+    ],
+    "delivery": "Preview and record sales, including backdated entries, only when the affected holding remains nonnegative throughout its entire quantity history.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/09.md"
+  },
+  {
+    "number": 10,
+    "title": "Record security-associated dividends with fees and taxes",
+    "blockers": [
+      7
+    ],
+    "delivery": "Preview and record dividend cash credits for an existing security without changing held quantity or holding last updated.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/10.md"
+  },
+  {
+    "number": 11,
+    "title": "Record foreign-currency purchases, sales, and dividends",
+    "blockers": [
+      9,
+      10
+    ],
+    "delivery": "Preview and record manual foreign-currency transactions with explicit exchange information and preserved upstream currency/rate semantics.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/11.md"
+  },
+  {
+    "number": 12,
+    "title": "Persist tested model migrations only with financial changes",
+    "blockers": [
+      7
+    ],
+    "delivery": "Allow a financial command to apply a fixture-validated upstream model migration while clearly disclosing the output version and protecting the exact original state.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/12.md"
+  },
+  {
+    "number": 13,
+    "title": "Preview a verified current-layout Smartbroker purchase PDF",
+    "blockers": [
+      6
+    ],
+    "delivery": "Convert one supported purchase PDF headlessly and preview all recognized transactions with authoritative booked amounts and explicit missing-value supplementation.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/13.md"
+  },
+  {
+    "number": 14,
+    "title": "Apply purchase PDFs with duplicate-safe bookkeeping and recovery",
+    "blockers": [
+      8,
+      13
+    ],
+    "delivery": "Apply all recognized purchases in one PDF together while skipping confirmed re-imports and requiring a document-wide override for every suspected duplicate.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/14.md"
+  },
+  {
+    "number": 15,
+    "title": "Import verified current-layout Smartbroker sale PDFs",
+    "blockers": [
+      9,
+      14
+    ],
+    "delivery": "Preview and atomically apply supported sale statements with complete quantity-history validation and duplicate protection.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/15.md"
+  },
+  {
+    "number": 16,
+    "title": "Import verified current-layout Smartbroker dividend PDFs",
+    "blockers": [
+      10,
+      14
+    ],
+    "delivery": "Preview and atomically apply supported dividend statements as security-associated cash credits without quantity changes.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/16.md"
+  },
+  {
+    "number": 17,
+    "title": "Import foreign-currency and mixed-transaction Smartbroker PDFs",
+    "blockers": [
+      11,
+      15,
+      16
+    ],
+    "delivery": "Import supported foreign-currency and mixed purchase/sale/dividend documents as one validated financial decision using stated exchange information.",
+    "body_file": ".scratch/java-wrapper-baseline/issues/17.md"
+  }
+]

@@ -1,0 +1,164 @@
+{
+  "spec": "https://github.com/medlor/portfolio-performance-pal/issues/17",
+  "tickets": [
+    {
+      "number": 1,
+      "issue": 18,
+      "title": "Prove a reproducible headless Java core and PDF runtime",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/18",
+      "blocked_by": []
+    },
+    {
+      "number": 2,
+      "issue": 19,
+      "title": "Query holdings through the Linux launcher and configuration",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/19",
+      "blocked_by": [
+        18
+      ]
+    },
+    {
+      "number": 3,
+      "issue": 20,
+      "title": "Query transaction history including dividend relevance",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/20",
+      "blocked_by": [
+        19
+      ]
+    },
+    {
+      "number": 4,
+      "issue": 21,
+      "title": "Protect launch and upgrade attempts with retained backups",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/21",
+      "blocked_by": [
+        19
+      ]
+    },
+    {
+      "number": 5,
+      "issue": 22,
+      "title": "Validate and activate released wrapper/upstream pairs locally",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/22",
+      "blocked_by": [
+        18,
+        21
+      ]
+    },
+    {
+      "number": 6,
+      "issue": 23,
+      "title": "Preview a manual purchase with validated decimal amounts",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/23",
+      "blocked_by": [
+        22
+      ]
+    },
+    {
+      "number": 7,
+      "issue": 24,
+      "title": "Apply purchases with atomic replacement and daily protection",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/24",
+      "blocked_by": [
+        23
+      ]
+    },
+    {
+      "number": 8,
+      "issue": 25,
+      "title": "Create a security explicitly when recording its first purchase",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/25",
+      "blocked_by": [
+        24
+      ]
+    },
+    {
+      "number": 9,
+      "issue": 26,
+      "title": "Record partial and full sales with complete quantity-history validation",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/26",
+      "blocked_by": [
+        24
+      ]
+    },
+    {
+      "number": 10,
+      "issue": 27,
+      "title": "Record security-associated dividends with fees and taxes",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/27",
+      "blocked_by": [
+        24
+      ]
+    },
+    {
+      "number": 11,
+      "issue": 28,
+      "title": "Record foreign-currency purchases, sales, and dividends",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/28",
+      "blocked_by": [
+        26,
+        27
+      ]
+    },
+    {
+      "number": 12,
+      "issue": 29,
+      "title": "Persist tested model migrations only with financial changes",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/29",
+      "blocked_by": [
+        24
+      ]
+    },
+    {
+      "number": 13,
+      "issue": 30,
+      "title": "Preview a verified current-layout Smartbroker purchase PDF",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/30",
+      "blocked_by": [
+        23
+      ]
+    },
+    {
+      "number": 14,
+      "issue": 31,
+      "title": "Apply purchase PDFs with duplicate-safe bookkeeping and recovery",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/31",
+      "blocked_by": [
+        25,
+        30
+      ]
+    },
+    {
+      "number": 15,
+      "issue": 32,
+      "title": "Import verified current-layout Smartbroker sale PDFs",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/32",
+      "blocked_by": [
+        26,
+        31
+      ]
+    },
+    {
+      "number": 16,
+      "issue": 33,
+      "title": "Import verified current-layout Smartbroker dividend PDFs",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/33",
+      "blocked_by": [
+        27,
+        31
+      ]
+    },
+    {
+      "number": 17,
+      "issue": 34,
+      "title": "Import foreign-currency and mixed-transaction Smartbroker PDFs",
+      "url": "https://github.com/medlor/portfolio-performance-pal/issues/34",
+      "blocked_by": [
+        28,
+        32,
+        33
+      ]
+    }
+  ],
+  "verification_errors": []
+}
