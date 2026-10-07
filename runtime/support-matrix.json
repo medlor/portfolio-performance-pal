@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "scope": "headless-core-proof",
+  "scope": "validated-runtime-evidence",
   "entries": [
     {
       "upstreamRelease": "0.88.0",
@@ -10,12 +10,44 @@
       "jdk": "Temurin 21.0.11+10-LTS",
       "platform": "linux/amd64",
       "image": "sha256:09b7c38b590e3bd139470a5ad1806f8536dbb540ecf65ed5ceaa8c5166897d6b",
-      "input": {"representation": "XML-ID-references", "modelVersion": 70},
-      "output": {"representation": "XML-ID-references", "modelVersion": 70},
+      "input": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "output": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
       "migrations": [],
       "fixtureVersion": "v1",
       "validatedBy": "tests/runtime.sh",
       "validatedOn": "2026-10-07"
+    },
+    {
+      "upstreamRelease": "0.88.0",
+      "upstreamRevision": "8de1fe41d71a2c1b74a6bfbe913f885899aaf123",
+      "sourceArchiveSha256": "ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656",
+      "dependencyReleaseArchiveSha256": "1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2",
+      "jdk": "Temurin 21.0.11+10-LTS",
+      "platform": "linux/amd64",
+      "image": "sha256:e7457b460368fb12241d229c75a82d8ea5a6756eb7f0da7f23920890dd4e213c",
+      "input": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "output": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "migrations": [],
+      "fixtureVersion": "v1",
+      "validatedBy": "tests/all.sh",
+      "validatedOn": "2026-10-07",
+      "features": [
+        "headless-core-proof",
+        "holdings",
+        "configuration"
+      ]
     }
   ]
 }
