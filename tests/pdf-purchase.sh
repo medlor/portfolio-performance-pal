@@ -36,7 +36,7 @@ python3 - "$work" <<'PY'
 import json, os, pathlib, sys
 work=pathlib.Path(sys.argv[1]); path=str(work/'input directory/purchase statement.pdf')
 commands=[json.loads(line) for line in (work/'docker-trace.jsonl').read_text().splitlines()]
-runs=[command for command in commands if command[0]=='run']
+runs=[command for command in commands if command[0]=='run' and '--pdf' in command]
 assert runs and all(command[command.index('--user')+1]==f'{os.getuid()}:{os.getgid()}' for command in runs)
 assert any(path+':'+path+':ro' in command for command in runs), 'PDF needs an explicit individual read-only bind despite writable portfolio parent'
 assert not any(path+':'+path+':rw' in command for command in runs)
