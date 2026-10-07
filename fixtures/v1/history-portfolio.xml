@@ -1,0 +1,797 @@
+<client id="1">
+  <version>70</version>
+  <baseCurrency>EUR</baseCurrency>
+  <securities>
+    <security id="2">
+      <uuid>10000000-0000-4000-8000-000000000001</uuid>
+      <name>Alpha Instrument</name>
+      <currencyCode>EUR</currencyCode>
+      <note>Metadata dated later must not change holding last updated</note>
+      <isin>DE0000000001</isin>
+      <tickerSymbol>ALPHA</tickerSymbol>
+      <wkn>TEST01</wkn>
+      <prices>
+        <price t="2026-01-01" v="12000000000"/>
+      </prices>
+      <isRetired>false</isRetired>
+      <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+    </security>
+    <security id="3">
+      <uuid>10000000-0000-4000-8000-000000000002</uuid>
+      <name>Beta Instrument</name>
+      <currencyCode>EUR</currencyCode>
+      <isin>DE0000000002</isin>
+      <prices/>
+      <isRetired>false</isRetired>
+      <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+    </security>
+    <security id="4">
+      <uuid>10000000-0000-4000-8000-000000000003</uuid>
+      <name>Movement Instrument</name>
+      <currencyCode>EUR</currencyCode>
+      <isin>DE0000000003</isin>
+      <prices/>
+      <isRetired>false</isRetired>
+      <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+    </security>
+    <security id="5">
+      <uuid>10000000-0000-4000-8000-000000000004</uuid>
+      <name>Tie 01</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+    <security id="6">
+      <uuid>10000000-0000-4000-8000-000000000005</uuid>
+      <name>Tie 02</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+    <security id="7">
+      <uuid>10000000-0000-4000-8000-000000000006</uuid>
+      <name>Tie 03</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+    <security id="8">
+      <uuid>10000000-0000-4000-8000-000000000007</uuid>
+      <name>Tie 04</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+    <security id="9">
+      <uuid>10000000-0000-4000-8000-000000000008</uuid>
+      <name>Tie 05</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+    <security id="10">
+      <uuid>10000000-0000-4000-8000-000000000009</uuid>
+      <name>Tie 06</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+    <security id="11">
+      <uuid>10000000-0000-4000-8000-000000000010</uuid>
+      <name>Tie 07</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+    <security id="12">
+      <uuid>10000000-0000-4000-8000-000000000011</uuid>
+      <name>Tie 08</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+    <security id="13">
+      <uuid>10000000-0000-4000-8000-000000000012</uuid>
+      <name>Tie 09</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+    <security id="14">
+      <uuid>10000000-0000-4000-8000-000000000013</uuid>
+      <name>Tie 10</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+    <security id="15">
+      <uuid>10000000-0000-4000-8000-000000000014</uuid>
+      <name>Tie 11</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+    <security id="16">
+      <uuid>10000000-0000-4000-8000-000000000015</uuid>
+      <name>Tie 12</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+    <security id="17">
+      <uuid>10000000-0000-4000-8000-000000000016</uuid>
+      <name>Tie 13</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+    <security id="18">
+      <uuid>10000000-0000-4000-8000-000000000017</uuid>
+      <name>Tie 14</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+    <security id="19">
+      <uuid>10000000-0000-4000-8000-000000000018</uuid>
+      <name>Tie 15</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+    <security id="20">
+      <uuid>10000000-0000-4000-8000-000000000019</uuid>
+      <name>Tie 16</name>
+      <currencyCode>EUR</currencyCode>
+      <prices/>
+      <isRetired>false</isRetired>
+    </security>
+  </securities>
+  <watchlists>
+    <watchlist id="21">
+      <name>Synthetic watchlist</name>
+      <securities>
+        <security reference="2"/>
+      </securities>
+    </watchlist>
+  </watchlists>
+  <accounts>
+    <account id="22">
+      <uuid>20000000-0000-4000-8000-000000000001</uuid>
+      <name>Shared Cash</name>
+      <currencyCode>EUR</currencyCode>
+      <isRetired>false</isRetired>
+      <transactions>
+        <account-transaction id="23">
+          <uuid>e3ac2d7b-e704-4296-9b00-b19f5dbd1929</uuid>
+          <date>2025-01-10T10:00</date>
+          <currencyCode>EUR</currencyCode>
+          <amount>10000</amount>
+          <security reference="2"/>
+          <crossEntry class="buysell" id="24">
+            <portfolio id="25">
+              <uuid>30000000-0000-4000-8000-000000000001</uuid>
+              <name>Twin Depot</name>
+              <isRetired>false</isRetired>
+              <referenceAccount reference="22"/>
+              <transactions>
+                <portfolio-transaction id="26">
+                  <uuid>40000000-0000-4000-8000-000000000001</uuid>
+                  <date>2025-01-10T10:00</date>
+                  <currencyCode>EUR</currencyCode>
+                  <amount>10000</amount>
+                  <security reference="2"/>
+                  <crossEntry class="buysell" reference="24"/>
+                  <shares>1000000000</shares>
+                  <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                  <type>BUY</type>
+                </portfolio-transaction>
+                <portfolio-transaction id="27">
+                  <uuid>40000000-0000-4000-8000-000000000002</uuid>
+                  <date>2025-01-12T09:00</date>
+                  <currencyCode>EUR</currencyCode>
+                  <amount>4000</amount>
+                  <security reference="2"/>
+                  <crossEntry class="buysell" id="28">
+                    <portfolio reference="25"/>
+                    <portfolioTransaction reference="27"/>
+                    <account reference="22"/>
+                    <accountTransaction id="29">
+                      <uuid>defddc82-5c99-415a-b2b0-58e1b4c64230</uuid>
+                      <date>2025-01-12T09:00</date>
+                      <currencyCode>EUR</currencyCode>
+                      <amount>4000</amount>
+                      <security reference="2"/>
+                      <crossEntry class="buysell" reference="28"/>
+                      <shares>0</shares>
+                      <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                      <type>SELL</type>
+                    </accountTransaction>
+                  </crossEntry>
+                  <shares>400000000</shares>
+                  <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                  <type>SELL</type>
+                </portfolio-transaction>
+                <portfolio-transaction id="30">
+                  <uuid>40000000-0000-4000-8000-000000000003</uuid>
+                  <date>2025-01-09T08:00</date>
+                  <currencyCode>EUR</currencyCode>
+                  <amount>5000</amount>
+                  <security reference="3"/>
+                  <crossEntry class="buysell" id="31">
+                    <portfolio reference="25"/>
+                    <portfolioTransaction reference="30"/>
+                    <account reference="22"/>
+                    <accountTransaction id="32">
+                      <uuid>22267bc1-5bfc-4678-a5cf-b5c252bed659</uuid>
+                      <date>2025-01-09T08:00</date>
+                      <currencyCode>EUR</currencyCode>
+                      <amount>5000</amount>
+                      <security reference="3"/>
+                      <crossEntry class="buysell" reference="31"/>
+                      <shares>0</shares>
+                      <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                      <type>BUY</type>
+                    </accountTransaction>
+                  </crossEntry>
+                  <shares>500000000</shares>
+                  <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                  <type>BUY</type>
+                </portfolio-transaction>
+                <portfolio-transaction id="33">
+                  <uuid>40000000-0000-4000-8000-000000000004</uuid>
+                  <date>2025-01-13T08:00</date>
+                  <currencyCode>EUR</currencyCode>
+                  <amount>5000</amount>
+                  <security reference="3"/>
+                  <crossEntry class="buysell" id="34">
+                    <portfolio reference="25"/>
+                    <portfolioTransaction reference="33"/>
+                    <account reference="22"/>
+                    <accountTransaction id="35">
+                      <uuid>72a6f92b-15ae-4ac1-a058-6cf016f4e3f1</uuid>
+                      <date>2025-01-13T08:00</date>
+                      <currencyCode>EUR</currencyCode>
+                      <amount>5000</amount>
+                      <security reference="3"/>
+                      <crossEntry class="buysell" reference="34"/>
+                      <shares>0</shares>
+                      <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                      <type>SELL</type>
+                    </accountTransaction>
+                  </crossEntry>
+                  <shares>500000000</shares>
+                  <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                  <type>SELL</type>
+                </portfolio-transaction>
+                <portfolio-transaction id="36">
+                  <uuid>40000000-0000-4000-8000-000000000005</uuid>
+                  <date>2025-01-01T08:00</date>
+                  <currencyCode>EUR</currencyCode>
+                  <amount>5000</amount>
+                  <security reference="4"/>
+                  <shares>500000000</shares>
+                  <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                  <type>DELIVERY_INBOUND</type>
+                </portfolio-transaction>
+                <portfolio-transaction id="37">
+                  <uuid>40000000-0000-4000-8000-000000000006</uuid>
+                  <date>2025-01-16T08:00</date>
+                  <currencyCode>EUR</currencyCode>
+                  <amount>3000</amount>
+                  <security reference="4"/>
+                  <crossEntry class="portfolio-transfer" id="38">
+                    <portfolioFrom reference="25"/>
+                    <transactionFrom reference="37"/>
+                    <portfolioTo id="39">
+                      <uuid>30000000-0000-4000-8000-000000000003</uuid>
+                      <name>Other Depot</name>
+                      <isRetired>false</isRetired>
+                      <referenceAccount id="40">
+                        <uuid>20000000-0000-4000-8000-000000000002</uuid>
+                        <name>Other Cash</name>
+                        <currencyCode>EUR</currencyCode>
+                        <isRetired>false</isRetired>
+                        <transactions>
+                          <account-transaction id="41">
+                            <uuid>40000000-0000-4000-8000-000000000029</uuid>
+                            <date>2025-01-15T11:00</date>
+                            <currencyCode>EUR</currencyCode>
+                            <amount>100</amount>
+                            <security reference="2"/>
+                            <shares>0</shares>
+                            <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                            <type>DIVIDENDS</type>
+                          </account-transaction>
+                          <account-transaction id="42">
+                            <uuid>60000000-0000-4000-8000-000000000002</uuid>
+                            <date>2025-01-22T11:00</date>
+                            <currencyCode>EUR</currencyCode>
+                            <amount>7777</amount>
+                            <security reference="3"/>
+                            <shares>0</shares>
+                            <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                            <type>DIVIDENDS</type>
+                          </account-transaction>
+                        </transactions>
+                      </referenceAccount>
+                      <transactions>
+                        <portfolio-transaction id="43">
+                          <uuid>40000000-0000-4000-8000-000000000008</uuid>
+                          <date>2025-01-14T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>2000</amount>
+                          <security reference="2"/>
+                          <shares>200000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="44">
+                          <uuid>b6d8ae16-129b-4c40-9d35-52ce45cd3267</uuid>
+                          <date>2025-01-16T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>3000</amount>
+                          <security reference="4"/>
+                          <crossEntry class="portfolio-transfer" reference="38"/>
+                          <shares>300000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>TRANSFER_IN</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="45">
+                          <uuid>40000000-0000-4000-8000-000000000009</uuid>
+                          <date>2025-01-17T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>2000</amount>
+                          <security reference="4"/>
+                          <shares>200000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="46">
+                          <uuid>40000000-0000-4000-8000-000000000010</uuid>
+                          <date>2025-01-18T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="4"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_OUTBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="47">
+                          <uuid>40000000-0000-4000-8000-000000000011</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="5"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="48">
+                          <uuid>40000000-0000-4000-8000-000000000012</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="6"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="49">
+                          <uuid>40000000-0000-4000-8000-000000000013</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="7"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="50">
+                          <uuid>40000000-0000-4000-8000-000000000014</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="8"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="51">
+                          <uuid>40000000-0000-4000-8000-000000000015</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="9"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="52">
+                          <uuid>40000000-0000-4000-8000-000000000016</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="10"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="53">
+                          <uuid>40000000-0000-4000-8000-000000000017</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="11"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="54">
+                          <uuid>40000000-0000-4000-8000-000000000018</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="12"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="55">
+                          <uuid>40000000-0000-4000-8000-000000000019</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="13"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="56">
+                          <uuid>40000000-0000-4000-8000-000000000020</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="14"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="57">
+                          <uuid>40000000-0000-4000-8000-000000000021</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="15"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="58">
+                          <uuid>40000000-0000-4000-8000-000000000022</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="16"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="59">
+                          <uuid>40000000-0000-4000-8000-000000000023</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="17"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="60">
+                          <uuid>40000000-0000-4000-8000-000000000024</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="18"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="61">
+                          <uuid>40000000-0000-4000-8000-000000000025</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="19"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                        <portfolio-transaction id="62">
+                          <uuid>40000000-0000-4000-8000-000000000026</uuid>
+                          <date>2024-01-01T08:00</date>
+                          <currencyCode>EUR</currencyCode>
+                          <amount>1000</amount>
+                          <security reference="20"/>
+                          <shares>100000000</shares>
+                          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                          <type>DELIVERY_INBOUND</type>
+                        </portfolio-transaction>
+                      </transactions>
+                      <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                    </portfolioTo>
+                    <transactionTo reference="44"/>
+                  </crossEntry>
+                  <shares>300000000</shares>
+                  <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                  <type>TRANSFER_OUT</type>
+                </portfolio-transaction>
+              </transactions>
+              <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+            </portfolio>
+            <portfolioTransaction reference="26"/>
+            <account reference="22"/>
+            <accountTransaction reference="23"/>
+          </crossEntry>
+          <shares>0</shares>
+          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+          <type>BUY</type>
+        </account-transaction>
+        <account-transaction reference="29"/>
+        <account-transaction id="63">
+          <uuid>67116ca7-2852-479a-8eaf-7daccf96ec7b</uuid>
+          <date>2025-01-11T08:00</date>
+          <currencyCode>EUR</currencyCode>
+          <amount>3000</amount>
+          <security reference="2"/>
+          <crossEntry class="buysell" id="64">
+            <portfolio id="65">
+              <uuid>30000000-0000-4000-8000-000000000002</uuid>
+              <name>Twin Depot</name>
+              <isRetired>false</isRetired>
+              <referenceAccount reference="22"/>
+              <transactions>
+                <portfolio-transaction id="66">
+                  <uuid>40000000-0000-4000-8000-000000000007</uuid>
+                  <date>2025-01-11T08:00</date>
+                  <currencyCode>EUR</currencyCode>
+                  <amount>3000</amount>
+                  <security reference="2"/>
+                  <crossEntry class="buysell" reference="64"/>
+                  <shares>300000000</shares>
+                  <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+                  <type>BUY</type>
+                </portfolio-transaction>
+              </transactions>
+              <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+            </portfolio>
+            <portfolioTransaction reference="66"/>
+            <account reference="22"/>
+            <accountTransaction reference="63"/>
+          </crossEntry>
+          <shares>0</shares>
+          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+          <type>BUY</type>
+        </account-transaction>
+        <account-transaction reference="32"/>
+        <account-transaction reference="35"/>
+        <account-transaction id="67">
+          <uuid>40000000-0000-4000-8000-000000000027</uuid>
+          <date>2025-01-20T11:00</date>
+          <currencyCode>EUR</currencyCode>
+          <amount>100</amount>
+          <security reference="2"/>
+          <shares>0</shares>
+          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+          <type>DIVIDENDS</type>
+        </account-transaction>
+        <account-transaction id="68">
+          <uuid>40000000-0000-4000-8000-000000000028</uuid>
+          <date>2025-01-21T11:00</date>
+          <currencyCode>EUR</currencyCode>
+          <amount>100</amount>
+          <security reference="3"/>
+          <shares>0</shares>
+          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+          <type>DIVIDENDS</type>
+        </account-transaction>
+        <account-transaction id="69">
+          <uuid>60000000-0000-4000-8000-000000000001</uuid>
+          <date>2025-01-20T11:00</date>
+          <currencyCode>EUR</currencyCode>
+          <amount>100</amount>
+          <security reference="2"/>
+          <shares>0</shares>
+          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+          <type>DIVIDENDS</type>
+        </account-transaction>
+      </transactions>
+    </account>
+    <account reference="40"/>
+    <account id="70">
+      <uuid>70000000-0000-4000-8000-000000000001</uuid>
+      <name>Unreferenced Cash</name>
+      <currencyCode>EUR</currencyCode>
+      <isRetired>false</isRetired>
+      <transactions>
+        <account-transaction id="71">
+          <uuid>60000000-0000-4000-8000-000000000003</uuid>
+          <date>2025-01-23T11:00</date>
+          <currencyCode>EUR</currencyCode>
+          <amount>9999</amount>
+          <security reference="2"/>
+          <shares>0</shares>
+          <updatedAt>2026-01-01T12:00:00Z</updatedAt>
+          <type>DIVIDENDS</type>
+        </account-transaction>
+      </transactions>
+    </account>
+  </accounts>
+  <portfolios>
+    <portfolio reference="25"/>
+    <portfolio reference="65"/>
+    <portfolio reference="39"/>
+  </portfolios>
+  <plans/>
+  <taxonomies/>
+  <dashboards/>
+  <properties>
+    <entry>
+      <string>query.fixture</string>
+      <string>unrelated-preserved</string>
+    </entry>
+  </properties>
+  <settings>
+    <bookmarks>
+      <bookmark>
+        <label>finance.yahoo.com</label>
+        <pattern>https://finance.yahoo.com/quote/{tickerSymbol}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>onvista.de</label>
+        <pattern>https://www.onvista.de/suche.html?SEARCH_VALUE={isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>finanzen.net</label>
+        <pattern>https://www.finanzen.net/suchergebnis.asp?frmAktiensucheTextfeld={isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>ariva.de</label>
+        <pattern>https://www.ariva.de/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>justetf.com  (ETF)</label>
+        <pattern>https://www.justetf.com/etf-profile.html?isin={isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>fondsweb.com</label>
+        <pattern>https://www.fondsweb.com/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>morningstar.de</label>
+        <pattern>https://www.morningstar.de/de/funds/SecuritySearchResults.aspx?type=ALL&amp;search={isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>extraETF.com (ETF)</label>
+        <pattern>https://extraetf.com/etf-profile/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>alleaktien.de (Share)</label>
+        <pattern>https://www.alleaktien.de/data/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>comdirect.de (Share)</label>
+        <pattern>https://www.comdirect.de/inf/aktien/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>comdirect.de (ETF)</label>
+        <pattern>https://www.comdirect.de/inf/etfs/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>divvydiary.com</label>
+        <pattern>https://divvydiary.com/symbols/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>trackingdifferences.com (ETF)</label>
+        <pattern>https://www.trackingdifferences.com/ETF/ISIN/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>tradingview.com</label>
+        <pattern>https://www.tradingview.com/chart/?symbol=XETR:{tickerSymbolPrefix}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>cnbc.com (Share)</label>
+        <pattern>https://www.cnbc.com/quotes/{tickerSymbolPrefix}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>nasdaq.com (Share)</label>
+        <pattern>https://www.nasdaq.com/market-activity/stocks/{tickerSymbolPrefix}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>aktienfinder.net (Share)</label>
+        <pattern>https://aktienfinder.net/aktien-profil/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>aktien.guide (Share)</label>
+        <pattern>http://aktien.guide/isin/aktien/{isin}</pattern>
+      </bookmark>
+    </bookmarks>
+    <attributeTypes>
+      <attribute-type>
+        <id>logo</id>
+        <name>Logo</name>
+        <columnLabel>Logo</columnLabel>
+        <target>name.abuchen.portfolio.model.Security</target>
+        <type>java.lang.String</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$ImageConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>logo</id>
+        <name>Logo</name>
+        <columnLabel>Logo</columnLabel>
+        <target>name.abuchen.portfolio.model.Account</target>
+        <type>java.lang.String</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$ImageConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>logo</id>
+        <name>Logo</name>
+        <columnLabel>Logo</columnLabel>
+        <target>name.abuchen.portfolio.model.Portfolio</target>
+        <type>java.lang.String</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$ImageConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>logo</id>
+        <name>Logo</name>
+        <columnLabel>Logo</columnLabel>
+        <target>name.abuchen.portfolio.model.InvestmentPlan</target>
+        <type>java.lang.String</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$ImageConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>ter</id>
+        <name>Total Expense Ratio (TER)</name>
+        <columnLabel>TER</columnLabel>
+        <source>ter</source>
+        <target>name.abuchen.portfolio.model.Security</target>
+        <type>java.lang.Double</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$PercentConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>aum</id>
+        <name>Assets under Management</name>
+        <columnLabel>AUM</columnLabel>
+        <target>name.abuchen.portfolio.model.Security</target>
+        <type>java.lang.Long</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$AmountPlainConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>vendor</id>
+        <name>Vendor</name>
+        <columnLabel>Vendor</columnLabel>
+        <source>vendor</source>
+        <target>name.abuchen.portfolio.model.Security</target>
+        <type>java.lang.String</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$StringConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>acquisitionFee</id>
+        <name>Acquisition Fee (percentage)</name>
+        <columnLabel>Acquisition Fee</columnLabel>
+        <target>name.abuchen.portfolio.model.Security</target>
+        <type>java.lang.Double</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$PercentConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>managementFee</id>
+        <name>Management Fee (percentage)</name>
+        <columnLabel>Management Fee</columnLabel>
+        <target>name.abuchen.portfolio.model.Security</target>
+        <type>java.lang.Double</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$PercentConverter</converterClass>
+      </attribute-type>
+    </attributeTypes>
+    <configurationSets/>
+  </settings>
+</client>
