@@ -5,51 +5,6 @@ for arg in "$@"; do
   if [[ $arg == --help ]]; then cat "$root/runtime/help.txt"; exit 0; fi
 done
 if [[ $# == 0 ]]; then cat "$root/runtime/help.txt"; exit 0; fi
-fail() { echo "ERROR: $*" >&2; exit 2; }
-command -v docker >/dev/null || { echo 'ERROR: Docker is required; use --help for commands' >&2; exit 3; }
-image=${PP_PAL_IMAGE:-pp-pal:0.88.0}
-if image=$(docker image inspect "$image" --format '{{.Id}}'); then :; else
-  echo 'ERROR: Selected local image is unavailable; build it before running commands' >&2; exit 3
-fi
-[[ $image =~ ^sha256:[a-f0-9]{64}$ ]] || { echo 'ERROR: Docker did not return an immutable image identity' >&2; exit 3; }
-cwd=$(pwd -P)
-config="$cwd/pp-pal.properties"
-args=("$@")
-for ((i=0; i<${#args[@]}; i++)); do
-  if [[ ${args[i]} == --config ]]; then
-    ((i+1 < ${#args[@]})) || fail 'Missing value for --config'
-    config=$(realpath -m -- "${args[i+1]}")
-  fi
-  [[ ${args[i]} != --resolve-file && ${args[i]} != --resolved-file && ${args[i]} != --resolved-config ]] || fail 'Reserved launcher option'
-done
-config=$(realpath -m -- "$config")
-config_parent=$(dirname "$config")
-[[ -d $config_parent ]] || fail "Configuration directory does not exist: $config_parent"
-declare -A mounted=()
-mounts=()
-mount() {
-  local directory=$1 mode=$2
-  [[ $directory != *:* && $directory != *$'\n'* ]] || fail 'Docker bind paths cannot contain colon or newline'
-  if [[ -z ${mounted[$directory]+x} ]]; then
-    mounts+=(-v "$directory:$directory:$mode"); mounted[$directory]=1
-  fi
-}
-mount "$cwd" ro
-mount "$config_parent" ro
-base=(docker run --rm --network none --user "$(id -u):$(id -g)" --workdir "$cwd")
-if [[ -n ${PP_PAL_NOW+x} ]]; then base+=(--env PP_PAL_NOW); fi
-status() {
-  case $1 in 0|2|3|4) exit "$1";; *) echo "ERROR: Docker command failed (status $1)" >&2; exit 3;; esac
-}
-if file=$("${base[@]}" "${mounts[@]}" "$image" "${args[@]}" --resolved-config "$config" --resolve-file); then :; else status "$?"; fi
-[[ $file != *$'\n'* ]] || fail 'Portfolio path cannot contain newline'
-file=$(realpath -e -- "$file") || fail "Portfolio does not exist: $file"
-[[ -f $file && -r $file ]] || fail "Portfolio is not a readable regular file: $file"
-mounts=(); mounted=()
-mount "$(dirname "$file")" rw
-if [[ ${args[0]} == configure ]]; then
-  mount "$config_parent" rw
-fi
-mount "$cwd" ro
-mount "$config_parent" ro
-if "${base[@]}" "${mounts[@]}" "$image" "${args[@]}" --resolved-config "$config" --resolved-file "$file"; then exit 0; else status "$?"; fi
+command -v python3 >/dev/null || { echo 'ERROR: Python 3 is required for command dispatch and local updates' >&2; exit 3; }
+if [[ $1 == --update ]]; then exec python3 "$root/tools/update.py" "$@"; fi
+exec python3 "$root/tools/update.py" --dispatch "$@"
