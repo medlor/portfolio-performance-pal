@@ -180,6 +180,55 @@
       ],
       "retentionTag": "pp-pal:validated-issue22-030e992423b2",
       "releaseValidation": "Real local stable tagged wrapper snapshots and pinned official upstream archives; official production discovery correctly rejects absent wrapper bootstrap release."
+    },
+    {
+      "upstreamRelease": "0.88.0",
+      "upstreamRevision": "8de1fe41d71a2c1b74a6bfbe913f885899aaf123",
+      "sourceArchiveSha256": "ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656",
+      "dependencyReleaseArchiveSha256": "1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2",
+      "jdk": "Temurin 21.0.11+10-LTS",
+      "platform": "linux/amd64",
+      "image": "sha256:1c10ae5ae30305afe1cfc441879bc0415a6cea036da1d0c2d9ab29618b383ffa",
+      "input": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "output": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "migrations": [],
+      "fixtureVersion": "v1",
+      "validatedBy": "tests/all.sh pre-updater suites + tests/updater.sh",
+      "validatedOn": "2026-10-07",
+      "features": [
+        "headless-core-proof",
+        "holdings",
+        "configuration",
+        "history",
+        "monthly-launch-backups",
+        "exact-pre-upgrade-backups",
+        "released-wrapper-upstream-resolution",
+        "independent-candidate-validation",
+        "isolated-selected-copy-validation",
+        "atomic-released-engine-activation",
+        "unchanged-release-cache-reuse",
+        "immutable-image-retention",
+        "same-currency-purchase-preview",
+        "exact-fixed-check-candidate-qualification",
+        "installed-symlink-launcher"
+      ],
+      "pendingValidation": [
+        "Monthly/update two-year pruning after successful financial replacement is wired and tested in #24."
+      ],
+      "retentionTag": "pp-pal:validated-issue23-1c10ae5ae303",
+      "releaseValidation": "Actual local stable tagged wrapper snapshots with pinned official upstream archives, fixed owner preview and isolated selected-copy validation; initial official wrapper bootstrap release remains required.",
+      "releasedCandidateImage": "sha256:6b2b9d014316c4af0e89fbd2c8d6e826c0cd44f52a0ca1de043cbbc3a4d97863",
+      "validationCommands": [
+        "bash tests/all.sh sha256:1c10ae5ae30305afe1cfc441879bc0415a6cea036da1d0c2d9ab29618b383ffa",
+        "bash tests/updater.sh sha256:1c10ae5ae30305afe1cfc441879bc0415a6cea036da1d0c2d9ab29618b383ffa"
+      ],
+      "validationNotes": "The all.sh run passed runtime, holdings/configuration, history and backup suites, then stopped on a literal-parenthesis typo in the purchase midnight assertion. Only that assertion was corrected. The complete updater suite then exited 0 on the unchanged image and host code, repeating all trusted candidate gates including purchase, its independent upstream model oracle and exact-qualification refusal. No all.sh exit-0 claim is made."
     }
   ]
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Host-only release/download/cache orchestration. Java owns financial semantics."""
 import fcntl
+import contextlib
 import datetime
 import hashlib
 import json
@@ -9,10 +10,13 @@ import pathlib
 import platform
 import re
 import shutil
+import socket
+import struct
 import subprocess
 import sys
 import tarfile
 import tempfile
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -279,7 +283,7 @@ def extract_wrapper(archive, directory, trusted_root):
     trusted = json.loads((trusted_root / 'runtime/release-package.json').read_text())
     if policy.get('schema') != 1 or policy.get('buildRecipe') != 1 or policy.get('bootstrapProtocol') != 1 or policy.get('platform') != 'linux/amd64':
         raise UpdateError('Unknown released wrapper build recipe/platform; maintenance required')
-    if any(policy.get(key) != trusted.get(key) for key in ('input', 'output', 'migrations', 'baseImage', 'jdk', 'layouts')):
+    if any(policy.get(key) != trusted.get(key) for key in ('input', 'output', 'migrations', 'baseImage', 'jdk', 'layouts', 'features')):
         raise UpdateError('Unknown support or migration policy; maintenance required')
     return policy
 
@@ -292,13 +296,88 @@ def trusted_suite(root):
             raise UpdateError('Invalid trusted candidate gate')
     return registry
 
-def fixed_checks(package, image, registry, trusted_root):
+def descendant(pid, ancestor):
+    for _ in range(128):
+        if pid == ancestor:
+            return True
+        if pid <= 1:
+            return False
+        try:
+            fields = pathlib.Path(f'/proc/{pid}/status').read_text().splitlines()
+            pid = int(next(line for line in fields if line.startswith('PPid:')).split()[1])
+        except (OSError, StopIteration, ValueError):
+            return False
+    return False
+
+def candidate_qualification():
+    """Only descendants of a live, identical trusted updater can reuse its built pair."""
+    address = os.environ.get('PP_PAL_GATE_SOCKET')
+    if address is None:
+        return None
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+            connection.settimeout(5)
+            connection.connect(address)
+            pid, uid, _ = struct.unpack('3i', connection.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
+            command = pathlib.Path(f'/proc/{pid}/cmdline').read_bytes().split(b'\0')
+            if uid != os.getuid() or pid == os.getpid() or not descendant(os.getpid(), pid):
+                raise UpdateError('Candidate qualification is not from a live parent validator')
+            if len(command) < 3 or command[2] not in (b'--update', b'--dispatch'):
+                raise UpdateError('Candidate qualification parent is not the trusted updater')
+            bootstrap = pathlib.Path(os.fsdecode(command[1]))
+            if bootstrap.read_bytes() != pathlib.Path(__file__).read_bytes():
+                raise UpdateError('Candidate qualification bootstrap differs from trusted updater')
+            with connection.makefile('rb') as stream:
+                data = json.loads(stream.read(1024 * 1024))
+        if data.get('schema') != 1 or pathlib.Path(data['launcher']).parent != ROOT:
+            raise UpdateError('Candidate qualification does not match this released launcher')
+        return data
+    except (OSError, ValueError, KeyError, TypeError) as failure:
+        raise UpdateError('Invalid or expired candidate qualification') from failure
+
+@contextlib.contextmanager
+def qualifying_validator(temporary, qualification):
+    address = str(pathlib.Path(temporary) / 'qualification.sock')
+    stop = threading.Event()
+    payload = json.dumps(qualification).encode()
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
+        listener.bind(address)
+        os.chmod(address, 0o600)
+        listener.listen()
+        listener.settimeout(0.1)
+        def serve():
+            while not stop.is_set():
+                try:
+                    connection, _ = listener.accept()
+                except socket.timeout:
+                    continue
+                with connection:
+                    pid, uid, _ = struct.unpack('3i', connection.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
+                    if uid == os.getuid() and pid != os.getpid() and descendant(pid, os.getpid()):
+                        try:
+                            connection.sendall(payload)
+                        except OSError:
+                            pass
+        thread = threading.Thread(target=serve, daemon=True)
+        thread.start()
+        try:
+            yield address
+        finally:
+            stop.set()
+            thread.join(timeout=2)
+
+def fixed_checks(package, image, registry, trusted_root, qualification):
     with tempfile.TemporaryDirectory(prefix='pp-pal-gate-state-') as temporary:
+        state = pathlib.Path(temporary)
+        shutil.copytree(trusted_root, state / 'trusted-validation')
+        atomic_json(state / 'trusted-validation.json', {'schema': 1, 'sha256': qualification['trustedSuiteSha256']})
         environment = launch_environment(image)
-        environment.update(PP_PAL_LAUNCHER=str(package / 'pp-pal'), PP_PAL_STATE_DIR=temporary)
-        for check in registry['checks']:
-            print('CHECK ' + check, flush=True)
-            execute(['bash', str(trusted_root / check)], environment)
+        environment.update(PP_PAL_LAUNCHER=str(package / 'pp-pal'), PP_PAL_STATE_DIR=temporary, PP_PAL_GATE_BASELINE_IMAGE=qualification['baselineImage'])
+        with qualifying_validator(temporary, qualification) as address:
+            environment['PP_PAL_GATE_SOCKET'] = address
+            for check in registry['checks']:
+                print('CHECK ' + check, flush=True)
+                execute(['bash', str(trusted_root / check)], environment)
 
 def validate_selected(state, original, baseline_image, candidate_image):
     # Opaque snapshot bytes stay local. All model/persistence operations are Java.
@@ -354,6 +433,7 @@ def verify_candidate_image(image, wrapper, upstream, policy):
 
 def perform_update(arguments):
     selected_args = selection(arguments)
+    qualification = candidate_qualification()
     state = state_directory()
     lock_path = state / 'update.lock'
     descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
@@ -376,6 +456,22 @@ def perform_update(arguments):
         upstream = release(UPSTREAM, 'Portfolio Performance')
         registry = trusted_suite(trusted_root)
         asset_url, official_dependency_hash = upstream_asset(upstream)
+        if qualification is not None:
+            if (qualification['image'] != baseline_image or qualification['trustedSuiteSha256'] != suite_hash
+                    or qualification['wrapper']['revision'] != wrapper['revision'] or qualification['wrapper']['tag'] != wrapper['tag']
+                    or qualification['upstream']['revision'] != upstream['revision'] or qualification['upstream']['tag'] != upstream['tag']
+                    or qualification['upstream']['dependencyArchiveSha256'] != official_dependency_hash
+                    or qualification['wrapper']['treeSha256'] != tree_digest(ROOT)):
+                raise UpdateError('Candidate qualification pair/revision/digest/suite/image mismatch')
+            for archive in qualification['archives']:
+                path = pathlib.Path(archive['path'])
+                if path.is_symlink() or hash_bytes(path.read_bytes()) != archive['sha256']:
+                    raise UpdateError('Candidate qualification source/dependency cache changed')
+            verify_candidate_image(baseline_image, wrapper, upstream, qualification['support'])
+            validate_selected(state, original, baseline_image, baseline_image)
+            unchanged(file, original, identity)
+            print('QUALIFIED exact fixed-check released pair; reused ' + baseline_image)
+            return qualification
         if active and active['wrapper']['revision'] == wrapper['revision'] and active['upstream']['revision'] == upstream['revision'] and active['upstream']['dependencyArchiveSha256'] == official_dependency_hash and active['wrapper']['tag'] == wrapper['tag'] and active['upstream']['tag'] == upstream['tag'] and active['trustedSuiteSha256'] == suite_hash:
             validate_selected(state, original, baseline_image, baseline_image)
             unchanged(file, original, identity)
@@ -425,7 +521,13 @@ def perform_update(arguments):
         execute(command + [str(context)])
         image = image_identity(tag)
         java_version = verify_candidate_image(image, wrapper, upstream, policy)
-        fixed_checks(package, image, registry, trusted_root)
+        qualification = {'schema': 1, 'launcher': str(package / 'pp-pal'), 'image': image, 'baselineImage': baseline_image,
+            'wrapper': {'tag': wrapper['tag'], 'revision': wrapper['revision'], 'treeSha256': tree_digest(package)},
+            'upstream': {'tag': upstream['tag'], 'revision': upstream['revision'], 'dependencyArchiveSha256': dependency_hash},
+            'trustedSuiteSha256': suite_hash, 'support': policy,
+            'archives': [{'path': str(path), 'sha256': digest} for path, digest in
+                ((wrapper_archive, wrapper_hash), (source_archive, source_hash), (dependency_archive, dependency_hash))]}
+        fixed_checks(package, image, registry, trusted_root, qualification)
         validate_selected(state, original, baseline_image, image)
         unchanged(file, original, identity)
         manifest = {'schema': 1, 'validatedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'wrapper': {'tag': wrapper['tag'], 'revision': wrapper['revision'], 'sourceArchiveSha256': wrapper_hash, 'treeSha256': tree_digest(package)}, 'upstream': {'tag': upstream['tag'], 'revision': upstream['revision'], 'sourceArchiveSha256': source_hash, 'dependencyArchiveSha256': dependency_hash}, 'image': image, 'retentionTag': 'pp-pal:retained-' + image[7:], 'cacheTag': tag, 'baselineImage': baseline_image, 'baselineRetentionTag': 'pp-pal:retained-' + baseline_image[7:], 'launcher': str(package / 'pp-pal'), 'cacheKey': cache_key, 'trustedSuiteSha256': suite_hash, 'support': policy, 'checks': registry['checks'] + ['selected-portfolio-cross-engine-semantic-roundtrip', 'selected-portfolio-original-stale-check'], 'dependencies': {'host': ['Linux', 'Bash', 'Python 3.10+', 'Docker'], 'build': policy['baseImage'], 'recipeSha256': key_data['recipe'], 'actualJavaVersion': java_version, 'actualPlatform': 'linux/amd64', 'actualHost': platform.platform()}, 'previous': active}
@@ -450,7 +552,8 @@ def prepare_processing(arguments):
             index += 2
         else:
             index += 1
-    return perform_update(options)
+    with contextlib.redirect_stdout(sys.stderr):
+        return perform_update(options)
 
 def dispatch(arguments):
     state = state_directory()

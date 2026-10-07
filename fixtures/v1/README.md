@@ -39,3 +39,12 @@ the same invented text drawn as an actual PDF. Generate it with ReportLab 4.4.7
 and `scripts/generate-fixture-pdf.py`; normal runtime/tests require no Python
 dependency because the PDF is committed. The public patterns are upstream EPL
 reference material; no upstream private statement fixture was copied.
+
+`ambiguous-purchase.xml` adds one retained EUR security with the same name, ISIN
+and WKN as A and the invented stable UUID `00000000-0000-4000-8000-000000000099`.
+`PurchaseFixtureBuilder.java` creates it from the public base fixture and normalizes
+only the new UUID. A name/identifier alone is ambiguous; adding A's stable UUID
+selects A by intersecting the supplied constraints. Contradictory selectors reject.
+`PurchaseOracle.java` independently inspects detached upstream linked BUY models,
+including cash shares zero, securities-only costs, reciprocal owners, exact cent
+boundaries, midnight/nanoseconds and complete loaded-model preservation.
