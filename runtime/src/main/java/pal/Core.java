@@ -22,9 +22,9 @@ public final class Core {
         factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
         var root = factory.newDocumentBuilder().parse(path.toFile()).getDocumentElement();
         var versions = root.getElementsByTagName("version");
-        if (!root.getTagName().equals("client") || versions.getLength() != 1 || !versions.item(0).getTextContent().equals("70")
+        if (!root.getTagName().equals("client") || versions.getLength() != 1 || !Set.of("69", "70").contains(versions.item(0).getTextContent())
                 || !root.hasAttribute("id"))
-            throw new IOException("Unsupported input: only tested ID-reference XML model 70 is supported");
+            throw new IOException("Unsupported input: only tested ID-reference XML models 69 and 70 are supported");
         var refs = root.getElementsByTagName("*");
         for (int i = 0; i < refs.getLength(); i++) {
             var ref = ((org.w3c.dom.Element)refs.item(i)).getAttribute("reference");
@@ -32,6 +32,10 @@ public final class Core {
         }
         Client client = ClientFactory.load(path.toFile(), null, new NullProgressMonitor());
         return client;
+    }
+    public static String outputModel(int inputModel) {
+        return "OUTPUT MODEL " + MODEL + " (input " + inputModel + "; "
+                + (inputModel == MODEL ? "no migration" : "migration " + inputModel + " -> " + MODEL) + ")\n";
     }
     public static void save(Client client, Path path) throws Exception {
         ClientFactory.saveAs(client, path.toFile(), null, EnumSet.of(SaveFlag.XML, SaveFlag.ID_REFERENCES));
