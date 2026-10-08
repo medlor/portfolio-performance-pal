@@ -6,13 +6,15 @@ Use the gh CLI with --repo medlor/portfolio-performance-pal.
 ## Conventions
 
 - Create: gh issue create --repo medlor/portfolio-performance-pal --title "..." --body-file <file>
-- Read: gh issue view <number> --repo medlor/portfolio-performance-pal --comments
+- Read: gh issue view <number> --repo medlor/portfolio-performance-pal --json number,title,body,comments
 - List: gh issue list --repo medlor/portfolio-performance-pal --state open --json number,title,body,labels
 - Comment: gh issue comment <number> --repo medlor/portfolio-performance-pal --body-file <file>
 - Apply/remove labels: gh issue edit <number> --repo medlor/portfolio-performance-pal --add-label "..." / --remove-label "..."
 - Close: gh issue close <number> --repo medlor/portfolio-performance-pal
 
 For multiline bodies, write the exact Markdown to a file and use --body-file.
+Explicit JSON fields include comments and avoid the legacy `projectCards` query
+that can fail with GitHub's Projects (classic) deprecation error.
 Read docs/agents/triage-labels.md for label mappings.
 
 ## Pull requests as a triage surface
