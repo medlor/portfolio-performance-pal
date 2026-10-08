@@ -20,7 +20,7 @@ public final class AtomicWriter {
     public record Change(String description, List<Added> records, List<String> securities) {
         public Change { records = List.copyOf(records); securities = List.copyOf(securities); }
         public static Change purchase(BuySellEntry entry) {
-            return new Change("PURCHASE", List.of(new Added(Owner.SECURITIES, entry.getPortfolio().getUUID(), entry.getPortfolioTransaction().getUUID()),
+            return new Change(entry.getPortfolioTransaction().getType() == PortfolioTransaction.Type.SELL ? "SALE" : "PURCHASE", List.of(new Added(Owner.SECURITIES, entry.getPortfolio().getUUID(), entry.getPortfolioTransaction().getUUID()),
                     new Added(Owner.CASH, entry.getAccount().getUUID(), entry.getAccountTransaction().getUUID())), List.of());
         }
     }
