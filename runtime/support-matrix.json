@@ -279,6 +279,61 @@
       ],
       "validationNotes": "Both commands exited 0. The scoped updater runs every registered trusted fixture gate on a real stable tagged local wrapper plus official pinned upstream archives, isolated selected-copy validation, activation and mandatory fixed-image owner apply/failure checks. It stops before unrelated historical adversarial release/retry scenarios already validated in #23; no all.sh exit-0 claim. Real Linux tests cover required-backup failures, stale byte/inode/stage checks, locks and permissions, exact original snapshots, committed exit4/recovery without replay, deterministic process interruption, literal daily/additional retention and Berlin calendar boundaries. Only documentation/evidence metadata was added after the frozen passing gate.",
       "releaseValidation": "Actual local stable release pair and fixed owner application; initial official stable wrapper bootstrap publication remains prerequisite."
+    },
+    {
+      "upstreamRelease": "0.88.0",
+      "upstreamRevision": "8de1fe41d71a2c1b74a6bfbe913f885899aaf123",
+      "sourceArchiveSha256": "ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656",
+      "dependencyReleaseArchiveSha256": "1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2",
+      "jdk": "Temurin 21.0.11+10-LTS",
+      "platform": "linux/amd64",
+      "input": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "output": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "migrations": [],
+      "fixtureVersion": "v1",
+      "image": "sha256:0fb2c3d55aa9fe16b5d1bcef3795370c771186e6976e8a7496321313ddcb34cf",
+      "baselineImage": "sha256:ef6c75e4ee83101698ff7e74c45bf3bfd1d8b4edfd41a9d90df69b786afe4136",
+      "retentionTag": "pp-pal:retained-0fb2c3d55aa9fe16b5d1bcef3795370c771186e6976e8a7496321313ddcb34cf",
+      "validatedOn": "2026-10-08",
+      "validatedBy": "tests/updater.sh IMAGE --pdf-slice",
+      "releasedWrapperRevision": "f9ba1764b3d7245e38c99ef729c0ed278d3af9ff",
+      "implementationCommit": "a4bedb58b8b3baa662e81e155f1391438871e899",
+      "features": [
+        "headless-core-proof",
+        "holdings",
+        "configuration",
+        "history",
+        "monthly-launch-backups",
+        "exact-pre-upgrade-backups",
+        "released-wrapper-upstream-resolution",
+        "independent-candidate-validation",
+        "isolated-selected-copy-validation",
+        "atomic-released-engine-activation",
+        "unchanged-release-cache-reuse",
+        "immutable-image-retention",
+        "same-currency-purchase-preview",
+        "exact-fixed-check-candidate-qualification",
+        "installed-symlink-launcher",
+        "atomic-same-currency-purchase-application",
+        "verified-financial-write-recovery",
+        "successful-write-backup-retention",
+        "baader-purchase-pdf-preview"
+      ],
+      "layouts": [
+        "baader-german-eur-purchase-flat-v1",
+        "baader-german-eur-purchase-page1-of1-v1"
+      ],
+      "validationCommands": [
+        "bash tests/updater.sh sha256:ef6c75e4ee83101698ff7e74c45bf3bfd1d8b4edfd41a9d90df69b786afe4136 --pdf-slice"
+      ],
+      "validationNotes": "Exited 0. Every registered trusted candidate gate ran: PDF purchase, runtime, holdings/configuration, history, backups, purchase preview and purchase application. Actual local stable tagged wrapper and pinned official upstream archives built this combined image, then isolated selected-copy validation and activation passed. Mandatory fixed-image owner PDF preview preserved PDF, portfolio and opaque metadata. The PDF gate proves 21 exact converted PDF/text pairs, literal financial amounts and linked public-model batch facts, physical-page/all-member rejection, source-scoped times, missing-only supplement origins, joint existing-security identity and RO/UID/path behavior. Earlier final attempts failed test-only owner-container selection and blank-page formatting; both are retained as failed evidence. No all.sh exit-0 claim; unchanged historical updater attacks were not repeated. Only documentation/evidence metadata was added after the frozen passing gate.",
+      "releaseValidation": "Fixture-scoped synthetic German Baader EUR purchase profiles only; no current-owner layout claim. XML ID-reference model70, no migration, Linux amd64. Initial official stable wrapper bootstrap publication remains prerequisite."
     }
   ]
 }

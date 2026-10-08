@@ -100,3 +100,41 @@ redistribution obligations. No image publication is part of this workflow.
 Fixtures use invented identities and amounts. Their text layout is independently
 constructed from the public Baader extractor's documented patterns, not copied
 from an owner's statement or retained reference samples. See `fixtures/v1/README.md`.
+
+## Baader purchase document preview
+
+On 2026-10-08, `bash tests/updater.sh
+sha256:ef6c75e4ee83101698ff7e74c45bf3bfd1d8b4edfd41a9d90df69b786afe4136
+--pdf-slice` exited 0. The actual local stable released wrapper snapshot
+`f9ba1764b3d7245e38c99ef729c0ed278d3af9ff` and pinned official upstream archives
+built combined candidate
+`sha256:0fb2c3d55aa9fe16b5d1bcef3795370c771186e6976e8a7496321313ddcb34cf`,
+retained with its full-ID `pp-pal:retained-0fb2c3d55aa9fe16b5d1bcef3795370c771186e6976e8a7496321313ddcb34cf`
+tag. The frozen implementation tree was `a4bedb58b8b3baa662e81e155f1391438871e899`,
+including the validated #24 writer integration. Only evidence/documentation changed
+after this passing gate.
+
+Every registered trusted gate passed: PDF purchase, runtime, holdings/configuration,
+history, backups, purchase preview and purchase application. Isolated selected-copy
+validation, activation, and the mandatory-release fixed-image owner PDF preview
+also passed. The PDF gate uses 21 exact upstream-converted PDF/text pairs and
+independent literal financial/model facts. It verifies complete two-member linked
+plans, unchanged owner models, legitimate broker notes/source, immutable snapshots,
+strict physical-page/member coverage, monetary contradictions/precision, existing
+security identifier intersections, missing-only supplements and explicit-midnight
+versus fallback time. Actual owner containers use numeric host UID/GID and an
+individual read-only PDF bind; portfolio, PDF, configuration/opaque metadata and
+existing financial backups remain unchanged by previews.
+
+The scope remains the invented flat single-page and Baader `Seite 1/1` German EUR
+purchase profiles in [the fixture contract](../fixtures/v1/pdf-purchase/README.md).
+Other banks, uncovered/blank pages, continuations, FX, sales/dividends, unknown or
+malformed later members reject the complete document. This is no current-owner
+Baader/Smartbroker layout claim. Only XML ID-reference model70 on Linux amd64 is
+supported; no migration or PDF application is added. Initial official stable
+wrapper bootstrap publication remains a prerequisite.
+
+Earlier final runs stopped on test-only container-selection and blank-page paired
+text formatting errors; no passing result is claimed for them. The final scoped
+updater retained all seven gates and stopped before unrelated historical release/
+retry attacks already verified in #23. No full `tests/all.sh` exit-0 claim is made.
