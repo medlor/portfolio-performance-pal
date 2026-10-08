@@ -481,3 +481,35 @@ and timeouts fail closed; a failure after rename remains committed/exit 4.
 `tests/purchase-apply.sh` exercises the real owner and disposable container
 filesystem, including deterministic interruption, stale bytes/inodes, unsafe
 staging, Linux permissions, calendar cutoffs and independent pinned model checks.
+
+## Explicit security creation with a purchase
+
+Use `purchase --create-security --name 'Instrument name' --currency EUR` with the
+usual selected account pair, date and decimal amounts. External `--isin`, `--wkn`
+and `--ticker` identifiers are optional. Creation is detached during preview;
+`SECURITY ... (create)` shows the proposed new definition and `... (existing)`
+shows reuse. `--apply --desktop-closed` adds the definition and both linked
+purchase records together through the shared validated atomic writer. The normal
+mandatory release check, fresh input snapshot, exact daily backup and verified
+write recovery also apply. No additional migration is supported.
+
+Every supplied identifier participates in selection. A uniquely identified
+existing definition is reused without changing its name, currency or identifiers,
+including when the requested name uses a different broker spelling. Conflicting,
+unknown extra identifiers alongside a matched identifier, ambiguous matches,
+missing names/currencies and unsupported currencies stop the command before
+financial changes. An exact `--security-id` can disambiguate existing matches;
+unknown stable IDs never request creation. Existing security/cash currencies
+must agree with the requested currency; foreign-currency purchases still require
+the separately validated FX path. `--name` and `--currency` require the explicit
+creation flag. Names alone do not prove identity: creation without identifiers
+intentionally creates a new definition, even if a name resembles an existing one.
+
+`tests/security-create.sh` is a trusted candidate gate. It exercises identifier-free
+creation, optional identifiers, exact existing reuse, ambiguous/conflicting and
+invalid definitions, immutable previews, decimal failure and explicit midnight
+through the real released launcher. Pinned-core oracles load the written portfolio,
+check literal new-definition and linked purchase facts and compare the complete
+unrelated model after removing only the proposed additions. `tests/updater.sh
+IMAGE --security-slice` also verifies mandatory release discovery, fixed-image
+owner preview/application and stale/release failure refusal.

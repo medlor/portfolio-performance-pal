@@ -231,6 +231,40 @@ with released_work() as temporary, server() as api:
     check(pdf.read_bytes() == pdf_original and selected.read_bytes() == original and metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'PDF preview changed document, portfolio or metadata')
     check(not list(work.glob('selected portfolio.xml.????-??-??.bak')) and not list(work.glob('selected portfolio.xml.pp-pal.migration.*.bak')), 'PDF preview created daily/migration backups')
     print('PASS mandatory-release fixed-engine PDF preview preserves statement, financial input and opaque sidecar on released image ' + active['image'])
+    if '--security-slice' in sys.argv[2:]:
+        creation_args = ('purchase', '--file', str(selected), '--create-security', '--name', 'New Synthetic Instrument',
+            '--currency', 'EUR', '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A',
+            '--date', '2025-03-01', '--quantity', '2.5', '--price', '10', '--fees', '1', '--taxes', '.5')
+        request_count = len(api.requests)
+        result = run(work, api, *creation_args)
+        check(result.returncode == 0 and ' (create)' in result.stdout and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+        check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:] and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'Creation omitted mandatory releases')
+        check(selected.read_bytes() == original, 'Creation preview changed owner file')
+        wrapper_route = '/repos/medlor/portfolio-performance-pal/releases/latest'
+        release = api.routes.pop(wrapper_route)
+        try:
+            result = run(work, api, *creation_args, '--apply', '--desktop-closed')
+            check(result.returncode == 3 and 'released wrapper' in result.stderr.lower() and 'APPLIED PURCHASE' not in result.stdout, result.stderr)
+        finally: api.routes[wrapper_route] = release
+        api.before[wrapper_route] = lambda: selected.write_bytes(original + b'\n')
+        try:
+            result = run(work, api, *creation_args, '--apply', '--desktop-closed')
+            check(result.returncode == 3 and 'changed' in result.stderr.lower() and 'APPLIED PURCHASE' not in result.stdout, result.stderr)
+        finally: api.before.pop(wrapper_route); selected.write_bytes(original)
+        check(not list(work.glob('selected portfolio.xml.????-??-??.bak')), 'Rejected creation created daily backup')
+        request_count = len(api.requests)
+        result = run(work, api, *creation_args, '--apply', '--desktop-closed')
+        check(result.returncode == 0 and 'APPLIED PURCHASE' in result.stdout and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+        check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:] and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'Creation apply omitted mandatory releases')
+        check(metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Creation changed import metadata')
+        original_path = work / 'before-creation.xml'; original_path.write_bytes(original)
+        oracle = subprocess.run(['docker', 'run', '--rm', '--network', 'none', '--user', f'{os.getuid()}:{os.getgid()}',
+            '-v', f'{ROOT}/runtime/src/test/java:/tests:ro', '-v', f'{work}:/work:ro', '--entrypoint', 'java', active['image'],
+            '-cp', '/opt/pp/classes:/opt/pp/lib/*', '/tests/pal/SecurityCreatedOracle.java', '/work/before-creation.xml', '/work/selected portfolio.xml'], text=True, capture_output=True)
+        check(oracle.returncode == 0, oracle.stderr + oracle.stdout)
+        print('PASS mandatory released fixed-engine security creation preview/apply, stale/release refusal and pinned new-definition oracle on ' + active['image'])
+        sys.exit(0)
+
     if '--pdf-slice' in sys.argv[2:]:
         sys.exit(0)
 

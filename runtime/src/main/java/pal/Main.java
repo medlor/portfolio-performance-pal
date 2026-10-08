@@ -18,7 +18,7 @@ public final class Main {
                 case "holdings" -> line.allow(Set.of("securities-account", "cash-account", "security", "sort", "ascending", "limit", "include-zero"));
                 case "history" -> line.allow(Set.of("securities-account", "cash-account", "security", "type", "from", "to", "sort", "ascending", "limit"));
                 case "configure" -> line.allow(Set.of("securities-account", "cash-account"));
-                case "purchase" -> line.allow(Set.of("securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write"));
+                case "purchase" -> line.allow(Set.of("securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write", "create-security", "name", "currency"));
                 case "import" -> line.allow(Set.of("pdf", "securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time"));
                 case "backup-monthly", "backup-before-update" -> line.allow(Set.of());
                 default -> throw new IllegalArgumentException("Unknown command: " + line.command());
@@ -47,8 +47,11 @@ public final class Main {
                     var securities = Accounts.securities(invocation, config.selection(line, "securities-account"), true);
                     var cash = Accounts.cash(invocation, config.selection(line, "cash-account"), true);
                     var planned = Purchase.plan(invocation, securities, cash, line);
+                    if (planned.createsSecurity()) invocation.addSecurity(planned.entry().getPortfolioTransaction().getSecurity());
                     planned.entry().insert();
-                    return AtomicWriter.Change.purchase(planned.entry());
+                    var change = AtomicWriter.Change.purchase(planned.entry());
+                    return planned.createsSecurity() ? new AtomicWriter.Change(change.description(), change.records(),
+                            java.util.List.of(planned.entry().getPortfolioTransaction().getSecurity().getUUID())) : change;
                 });
                 System.out.print(outcome.text()); return outcome.status();
             }
