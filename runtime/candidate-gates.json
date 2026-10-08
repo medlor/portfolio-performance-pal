@@ -2,14 +2,14 @@
   "schema": 1,
   "fixtureVersion": "v1",
   "checks": [
-    "tests/security-create.sh",
-    "tests/pdf-purchase.sh",
-    "tests/runtime.sh",
     "tests/holdings.sh",
+    "tests/runtime.sh",
     "tests/history.sh",
     "tests/backups.sh",
     "tests/purchase.sh",
     "tests/purchase-apply.sh",
+    "tests/security-create.sh",
+    "tests/pdf-purchase.sh",
     "tests/sale.sh"
   ]
 }

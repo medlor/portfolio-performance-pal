@@ -11,7 +11,7 @@ cp "$root/fixtures/v1/query-portfolio.xml" portfolio_performance.xml
 cp "$root/fixtures/v1/history-portfolio.xml" history-portfolio.xml
 printf 'unchanged sidecar\n' > portfolio_performance.xml.pp-pal.json
 cp portfolio_performance.xml.pp-pal.json "$work/metadata-before"
-docker run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "${PP_PAL_IMAGE:-pp-pal:0.88.0}" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/DividendRelevanceOracle.java /fixtures/v1/history-portfolio.xml
+python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "${PP_PAL_IMAGE:-pp-pal:0.88.0}" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/DividendRelevanceOracle.java /fixtures/v1/history-portfolio.xml
 "$launcher" history --security Beta --limit 0 > "$work/actual"
 cat > "$work/expected" <<'EXPECTED'
 DATE/TIME | TYPE | SECURITY | QUANTITY | RECORDED AMOUNT | SECURITIES ACCOUNT | CASH ACCOUNT

@@ -2,6 +2,7 @@
 """Host-only release/download/cache orchestration. Java owns financial semantics."""
 import fcntl
 import contextlib
+import concurrent.futures
 import datetime
 import hashlib
 import json
@@ -17,6 +18,7 @@ import sys
 import tarfile
 import tempfile
 import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -115,8 +117,18 @@ def atomic_json(path, data):
         if os.path.exists(name):
             os.unlink(name)
 
-def execute(command, environment=None, quiet=False, input_errors=False):
-    result = subprocess.run(command, text=True, capture_output=True, env=environment)
+def execute(command, environment=None, quiet=False, input_errors=False, stream=False):
+    if stream:
+        # Gate output contains public fixture diagnostics; retain it for failure context.
+        with subprocess.Popen(command, text=True, stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, env=environment, bufsize=1) as process:
+            lines = []
+            for line in process.stdout:
+                print(line, end='', flush=True)
+                lines.append(line)
+            result = subprocess.CompletedProcess(command, process.wait(), ''.join(lines), ''.join(lines))
+    else:
+        result = subprocess.run(command, text=True, capture_output=True, env=environment)
     if result.returncode:
         if input_errors and result.returncode == 2:
             raise InputError('Selected file/configuration rejected: ' + result.stderr.strip())
@@ -154,7 +166,7 @@ def trusted_bundle(state):
             registry = json.loads((ROOT / 'runtime/candidate-gates.json').read_text())
             for name in ('fixtures', 'runtime/src/test/java'):
                 shutil.copytree(ROOT / name, temporary / name)
-            for name in [*registry['checks'], 'runtime/candidate-gates.json', 'runtime/release-package.json']:
+            for name in [*registry['checks'], 'runtime/candidate-gates.json', 'runtime/release-package.json', 'tests/oracle.py']:
                 destination = temporary / name
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(ROOT / name, destination)
@@ -367,17 +379,49 @@ def qualifying_validator(temporary, qualification):
             thread.join(timeout=2)
 
 def fixed_checks(package, image, registry, trusted_root, qualification):
-    with tempfile.TemporaryDirectory(prefix='pp-pal-gate-state-') as temporary:
-        state = pathlib.Path(temporary)
-        shutil.copytree(trusted_root, state / 'trusted-validation')
-        atomic_json(state / 'trusted-validation.json', {'schema': 1, 'sha256': qualification['trustedSuiteSha256']})
-        environment = launch_environment(image)
-        environment.update(PP_PAL_LAUNCHER=str(package / 'pp-pal'), PP_PAL_STATE_DIR=temporary, PP_PAL_GATE_BASELINE_IMAGE=qualification['baselineImage'])
-        with qualifying_validator(temporary, qualification) as address:
-            environment['PP_PAL_GATE_SOCKET'] = address
-            for check in registry['checks']:
-                print('CHECK ' + check, flush=True)
-                execute(['bash', str(trusted_root / check)], environment)
+    with tempfile.TemporaryDirectory(prefix='pp-pal-gate-oracles-') as temporary:
+        classes = pathlib.Path(temporary) / 'classes'
+        execute([sys.executable, str(trusted_root / 'tests/oracle.py'), '--compile',
+                 qualification['baselineImage'], str(classes)])
+        def gate(check):
+            # Each gate owns its state/lock/socket; trusted test classes are mounted readonly.
+            with tempfile.TemporaryDirectory(prefix='pp-pal-gate-state-') as gate_directory:
+                state = pathlib.Path(gate_directory)
+                shutil.copytree(trusted_root, state / 'trusted-validation')
+                atomic_json(state / 'trusted-validation.json', {'schema': 1, 'sha256': qualification['trustedSuiteSha256']})
+                # Qualification attacks deliberately mutate released help/source.
+                # Give each gate an identical private package so those attacks cannot
+                # interfere with another gate's mandatory tree identity checks.
+                gate_package = state / 'released'
+                shutil.copytree(package, gate_package)
+                if tree_digest(gate_package) != qualification['wrapper']['treeSha256']:
+                    raise UpdateError('Candidate gate package differs from qualified release')
+                gate_qualification = dict(qualification, launcher=str(gate_package / 'pp-pal'))
+                environment = launch_environment(image)
+                environment.update(PP_PAL_LAUNCHER=str(gate_package / 'pp-pal'),
+                                   PP_PAL_BEHAVIOR_LAUNCHER=str(gate_package / 'tools/run-container'),
+                                   PP_PAL_TEST_CLASSES=str(classes), PP_PAL_STATE_DIR=gate_directory,
+                                   PP_PAL_GATE_BASELINE_IMAGE=qualification['baselineImage'])
+                with qualifying_validator(gate_directory, gate_qualification) as address:
+                    environment['PP_PAL_GATE_SOCKET'] = address
+                    started = time.monotonic()
+                    print('CHECK START ' + check, flush=True)
+                    try:
+                        execute(['bash', str(trusted_root / check)], environment, stream=True)
+                    finally:
+                        elapsed = time.monotonic() - started
+                        print(f'CHECK END {check} elapsed={elapsed:.2f}s', flush=True)
+                    return elapsed, check
+        checks = registry['checks']
+        # Run the earliest cheap gate alone, then bounded pairs. A failed pair
+        # completes its in-flight work and prevents later expensive gates starting.
+        durations = [gate(checks[0])]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as workers:
+            for index in range(1, len(checks), 2):
+                batch = [workers.submit(gate, check) for check in checks[index:index + 2]]
+                durations.extend(future.result() for future in batch)
+        print('CHECK SUMMARY slowest: ' + ', '.join(
+            f'{check}={elapsed:.2f}s' for elapsed, check in sorted(durations, reverse=True)[:3]), flush=True)
 
 def validate_selected(state, original, baseline_image, candidate_image):
     # Opaque snapshot bytes stay local. All model/persistence operations are Java.
@@ -394,8 +438,6 @@ def validate_selected(state, original, baseline_image, candidate_image):
             for directory, target, mode in mounts:
                 bindings += ['-v', str(directory) + ':' + target + ':' + mode]
             return execute(base + bindings + [image, command, *args], quiet=True)
-        trusted_mounts = [(source, '/input', 'ro'), (trusted, '/trusted', 'rw')]
-        run(baseline_image, trusted_mounts, 'roundtrip', '/input/input.xml', '/trusted/before.xml')
         candidate_mounts = [(source, '/input', 'ro'), (output, '/output', 'rw')]
         run(candidate_image, candidate_mounts, 'roundtrip', '/input/input.xml', '/output/candidate.xml')
         candidate = output / 'candidate.xml'
@@ -403,12 +445,13 @@ def validate_selected(state, original, baseline_image, candidate_image):
             raise UpdateError('Candidate did not produce a regular disposable output')
         if (source / 'input.xml').read_bytes() != original:
             raise UpdateError('Candidate changed the readonly selected validation input')
-        after_mounts = [(output, '/output', 'ro'), (trusted, '/trusted', 'rw')]
-        run(baseline_image, after_mounts, 'roundtrip', '/output/candidate.xml', '/trusted/after.xml')
-        if (trusted / 'before.xml').read_bytes() != (trusted / 'after.xml').read_bytes():
-            raise UpdateError('Candidate changes selected portfolio persisted semantics; active pair retained')
-        if run(baseline_image, [(source, '/input', 'ro')], 'inspect', '/input/input.xml') != run(baseline_image, [(output, '/output', 'ro')], 'inspect', '/output/candidate.xml'):
-            raise UpdateError('Candidate changes selected portfolio financial relationships; active pair retained')
+        # A single independent baseline JVM checks both canonical roundtrips and
+        # relationship inspections. The candidate has no access to trusted source/artifacts.
+        oracle = state / 'trusted-validation/runtime/src/test/java/pal/SelectedPortfolioOracle.java'
+        execute(base + ['-v', str(source) + ':/input:ro', '-v', str(output) + ':/output:ro',
+                        '-v', str(trusted) + ':/trusted:rw', '-v', str(oracle) + ':/SelectedPortfolioOracle.java:ro',
+                        '--entrypoint', 'java', baseline_image, '-cp', '/opt/pp/classes:/opt/pp/lib/*',
+                        '/SelectedPortfolioOracle.java', '/input/input.xml', '/output/candidate.xml', '/trusted'], quiet=True)
 
 def upstream_asset(upstream):
     name = 'PortfolioPerformance-' + upstream['tag'] + '-linux.gtk.x86_64.tar.gz'
@@ -527,8 +570,9 @@ def perform_update(arguments):
             'trustedSuiteSha256': suite_hash, 'support': policy,
             'archives': [{'path': str(path), 'sha256': digest} for path, digest in
                 ((wrapper_archive, wrapper_hash), (source_archive, source_hash), (dependency_archive, dependency_hash))]}
-        fixed_checks(package, image, registry, trusted_root, qualification)
         validate_selected(state, original, baseline_image, image)
+        unchanged(file, original, identity)
+        fixed_checks(package, image, registry, trusted_root, qualification)
         unchanged(file, original, identity)
         manifest = {'schema': 1, 'validatedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'wrapper': {'tag': wrapper['tag'], 'revision': wrapper['revision'], 'sourceArchiveSha256': wrapper_hash, 'treeSha256': tree_digest(package)}, 'upstream': {'tag': upstream['tag'], 'revision': upstream['revision'], 'sourceArchiveSha256': source_hash, 'dependencyArchiveSha256': dependency_hash}, 'image': image, 'retentionTag': 'pp-pal:retained-' + image[7:], 'cacheTag': tag, 'baselineImage': baseline_image, 'baselineRetentionTag': 'pp-pal:retained-' + baseline_image[7:], 'launcher': str(package / 'pp-pal'), 'cacheKey': cache_key, 'trustedSuiteSha256': suite_hash, 'support': policy, 'checks': registry['checks'] + ['selected-portfolio-cross-engine-semantic-roundtrip', 'selected-portfolio-original-stale-check'], 'dependencies': {'host': ['Linux', 'Bash', 'Python 3.10+', 'Docker'], 'build': policy['baseImage'], 'recipeSha256': key_data['recipe'], 'actualJavaVersion': java_version, 'actualPlatform': 'linux/amd64', 'actualHost': platform.platform()}, 'previous': active}
         reports = state / 'reports'

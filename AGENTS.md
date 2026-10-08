@@ -14,3 +14,7 @@ Before applying triage labels, read `docs/agents/triage-labels.md`.
 
 This repo uses a single-context glossary and ADR layout.
 Before exploring domain behavior, read `docs/agents/domain.md`.
+
+### Test execution
+
+Before adding tests or changing suite execution, read `docs/agents/test-execution.md`.
