@@ -20,8 +20,8 @@ public final class Purchase {
         var choice = sale ? new Securities.Choice(Securities.existing(client, line), false) : Securities.purchase(client, line);
         var security = choice.security();
         String currency = cash.getCurrencyCode();
-        if (!currency.equals(security.getCurrencyCode())) throw new IllegalArgumentException("Foreign-currency trade requires the separately validated FX path");
-        var amounts = sale ? Amounts.sale(line) : Amounts.purchase(line);
+        var fx = ForeignExchange.from(line, currency, security.getCurrencyCode());
+        var amounts = Amounts.trade(line, sale, fx);
         final LocalDate date;
         final LocalTime time;
         try {
@@ -37,6 +37,7 @@ public final class Purchase {
         entry.setCurrencyCode(currency);
         entry.setAmount(amounts.booked());
         var transaction = entry.getPortfolioTransaction();
+        if (amounts.forexGross() != null) transaction.addUnit(amounts.forexGross());
         if (amounts.fees() != 0) transaction.addUnit(new Transaction.Unit(Transaction.Unit.Type.FEE, Money.of(currency, amounts.fees())));
         if (amounts.taxes() != 0) transaction.addUnit(new Transaction.Unit(Transaction.Unit.Type.TAX, Money.of(currency, amounts.taxes())));
         return new Plan(entry, amounts, !line.flag("time"), choice.created());
@@ -50,13 +51,15 @@ public final class Purchase {
         String image = System.getenv("PP_PAL_ENGINE_IMAGE");
         if (image != null) out.append("ENGINE IMAGE ").append(image).append('\n');
         out.append("OUTPUT MODEL ").append(Core.MODEL).append(" (input ").append(inputModel).append("; no migration)\n");
-        out.append("SECURITY ").append(tx.getSecurity().getName()).append(" | ").append(tx.getSecurity().getUUID()).append(" | ").append(currency).append(plan.createsSecurity() ? " (create)\n" : " (existing)\n");
+        out.append("SECURITY ").append(tx.getSecurity().getName()).append(" | ").append(tx.getSecurity().getUUID()).append(" | ").append(tx.getSecurity().getCurrencyCode()).append(plan.createsSecurity() ? " (create)\n" : " (existing)\n");
         out.append("SECURITIES ACCOUNT ").append(entry.getPortfolio().getName()).append(" | ").append(entry.getPortfolio().getUUID()).append('\n');
         out.append("CASH ACCOUNT ").append(entry.getAccount().getName()).append(" | ").append(entry.getAccount().getUUID()).append('\n');
         out.append("DATE ").append(tx.getDateTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append(plan.fallbackTime() ? (sale ? " (supplied date; fallback time 11:00:01)\n" : " (supplied date; fallback time 11:00:00)\n") : " (supplied date and time)\n");
         out.append("QUANTITY ").append(Amounts.quantityText(tx.getShares())).append(" (supplied)\n");
-        out.append("PRICE ").append(currency).append(' ').append(amounts.price().stripTrailingZeros().toPlainString()).append(" (").append(amounts.priceOrigin()).append(")\n");
+        out.append("PRICE ").append(tx.getSecurity().getCurrencyCode()).append(' ').append(amounts.price().stripTrailingZeros().toPlainString()).append(" (").append(amounts.priceOrigin()).append(")\n");
         out.append("GROSS ").append(currency).append(' ').append(Amounts.moneyText(tx.getGrossValueAmount())).append(" (").append(amounts.grossOrigin()).append(")\n");
+        out.append(ForeignExchange.preview(tx));
+        if (amounts.forexGross() != null) out.append("FOREIGN GROSS ORIGIN ").append(amounts.foreignOrigin()).append('\n');
         out.append("FEES ").append(currency).append(' ').append(Amounts.moneyText(amounts.fees())).append(" (").append(amounts.feeOrigin()).append(")\n");
         out.append("TAXES ").append(currency).append(' ').append(Amounts.moneyText(amounts.taxes())).append(" (").append(amounts.taxOrigin()).append(")\n");
         out.append(sale ? "BOOKED CREDIT " : "BOOKED DEBIT ").append(currency).append(' ').append(Amounts.moneyText(entry.getAccountTransaction().getAmount())).append(" (").append(amounts.bookedOrigin()).append(")\n");
