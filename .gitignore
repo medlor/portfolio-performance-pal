@@ -4,3 +4,4 @@ portfolio_performance.xml
 # Local build inputs and Python host-orchestration bytecode
 runtime/build-inputs/
 __pycache__/
+rollout*.html
