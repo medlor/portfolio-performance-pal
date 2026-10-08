@@ -39,6 +39,9 @@ History options:
 Purchase options:
   --security ID|IDENTIFIER|NAME  Exact existing security; no fuzzy names.
   --security-id UUID          Stable ID; combine identifiers to disambiguate.
+  --create-security          Explicitly create if supplied identifiers match none.
+  --name NAME --currency CODE Required definition with --create-security.
+                             Matching identifiers reuse unchanged existing data.
   --isin ISIN | --wkn WKN | --ticker TICKER  Exact identifier constraints.
   --quantity DECIMAL         Positive shares, exact 8-place scale.
   --price DECIMAL             Positive unit price, exact 8-place scale.
