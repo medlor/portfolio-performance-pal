@@ -4,6 +4,11 @@ Updates:
   --update [--file PATH] [--config PATH]  Validate and activate released pairs locally.
   Requires a stable wrapper bootstrap release; no usable release exists yet.
 
+Models:
+  Tested ID-reference XML input 69/70; output 70. Preview discloses 69 -> 70.
+  Queries, previews and --update leave the selected model unchanged.
+  Financial --apply creates exact separate migration protection when needed.
+
 Commands:
   holdings   Show recorded quantities by security and securities account.
   history    Show recorded transactions, including closed holdings and dividends.

@@ -22,11 +22,13 @@ final class WriteReceipt {
             throw new IOException("Unrecognized financial receipt: " + path);
         return new WriteReceipt(path, data);
     }
-    static WriteReceipt prepare(Path file, FileSnapshot input, String output, AtomicWriter.Change change, Path daily, Path staging) throws IOException {
+    static WriteReceipt prepare(Path file, FileSnapshot input, String output, AtomicWriter.Change change, Path daily, Path staging, int inputModel, Path migration) throws IOException {
         var data = new Properties();
         data.setProperty("format", "pp-pal-write-v1"); data.setProperty("portfolio", file.getFileName().toString());
         data.setProperty("state", "prepared"); data.setProperty("input", input.sha256()); data.setProperty("output", output);
         data.setProperty("description", change.description()); data.setProperty("daily", daily.getFileName().toString());
+        data.setProperty("inputModel", Integer.toString(inputModel)); data.setProperty("outputModel", Integer.toString(Core.MODEL));
+        if (migration != null) data.setProperty("migration", migration.getFileName().toString());
         data.setProperty("staging", staging.getParent().getFileName().toString());
         data.setProperty("transactions", String.join(" ", change.records().stream().map(AtomicWriter.Added::transactionId).toList()));
         data.setProperty("securities", String.join(" ", change.securities()));
@@ -41,7 +43,9 @@ final class WriteReceipt {
     String report() { return "APPLIED " + data.getProperty("description") + "\nTRANSACTIONS " + data.getProperty("transactions")
         + "\nDAILY BACKUP " + path.resolveSibling(data.getProperty("daily")) + "\nOUTPUT SHA256 " + data.getProperty("output")
         + "\nINPUT SHA256 " + data.getProperty("input") + "\nENGINE IMAGE " + data.getProperty("engine")
-        + "\nINPUT MODEL 70\nOUTPUT MODEL 70\nRECEIPT " + path + "\n"; }
+        + "\nINPUT MODEL " + data.getProperty("inputModel", "70") + "\nOUTPUT MODEL " + data.getProperty("outputModel", "70")
+        + (data.containsKey("migration") ? "\nMIGRATION BACKUP " + path.resolveSibling(data.getProperty("migration")) : "")
+        + "\nRECEIPT " + path + "\n"; }
     void verifyOutput(FileSnapshot snapshot) throws Exception {
         if (!isOutput(snapshot)) throw new IOException("Pending financial receipt does not match current file; do not repeat apply: " + path);
         var client = snapshot.load(); var ids = new HashMap<String,Integer>();

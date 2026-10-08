@@ -491,7 +491,8 @@ and `--ticker` identifiers are optional. Creation is detached during preview;
 shows reuse. `--apply --desktop-closed` adds the definition and both linked
 purchase records together through the shared validated atomic writer. The normal
 mandatory release check, fresh input snapshot, exact daily backup and verified
-write recovery also apply. No additional migration is supported.
+write recovery also apply. The tested model 69 -> 70 migration uses separate
+exact operation-input protection as described below.
 
 Every supplied identifier participates in selection. A uniquely identified
 existing definition is reused without changing its name, currency or identifiers,
@@ -638,3 +639,40 @@ atomic replacement, exact daily backup and verified recovery. `tests/fx.sh` is a
 mandatory candidate gate: representative owner-launcher preview/apply, broad
 container command cases, pinned-core saved-unit/link checks, full unrelated-state
 preservation, decimal boundaries, and rejection immutability. PDF FX remains pending.
+
+## Tested model migrations with financial changes
+
+The pinned 0.88.0 core accepts tested XML ID-reference models 69 and 70 and saves
+model 70. The only declared migration is **69 -> 70**: optional client-filter
+weights are added to the schema; existing financial records, unweighted selections
+and unrelated persisted state are preserved. Models 68 and earlier, future models,
+and other representations remain unsupported. Exact image/revision evidence lives
+in `runtime/support-matrix.json`.
+
+Financial previews disclose `OUTPUT MODEL 70 (input 69; migration 69 -> 70)`.
+Queries, previews and `--update` may migrate disposable/in-memory state, but leave
+the selected portfolio and import metadata unchanged. There is no separate
+migration command. The owner coordinates desktop compatibility independently;
+no configured desktop release is required.
+
+Before a financial replacement that migrates the model, the writer creates
+`<filename>.pp-pal.migration.69-to-70.<uuid>.bak` from the exact validated operation
+input, even when the daily backup exists. Exclusive creation prevents overwriting
+earlier migration protection. Required migration backup/index failure prevents
+replacement. A later restored model69 input gets its own backup. The receipt
+reports input/output models and the migration backup path, including during
+verified recovery. Existing daily protection remains unchanged.
+
+Owned migration backups use the separate additional-backup policy: retain for
+two Europe/Berlin calendar years from creation, removing only entries strictly
+older than the cutoff after a successful financial write or verified cleanup.
+Preview/rejection never prunes. Post-replacement cleanup failure reports successful
+financial application with exit 4 and `do not repeat apply`; use the documented
+`--recover-write --desktop-closed` workflow to finish cleanup without replay.
+
+Run the focused gate with
+`PP_PAL_LAUNCHER="$PWD/tools/run-container" bash tests/migrations.sh IMAGE`, then
+`bash tests/all.sh IMAGE`. The migration gate is mandatory alongside all prior
+gates. Independent literal pre/post fixtures and pinned saved-model oracles check
+financial changes and complete unrelated-state preservation. The updater also
+checks a disposable model69 selected copy and released owner preview/application.

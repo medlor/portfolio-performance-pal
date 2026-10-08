@@ -1,6 +1,6 @@
 # Upgrading Portfolio Performance support
 
-The wrapper reuses upstream Java persistence and models. This does not establish rewrite safety or promise stable exported APIs. The pinned model 70 headless runtime and cumulative query/backup checks are validated in `runtime/support-matrix.json`. Financial writes remain pending; preserve the following evidence requirements before enabling them.
+The wrapper reuses upstream Java persistence and models. This does not establish rewrite safety or promise stable exported APIs. Exact validated images and financial capabilities are recorded in `runtime/support-matrix.json`; retain the following evidence requirements when extending support.
 
 Normal commands use a pinned Portfolio Performance version and locally built image. Provide a documented upgrade script through the shell launcher's `--update` option, targeting the latest stable upstream release. Build the candidate locally and activate it only after compatibility checks pass. If building or validation fails, keep the previous working image active and leave the portfolio untouched; report adapter maintenance required when upstream changes prevent an upgrade. The command is implemented; [local updater and bootstrap packaging](local-updater.md) documents its release prerequisite and gates. The workflow must not publish the wrapper image to an external registry.
 

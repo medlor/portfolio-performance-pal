@@ -35,7 +35,7 @@ public final class Dividend {
         var out = new StringBuilder("PREVIEW DIVIDEND\n");
         String image = System.getenv("PP_PAL_ENGINE_IMAGE");
         if (image != null) out.append("ENGINE IMAGE ").append(image).append('\n');
-        out.append("OUTPUT MODEL ").append(Core.MODEL).append(" (input ").append(inputModel).append("; no migration)\n");
+        out.append(Core.outputModel(inputModel));
         out.append("SECURITY ").append(tx.getSecurity().getName()).append(" | ").append(tx.getSecurity().getUUID()).append(" | ").append(tx.getSecurity().getCurrencyCode()).append(" (existing)\n");
         out.append("CASH ACCOUNT ").append(plan.account().getName()).append(" | ").append(plan.account().getUUID()).append('\n');
         out.append("DATE ").append(tx.getDateTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))

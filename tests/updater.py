@@ -506,7 +506,7 @@ with released_work() as temporary, server() as api:
     print('PASS failed discovery stops update and preview instead of silently processing with the old engine')
 
     # Public unsupported selection must be checked even when the release pair is cached.
-    selected.write_bytes(original.replace(b'<version>70</version>', b'<version>69</version>'))
+    selected.write_bytes(original.replace(b'<version>70</version>', b'<version>68</version>'))
     unsupported = selected.read_bytes()
     metadata = work / 'selected portfolio.xml.pp-pal.json'
     metadata.write_bytes(b'opaque adjacent import metadata sentinel\n')
@@ -516,6 +516,44 @@ with released_work() as temporary, server() as api:
     check((work / 'state/active.json').read_bytes() == before, 'Selected rejection replaced activated pair')
     selected.write_bytes(original)
     print('PASS cached update still validates selected --file and preserves unsupported XML/import metadata')
+
+    # The declared migration is validated on disposable copies even for a cached
+    # pair; only the subsequent financial apply may persist model70.
+    migration_file = work / 'owner migration.xml'
+    migration_input = (ROOT / 'fixtures/v1/migrations/model69.xml').read_bytes()
+    migration_file.write_bytes(migration_input)
+    migration_metadata = work / 'owner migration.xml.pp-pal.json'
+    migration_metadata.write_bytes(b'opaque migration metadata\n')
+    result = run(work, api, '--update', '--file', str(migration_file))
+    check(result.returncode == 0 and migration_file.read_bytes() == migration_input, result.stdout + result.stderr)
+    check((work / 'state/active.json').read_bytes() == before, 'Cached migration check changed fixed pair')
+    check(not list(work.glob('owner migration.xml.????-??-??.bak'))
+          and not list(work.glob('owner migration.xml.pp-pal.migration.*.bak')), 'Update persisted/protected a financial migration')
+    migration_args = ('purchase', '--file', str(migration_file), '--security', 'DE0000000001',
+                      '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A',
+                      '--date', '2025-03-01', '--quantity', '2.5', '--price', '10', '--fees', '1', '--taxes', '.5')
+    result = run(work, api, *migration_args)
+    check(result.returncode == 0 and 'OUTPUT MODEL 70 (input 69; migration 69 -> 70)' in result.stdout
+          and migration_file.read_bytes() == migration_input, result.stdout + result.stderr)
+    check(not list(work.glob('owner migration.xml.pp-pal.migration.*.bak')), 'Owner preview created migration backup')
+    # An older daily backup must remain unchanged while exact migration protection
+    # covers the operation input. No configured desktop release participates.
+    migration_daily = work / 'owner migration.xml.2026-10-07.bak'
+    migration_daily.write_bytes(b'previous daily owner snapshot\n')
+    result = run(work, api, *migration_args, '--apply', '--desktop-closed')
+    check(result.returncode == 0 and 'INPUT MODEL 69\nOUTPUT MODEL 70' in result.stdout
+          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stdout + result.stderr)
+    migration_backups = list(work.glob('owner migration.xml.pp-pal.migration.*.bak'))
+    check(len(migration_backups) == 1 and migration_backups[0].read_bytes() == migration_input, 'Migration protection differs from operation input')
+    check(migration_daily.read_bytes() == b'previous daily owner snapshot\n'
+          and migration_metadata.read_bytes() == b'opaque migration metadata\n', 'Migration replaced daily/import data')
+    subprocess.run(['python3', str(ROOT/'tests/oracle.py'), 'run', '--rm', '--network', 'none',
+                    '--user', f'{os.getuid()}:{os.getgid()}', '-v', f'{ROOT}/fixtures:/fixtures:ro',
+                    '-v', f'{ROOT}/runtime/src/test/java:/tests:ro', '-v', f'{work}:/work:ro',
+                    '--entrypoint', 'java', active['image'], '-cp', '/opt/pp/classes:/opt/pp/lib/*',
+                    '/tests/pal/PurchaseAppliedOracle.java', '/fixtures/v1/migrations/model69.xml',
+                    '/work/owner migration.xml', '1'], check=True)
+    print('PASS released owner update/preview preserve model69; financial apply alone persists a protected migration')
 
     requests_before = len(api.requests)
     with (work / 'state/update.lock').open('r+') as lock:
