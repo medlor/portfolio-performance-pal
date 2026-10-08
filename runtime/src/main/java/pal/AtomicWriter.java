@@ -76,6 +76,7 @@ public final class AtomicWriter {
             else if (planner == null) throw new IllegalArgumentException("No pending financial replacement to recover");
             else {
             var client = snapshot.load();
+            int inputModel = client.getFileVersionAfterRead();
             byte[] baseline = Core.semanticState(client);
             Set<String> originalIds = transactionIds(client);
             Set<String> originalSecurities = new HashSet<>(client.getSecurities().stream().map(Security::getUUID).toList());
@@ -103,8 +104,10 @@ public final class AtomicWriter {
             var stagedSnapshot = FileSnapshot.capture(staging);
             outputHash = stagedSnapshot.sha256();
             snapshot.requireCurrent();
-            daily = new BackupService(file, clock).daily(snapshot);
-            receipt = WriteReceipt.prepare(file, snapshot, outputHash, change, daily, staging);
+            var protectionBeforeWrite = new BackupService(file, clock);
+            daily = protectionBeforeWrite.daily(snapshot);
+            Path migration = inputModel == Core.MODEL ? null : protectionBeforeWrite.beforeMigration(snapshot, inputModel);
+            receipt = WriteReceipt.prepare(file, snapshot, outputHash, change, daily, staging, inputModel, migration);
             WriteObserver.phase(file, "before-final-check", staging);
             snapshot.requireCurrent(); stagedSnapshot.requireCurrent();
             stageDirectory.move(staging.getFileName(), directory, file.getFileName());

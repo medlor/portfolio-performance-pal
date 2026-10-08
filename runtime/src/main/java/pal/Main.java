@@ -66,7 +66,7 @@ public final class Main {
             }
             name.abuchen.portfolio.model.Client client;
             try { client = Core.load(file); }
-            catch (Exception e) { throw new IllegalArgumentException("Portfolio cannot be loaded as supported ID-reference XML model 70: " + e.getMessage(), e); }
+            catch (Exception e) { throw new IllegalArgumentException("Portfolio cannot be loaded as supported ID-reference XML models 69/70: " + e.getMessage(), e); }
             var securities = line.command().equals("dividend") ? null : Accounts.securities(client, config.selection(line, "securities-account"), line.command().equals("configure"));
             var cash = Accounts.cash(client, config.selection(line, "cash-account"), false);
             switch (line.command()) {
