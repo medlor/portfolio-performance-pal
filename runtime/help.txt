@@ -9,6 +9,7 @@ Commands:
   history    Show recorded transactions, including closed holdings and dividends.
   purchase   Preview or apply a same-currency purchase after mandatory release validation.
   sale       Preview or apply a sale with complete holding-history validation.
+  dividend   Preview or apply a security-associated cash credit with fees/taxes.
   import     Preview all purchases in one proved Baader EUR statement PDF.
   configure  Save portfolio path and resolved default account IDs explicitly.
   backup-monthly  Check due launch protection without loading the financial model.
@@ -66,6 +67,18 @@ Sale options:
   breaks ties within each group, with the new sale after existing decreases.
   Partial/full sales preserve definitions and history; no FIFO/profit is calculated.
 
+Dividend options:
+  Existing-security selectors and cash-account selection as above; no securities
+  account is required. --gross or --total must determine the cash credit.
+  --total is booked credit; gross = booked + fees + taxes, exact cents.
+  Omitted fees/taxes default zero; contradictory amounts and negative credits reject.
+  --date YYYY-MM-DD is required; --time preserves supplied time, or uses 11:00:00.
+  Default preview shows choices and derivations. --apply --desktop-closed records
+  one same-currency cash dividend, including for a closed holding. Quantity and
+  holding last updated stay unchanged; history uses reference-cash/security relevance.
+  Shared cash can make attribution ambiguous; no securities-account link is created.
+  Shared atomic-write, backup and --recover-write rules apply. FX remains pending.
+
 PDF purchase preview:
   import --pdf PATH          One readable .pdf; preview only, no --apply.
   Requires existing securities and selected securities/cash accounts.
@@ -84,4 +97,4 @@ Launches create a due Berlin monthly backup; each backup-before-update call crea
 another exact backup. That command does not discover, build or activate updates.
 Exit codes: 0 success; 2 input/validation rejected; 3 operational failure;
 4 completed financial change with failed follow-up work.
-Dividend commands, sale/dividend/FX statement layouts and PDF application are pending.
+Sale/dividend/FX statement layouts and PDF application are pending.

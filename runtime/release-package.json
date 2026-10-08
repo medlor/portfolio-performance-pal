@@ -34,6 +34,8 @@
     "explicit-purchase-security-creation",
     "same-currency-sale-preview",
     "atomic-same-currency-sale-application",
-    "complete-sale-quantity-history-validation"
+    "complete-sale-quantity-history-validation",
+    "same-currency-dividend-preview",
+    "atomic-same-currency-dividend-application"
   ]
 }
