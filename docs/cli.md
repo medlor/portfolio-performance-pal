@@ -134,7 +134,7 @@ configuration bytes remain unchanged.
 
 ## Purchase preview
 
-`purchase` defaults to a same-currency purchase preview of an existing security;
+`purchase` defaults to a purchase preview of an existing security;
 `--apply --desktop-closed` commits a fresh plan as described below. Supply a required securities/cash account
 pair explicitly or through configuration, an exact `--security` selector, ISO
 `--date`, positive `--quantity`, and one or more of `--price`, `--gross`, or
@@ -144,8 +144,8 @@ identifier, or exact name. `--security-id`, `--isin`, `--wkn`, and `--ticker`
 add exact constraints; their intersection must select one existing definition.
 An ambiguous name plus a stable UUID can resolve one security; contradictory
 constraints reject. Fuzzy query name filtering does not select
-financial records. Currency must agree between the security and selected cash
-account. Linked proposed records use the upstream BuySellEntry and monetary units.
+financial records. Different security and cash currencies require the explicit rate described under
+[manual foreign-currency transactions](#manual-foreign-currency-transactions). Linked proposed records use the upstream BuySellEntry and monetary units.
 
 The launcher performs mandatory release discovery and selected-file validation
 before constructing a plan, then fixes the selected immutable image for that
@@ -499,9 +499,8 @@ including when the requested name uses a different broker spelling. Conflicting,
 unknown extra identifiers alongside a matched identifier, ambiguous matches,
 missing names/currencies and unsupported currencies stop the command before
 financial changes. An exact `--security-id` can disambiguate existing matches;
-unknown stable IDs never request creation. Existing security/cash currencies
-must agree with the requested currency; foreign-currency purchases still require
-the separately validated FX path. `--name` and `--currency` require the explicit
+unknown stable IDs never request creation. The requested security currency must agree with an existing definition;
+foreign-currency purchases require `--exchange-rate`. `--name` and `--currency` require the explicit
 creation flag. Names alone do not prove identity: creation without identifiers
 intentionally creates a new definition, even if a name resembles an existing one.
 
@@ -517,8 +516,7 @@ owner preview/application and stale/release failure refusal.
 ## Manual sales
 
 `sale` accepts the purchase command's existing-security selectors, account pair,
-quantity, price/gross/total, fees/taxes and date/time options. It supports tested
-same-currency entries only. `--total` is net cash credit (`gross - fees - taxes`);
+quantity, price/gross/total, fees/taxes and date/time options. Different security and cash currencies require `--exchange-rate`. `--total` is net cash credit (`gross - fees - taxes`);
 shared exact decimal precision and rounding rules apply. A gross amount below
 fees and taxes rejects. For example:
 
@@ -561,7 +559,7 @@ booked cash credit using upstream monetary units. `--total 23.50` can replace
 both requires exact agreement. All monetary inputs must be nonnegative exact
 cents in the cash/security currency; negative credits, overflow and excess
 precision reject. Omitted fees/taxes default to zero. No quantity or price input
-is accepted. Foreign-currency dividends await the separately validated FX path.
+is accepted. Foreign-currency dividends require `--exchange-rate`.
 
 `--date` is required. Missing time uses the disclosed `11:00:00` fallback; explicit
 midnight and fractional seconds are preserved. Backdated dividends and dividends
@@ -593,3 +591,50 @@ updater adversarial suite. The validated dividend-capable released image is
 retained locally under `pp-pal:retained-7ac4e8891b41d613759bc024481c5c29ce5ab3e7fcbec4551080604197b6816f`.
 The support matrix records the exact pair and tested scope. Production use still
 requires the initial official stable wrapper bootstrap release.
+
+
+## Manual foreign-currency transactions
+
+Purchases, sales and dividends support a security currency different from the
+selected cash account currency. Supply `--exchange-rate` as **cash currency per
+unit of security currency**: for a USD security in an EUR cash account, `.8`
+means USD 1 = EUR 0.80. No rate is fetched or inferred from supplied amounts.
+Rates are positive decimals with at most ten significant digits and ten decimal
+or integer range places (trailing zeros do not count). This is a tested subset
+of the pinned core's ten-significant-digit exchange calculation precision.
+
+`--price` is in security currency. `--forex-gross` supplies security-currency gross;
+`--gross`, `--total`, `--fees` and `--taxes` are in cash currency. All explicit
+monetary amounts require exact cents; quantity and price retain their existing
+eight-place scales. Omitted fees/taxes are zero. For example:
+
+```sh
+./pp-pal purchase --security US0000000002 \
+  --securities-account 'Synthetic Securities B' --cash-account 'Synthetic Cash B' \
+  --date 2025-03-01 --quantity 2 --price 12.5 --exchange-rate .8 --fees 1 --taxes .5
+```
+
+This previews USD 25.00 foreign gross, EUR 20.00 cash gross and EUR 21.50 booked
+debit. A sale or dividend with the same gross/costs books EUR 18.50 credit.
+`--forex-gross 25` can replace the price; trades still require quantity.
+Alternatively, cash `--gross 20` or booked `--total 21.50` determines a purchase
+without foreign monetary input. Foreign gross is then derived by dividing cash
+gross by the explicit rate and rounding HALF_UP to cents. It must convert back
+to the same cash cents; otherwise supply a consistent `--forex-gross` or correct
+the monetary inputs. Derived unit price is a display value in security currency,
+rounded HALF_EVEN to eight places.
+
+Quantity times price rounds HALF_UP to foreign cents before multiplication by
+the rate rounds HALF_UP to cash cents. Every supplied value must agree at those
+rounding boundaries; no extra tolerance is used to admit contradictions. Precision,
+overflow, invalid/missing rates and FX options on same-currency entries reject
+without financial changes. Preview identifies supplied/derived values, currencies,
+rate direction and rounding. Upstream `GROSS_VALUE` units retain both gross amounts
+and the explicit rate; cost units and linked cash amounts remain in cash currency.
+
+`--apply --desktop-closed` uses the existing fixed-image update qualification,
+fresh preview plan, complete sale quantity validation, saved-model semantic check,
+atomic replacement, exact daily backup and verified recovery. `tests/fx.sh` is a
+mandatory candidate gate: representative owner-launcher preview/apply, broad
+container command cases, pinned-core saved-unit/link checks, full unrelated-state
+preservation, decimal boundaries, and rejection immutability. PDF FX remains pending.
