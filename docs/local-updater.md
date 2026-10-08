@@ -9,8 +9,9 @@ distribution code; they do not replace themselves from a candidate. Protocol 1
 requires candidate `pp-pal` and `tools/update.py` to match that bootstrap exactly.
 Changed host orchestration stops with a manual trusted-bootstrap maintenance error;
 released Java code and `tools/run-container` can update automatically. Purchase, sale, dividend and import dispatch run
-this same preparation before any preview or write. Same-currency manual purchases,
-sales and dividends support preview/application; PDF import supports the validated
+this same preparation before any preview or write. Manual purchases,
+sales and dividends, including explicit foreign-currency transactions, support
+preview/application; PDF import supports the validated
 purchase preview profiles. Other statement layouts and PDF application remain pending.
 
 Linux amd64, Bash, Python 3.10 or newer, Docker and standard Linux core utilities

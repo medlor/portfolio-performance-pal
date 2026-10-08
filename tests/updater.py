@@ -313,6 +313,46 @@ with released_work() as temporary, server() as api:
     check(result.returncode == 0 and 'APPLIED DIVIDEND' in result.stdout and dividend_file.read_bytes() != original
           and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
     print('PASS mandatory released-pair dividend preview/application, release-failure and changed-input immutability')
+    fx_purchased = None
+    for command in ('purchase', 'sale', 'dividend'):
+        fx_file = work / ('fx-' + command + '.xml')
+        content = fx_purchased if command == 'sale' else original
+        fx_file.write_bytes(content)
+        fx_metadata = fx_file.with_name(fx_file.name + '.pp-pal.json')
+        fx_metadata.write_bytes(b'opaque FX metadata\n')
+        fx_args = [command, '--file', str(fx_file), '--security', 'US0000000002',
+            '--cash-account', 'Synthetic Cash B', '--date', '2025-03-02',
+            '--exchange-rate', '.8', '--fees', '1', '--taxes', '.5']
+        if command == 'dividend': fx_args += ['--forex-gross', '25']
+        else: fx_args += ['--securities-account', 'Synthetic Securities B', '--quantity', '2', '--price', '12.5']
+        request_count = len(api.requests)
+        result = run(work, api, *fx_args)
+        check(result.returncode == 0 and 'FOREIGN GROSS USD 25.00' in result.stdout
+              and 'GROSS EUR 20.00' in result.stdout and 'ENGINE IMAGE ' + active['image'] in result.stdout,
+              result.stderr + result.stdout)
+        check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:]
+              and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'FX omitted mandatory releases')
+        check(fx_file.read_bytes() == content, 'FX preview changed portfolio')
+        release = api.routes.pop(route)
+        try:
+            result = run(work, api, *fx_args, '--apply', '--desktop-closed')
+            check(result.returncode == 3 and 'APPLIED ' not in result.stdout and fx_file.read_bytes() == content,
+                  'FX applied despite failed release check: ' + result.stderr)
+        finally: api.routes[route] = release
+        api.before[route] = lambda: fx_file.write_bytes(content + b'\n')
+        try:
+            result = run(work, api, *fx_args, '--apply', '--desktop-closed')
+            check(result.returncode == 3 and 'changed' in result.stderr.lower() and 'APPLIED ' not in result.stdout,
+                  result.stderr + result.stdout)
+        finally:
+            api.before.pop(route); fx_file.write_bytes(content)
+        check(not list(work.glob(fx_file.name + '.????-??-??.bak')), 'Rejected FX created daily backup')
+        result = run(work, api, *fx_args, '--apply', '--desktop-closed')
+        check(result.returncode == 0 and 'APPLIED ' + command.upper() in result.stdout and fx_file.read_bytes() != content
+              and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+        check(fx_metadata.read_bytes() == b'opaque FX metadata\n', 'FX changed import metadata')
+        if command == 'purchase': fx_purchased = fx_file.read_bytes()
+    print('PASS all FX commands use mandatory fixed released pair; release/stale failures refuse changes and application preserves metadata')
     if '--security-slice' in sys.argv[2:]:
         creation_args = ('purchase', '--file', str(selected), '--create-security', '--name', 'New Synthetic Instrument',
             '--currency', 'EUR', '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A',

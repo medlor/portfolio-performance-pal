@@ -7,7 +7,7 @@ Updates:
 Commands:
   holdings   Show recorded quantities by security and securities account.
   history    Show recorded transactions, including closed holdings and dividends.
-  purchase   Preview or apply a same-currency purchase after mandatory release validation.
+  purchase   Preview or apply a purchase after mandatory release validation.
   sale       Preview or apply a sale with complete holding-history validation.
   dividend   Preview or apply a security-associated cash credit with fees/taxes.
   import     Preview all purchases in one proved Baader EUR statement PDF.
@@ -74,10 +74,22 @@ Dividend options:
   Omitted fees/taxes default zero; contradictory amounts and negative credits reject.
   --date YYYY-MM-DD is required; --time preserves supplied time, or uses 11:00:00.
   Default preview shows choices and derivations. --apply --desktop-closed records
-  one same-currency cash dividend, including for a closed holding. Quantity and
+  one cash dividend, including for a closed holding. Quantity and
   holding last updated stay unchanged; history uses reference-cash/security relevance.
   Shared cash can make attribution ambiguous; no securities-account link is created.
-  Shared atomic-write, backup and --recover-write rules apply. FX remains pending.
+  Shared atomic-write, backup and --recover-write rules apply.
+
+Manual foreign-currency options (purchase, sale, dividend):
+  --exchange-rate DECIMAL     Required cash currency per unit of security currency.
+  --forex-gross DECIMAL       Optional gross in security currency, exact cents.
+  --price is in security currency; --gross, --total, --fees, --taxes in cash currency.
+  Supply price, foreign gross, cash gross or booked total to determine the amounts.
+  Rate: positive, at most 10 significant digits and 10 decimal/range places.
+  Quantity x price rounds to foreign cents, then rate conversion to cash cents;
+  both use HALF_UP. Cash-only inputs derive foreign gross with HALF_UP division
+  and must convert back to the same cash cents. Contradictions/overflow reject.
+  Preview discloses currencies, exact rate, origins and rounding; no rates fetched.
+  Same-currency entries reject FX options. Existing apply/backup/update rules apply.
 
 PDF purchase preview:
   import --pdf PATH          One readable .pdf; preview only, no --apply.

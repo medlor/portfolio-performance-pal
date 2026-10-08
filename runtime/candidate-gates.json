@@ -8,6 +8,7 @@
     "tests/backups.sh",
     "tests/purchase.sh",
     "tests/purchase-apply.sh",
+    "tests/fx.sh",
     "tests/security-create.sh",
     "tests/pdf-purchase.sh",
     "tests/sale.sh",

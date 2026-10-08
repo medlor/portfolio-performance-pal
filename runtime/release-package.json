@@ -36,6 +36,7 @@
     "atomic-same-currency-sale-application",
     "complete-sale-quantity-history-validation",
     "same-currency-dividend-preview",
-    "atomic-same-currency-dividend-application"
+    "atomic-same-currency-dividend-application",
+    "explicit-manual-foreign-currency-transactions"
   ]
 }

@@ -18,9 +18,9 @@ public final class Main {
                 case "holdings" -> line.allow(Set.of("securities-account", "cash-account", "security", "sort", "ascending", "limit", "include-zero"));
                 case "history" -> line.allow(Set.of("securities-account", "cash-account", "security", "type", "from", "to", "sort", "ascending", "limit"));
                 case "configure" -> line.allow(Set.of("securities-account", "cash-account"));
-                case "purchase" -> line.allow(Set.of("securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write", "create-security", "name", "currency"));
-                case "sale" -> line.allow(Set.of("securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write"));
-                case "dividend" -> line.allow(Set.of("cash-account", "security", "security-id", "isin", "wkn", "ticker", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write"));
+                case "purchase" -> line.allow(Set.of("securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "exchange-rate", "forex-gross", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write", "create-security", "name", "currency"));
+                case "sale" -> line.allow(Set.of("securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "exchange-rate", "forex-gross", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write"));
+                case "dividend" -> line.allow(Set.of("cash-account", "security", "security-id", "isin", "wkn", "ticker", "exchange-rate", "forex-gross", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write"));
                 case "import" -> line.allow(Set.of("pdf", "securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time"));
                 case "backup-monthly", "backup-before-update" -> line.allow(Set.of());
                 default -> throw new IllegalArgumentException("Unknown command: " + line.command());
