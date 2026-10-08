@@ -509,6 +509,69 @@
       ],
       "validationNotes": "Both final commands exited 0. Full cumulative suite elapsed 1023 seconds (17 minutes 3 seconds). All four baseline suites and all ten mandatory candidate gates passed, with each candidate gate running once during successful qualification. Independent selected-copy preservation and activation passed. Owner dividend preview/application passed mandatory fixed-image release checks, release-failure and changed-input refusal. The dividend gate covers gross/booked derivations, literal upstream fees/taxes and cash credit, exact/fallback/backdated times, closed/shared holdings, quantity/timestamp invariance, upstream reference-cash/security relevance, preview and metadata immutability, exact selectors, required backup failure and final stale-input refusal. All existing gates/assertions were retained, and the complete historical updater adversarial suite passed. Earlier focused attempts exposed test-only nested fixture lookups and a valid ticker mistaken for a partial name; a cumulative attempt was interrupted when its frozen snapshot contained an intermediate test lookup. Only documentation/evidence metadata changed after the final passing candidate snapshot.",
       "releaseValidation": "Linux amd64, upstream 0.88.0 XML ID-reference model70, same-currency manual purchases/sales/dividends and existing fixture-scoped Baader purchase previews; no migration or FX. Official stable wrapper bootstrap publication remains prerequisite."
+    },
+    {
+      "upstreamRelease": "0.88.0",
+      "upstreamRevision": "8de1fe41d71a2c1b74a6bfbe913f885899aaf123",
+      "sourceArchiveSha256": "ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656",
+      "dependencyReleaseArchiveSha256": "1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2",
+      "jdk": "Temurin 21.0.11+10-LTS",
+      "platform": "linux/amd64",
+      "input": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "output": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "migrations": [],
+      "fixtureVersion": "v1",
+      "image": "sha256:ccd6751dca315a0e1109bec7fe3af2cedcb8976de6efec31305f47d64191c918",
+      "baselineImage": "sha256:f764fed9b523452cba17d0d5b7939fe6dbddcb1db7f7ae410e3e9896c7a86f64",
+      "retentionTag": "pp-pal:retained-ccd6751dca315a0e1109bec7fe3af2cedcb8976de6efec31305f47d64191c918",
+      "validatedOn": "2026-10-08",
+      "validatedBy": "bash tests/all.sh pp-pal:issue28-final",
+      "releasedWrapperRevision": "a8d470041b7f044d419016d36656fbcae9db34bc",
+      "features": [
+        "headless-core-proof",
+        "holdings",
+        "configuration",
+        "history",
+        "monthly-launch-backups",
+        "exact-pre-upgrade-backups",
+        "released-wrapper-upstream-resolution",
+        "independent-candidate-validation",
+        "isolated-selected-copy-validation",
+        "atomic-released-engine-activation",
+        "unchanged-release-cache-reuse",
+        "immutable-image-retention",
+        "same-currency-purchase-preview",
+        "exact-fixed-check-candidate-qualification",
+        "installed-symlink-launcher",
+        "atomic-same-currency-purchase-application",
+        "verified-financial-write-recovery",
+        "successful-write-backup-retention",
+        "baader-purchase-pdf-preview",
+        "explicit-purchase-security-creation",
+        "same-currency-sale-preview",
+        "atomic-same-currency-sale-application",
+        "complete-sale-quantity-history-validation",
+        "same-currency-dividend-preview",
+        "atomic-same-currency-dividend-application",
+        "explicit-manual-foreign-currency-transactions"
+      ],
+      "layouts": [
+        "baader-german-eur-purchase-flat-v1",
+        "baader-german-eur-purchase-page1-of1-v1"
+      ],
+      "validationCommands": [
+        "bash tests/fx.sh pp-pal:issue28-final \"$PWD/tools/run-container\"",
+        "PP_PAL_LAUNCHER=\"$PWD/tools/run-container\" bash tests/dividend.sh pp-pal:issue28-final",
+        "bash tests/all.sh pp-pal:issue28-final"
+      ],
+      "validationNotes": "Final focused FX and dividend commands exited 0. Existing sale regressions also passed. Full cumulative suite exited 0 in 1202 seconds (20 minutes 2 seconds). Four baseline suites and all eleven mandatory candidate gates passed; each candidate gate ran once in successful qualification. All ten prior gates and their assertions were retained. Pinned-core FX oracles inspect saved cash/foreign gross units, rates, costs, quantities, dates, security identities and reciprocal account links, then compare complete unrelated state after narrow record removal. Cases cover purchase, partial/full sale and closed-holding dividend; foreign/cash gross and booked-only derivation; eight-place quantity/quote, ten-place/significant-digit rate boundaries and HALF_UP conversion; contradictory/unrepresentable inputs and byte-preserving refusals. Released owner-launcher FX preview/application, mandatory release discovery, failed-release and stale-input refusal, selected-copy preservation, activation and the historical updater adversarial suite passed. An intermediate focused dividend run was retried after its image tag was replaced during a development rebuild; final validation used a separate fixed image. Only documentation/evidence metadata changed after the passing candidate snapshot.",
+      "releaseValidation": "Linux amd64, upstream 0.88.0 XML ID-reference model70; manual same/foreign-currency purchases, sales and dividends with explicit tested rates and cash-currency fees/taxes; existing fixture-scoped Baader purchase previews; no migration or PDF FX. Official stable wrapper bootstrap publication remains prerequisite."
     }
   ]
 }

@@ -116,7 +116,7 @@ content = ET.tostring(ambiguous); reset(content)
 for options in [{'--security':'Alpha Instrument','--cash-account':shared}, {'--cash-account':'Shared Cash'}]:
     expect(run(options,True),2,'Ambiguous'); assert (work/'portfolio.xml').read_bytes() == content
 foreign = source.replace(b'<currencyCode>EUR</currencyCode>',b'<currencyCode>USD</currencyCode>',1)
-reset(foreign); expect(run(apply=True),2,'Foreign-currency dividend'); assert (work/'portfolio.xml').read_bytes() == foreign
+reset(foreign); expect(run(apply=True),2,'requires --exchange-rate'); assert (work/'portfolio.xml').read_bytes() == foreign
 print('PASS exact selection, security/cash ambiguity and explicit FX refusal',flush=True)
 # Fresh filename for backup/receipt failures and stale input, free from earlier writes.
 reset(); base['--file'] = 'protected.xml'
