@@ -8,6 +8,7 @@ Commands:
   holdings   Show recorded quantities by security and securities account.
   history    Show recorded transactions, including closed holdings and dividends.
   purchase   Preview or apply a same-currency purchase after mandatory release validation.
+  sale       Preview or apply a sale with complete holding-history validation.
   import     Preview all purchases in one proved Baader EUR statement PDF.
   configure  Save portfolio path and resolved default account IDs explicitly.
   backup-monthly  Check due launch protection without loading the financial model.
@@ -56,6 +57,15 @@ Purchase options:
   Daily backups are exact original snapshots; committed cleanup failures exit 4.
   Never repeat an apply reported as committed; recover the pending cleanup.
 
+Sale options:
+  Existing-security selectors, accounts, decimals, dates and write options as above.
+  --total is booked cash credit: gross minus fees and taxes; negative credit rejects.
+  Missing time uses 11:00:01, disclosed in preview; explicit times stay unchanged.
+  The entire selected security/securities-account history must remain nonnegative.
+  At equal timestamps increases precede decreases; persisted account-list order
+  breaks ties within each group, with the new sale after existing decreases.
+  Partial/full sales preserve definitions and history; no FIFO/profit is calculated.
+
 PDF purchase preview:
   import --pdf PATH          One readable .pdf; preview only, no --apply.
   Requires existing securities and selected securities/cash accounts.
@@ -74,4 +84,4 @@ Launches create a due Berlin monthly backup; each backup-before-update call crea
 another exact backup. That command does not discover, build or activate updates.
 Exit codes: 0 success; 2 input/validation rejected; 3 operational failure;
 4 completed financial change with failed follow-up work.
-Sale/dividend/FX statement layouts and PDF application are pending.
+Dividend commands, sale/dividend/FX statement layouts and PDF application are pending.

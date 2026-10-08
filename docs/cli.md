@@ -513,3 +513,33 @@ check literal new-definition and linked purchase facts and compare the complete
 unrelated model after removing only the proposed additions. `tests/updater.sh
 IMAGE --security-slice` also verifies mandatory release discovery, fixed-image
 owner preview/application and stale/release failure refusal.
+
+## Manual sales
+
+`sale` accepts the purchase command's existing-security selectors, account pair,
+quantity, price/gross/total, fees/taxes and date/time options. It supports tested
+same-currency entries only. `--total` is net cash credit (`gross - fees - taxes`);
+shared exact decimal precision and rounding rules apply. A gross amount below
+fees and taxes rejects. For example:
+
+```sh
+./pp-pal sale --security DE0000000001 --securities-account 'Synthetic Securities A' \
+  --cash-account 'Synthetic Cash A' --date 2025-03-01 --quantity 2.5 \
+  --price 10 --fees 1 --taxes .5
+```
+
+Preview discloses the missing-time fallback `11:00:01`. Explicit times, including
+midnight and fractional seconds, are preserved without adjustment. Before preview
+or apply, validate the complete selected security/securities-account quantity
+history, including all dates after a backdated sale. At identical timestamps,
+quantity increases (purchases, inbound deliveries/transfers) precede decreases;
+within each group preserve the persisted account transaction-list order, and place
+the proposed sale after existing decreases. Any negative balance rejects with its
+date and account/security IDs. Other accounts' holdings cannot fund a sale.
+
+Use `--apply --desktop-closed` to record the linked securities sale and cash
+credit with the shared atomic writer, backups and recovery. Security definitions,
+past purchases/sales and unrelated settings remain after full disposal. This
+command neither calculates nor persists FIFO or profit. Mandatory released-pair
+qualification includes `tests/sale.sh`; run it directly against a local development
+image with `bash tests/sale.sh pp-pal:issue26`.

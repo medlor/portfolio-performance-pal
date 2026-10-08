@@ -31,6 +31,9 @@
     "atomic-same-currency-purchase-application",
     "verified-financial-write-recovery",
     "successful-write-backup-retention",
-    "explicit-purchase-security-creation"
+    "explicit-purchase-security-creation",
+    "same-currency-sale-preview",
+    "atomic-same-currency-sale-application",
+    "complete-sale-quantity-history-validation"
   ]
 }
