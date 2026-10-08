@@ -2,6 +2,7 @@
   "schema": 1,
   "fixtureVersion": "v1",
   "checks": [
+    "tests/security-create.sh",
     "tests/pdf-purchase.sh",
     "tests/runtime.sh",
     "tests/holdings.sh",

@@ -7,11 +7,14 @@ import name.abuchen.portfolio.money.Money;
 
 /** Preview and writer share one proposed upstream linked entry per invocation. */
 public final class Purchase {
-    public record Plan(BuySellEntry entry, Amounts.Purchase amounts, boolean fallbackTime) {}
+    public record Plan(BuySellEntry entry, Amounts.Purchase amounts, boolean fallbackTime, boolean createsSecurity) {
+        public Plan(BuySellEntry entry, Amounts.Purchase amounts, boolean fallbackTime) { this(entry, amounts, fallbackTime, false); }
+    }
 
     public static Plan plan(Client client, Portfolio securities, Account cash, CommandLine line) {
         if (securities == null || cash == null) throw new IllegalArgumentException("Select required securities and cash accounts by stable ID or exact unique name");
-        var security = Securities.existing(client, line);
+        var choice = Securities.purchase(client, line);
+        var security = choice.security();
         String currency = cash.getCurrencyCode();
         if (!currency.equals(security.getCurrencyCode())) throw new IllegalArgumentException("Foreign-currency purchase requires the separately validated FX path");
         var amounts = Amounts.purchase(line);
@@ -32,7 +35,7 @@ public final class Purchase {
         var transaction = entry.getPortfolioTransaction();
         if (amounts.fees() != 0) transaction.addUnit(new Transaction.Unit(Transaction.Unit.Type.FEE, Money.of(currency, amounts.fees())));
         if (amounts.taxes() != 0) transaction.addUnit(new Transaction.Unit(Transaction.Unit.Type.TAX, Money.of(currency, amounts.taxes())));
-        return new Plan(entry, amounts, !line.flag("time"));
+        return new Plan(entry, amounts, !line.flag("time"), choice.created());
     }
 
     public static String preview(Plan plan, int inputModel) {
@@ -42,7 +45,7 @@ public final class Purchase {
         String image = System.getenv("PP_PAL_ENGINE_IMAGE");
         if (image != null) out.append("ENGINE IMAGE ").append(image).append('\n');
         out.append("OUTPUT MODEL ").append(Core.MODEL).append(" (input ").append(inputModel).append("; no migration)\n");
-        out.append("SECURITY ").append(tx.getSecurity().getName()).append(" | ").append(tx.getSecurity().getUUID()).append(" | ").append(currency).append(" (existing)\n");
+        out.append("SECURITY ").append(tx.getSecurity().getName()).append(" | ").append(tx.getSecurity().getUUID()).append(" | ").append(currency).append(plan.createsSecurity() ? " (create)\n" : " (existing)\n");
         out.append("SECURITIES ACCOUNT ").append(entry.getPortfolio().getName()).append(" | ").append(entry.getPortfolio().getUUID()).append('\n');
         out.append("CASH ACCOUNT ").append(entry.getAccount().getName()).append(" | ").append(entry.getAccount().getUUID()).append('\n');
         out.append("DATE ").append(tx.getDateTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append(plan.fallbackTime() ? " (supplied date; fallback time 11:00:00)\n" : " (supplied date and time)\n");
