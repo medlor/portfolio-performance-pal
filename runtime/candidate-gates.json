@@ -9,6 +9,7 @@
     "tests/history.sh",
     "tests/backups.sh",
     "tests/purchase.sh",
-    "tests/purchase-apply.sh"
+    "tests/purchase-apply.sh",
+    "tests/sale.sh"
   ]
 }

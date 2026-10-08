@@ -38,7 +38,7 @@ container commands `inspect`, `roundtrip`, `prove`, and `pdf` are developer proo
 commands; `roundtrip` and `prove` write their explicitly selected disposable
 output. Use these proof commands only with disposable output files.
 The owner-facing launcher provides `holdings`/`history`, explicit `configure`, and
-same-currency `purchase` preview/application with verified recovery; see `docs/cli.md`.
+same-currency `purchase`/`sale` preview/application with verified recovery; see `docs/cli.md`.
 Its cumulative release/feature gate is `tests/updater.sh IMAGE --apply-slice`;
 `tests/all.sh` also runs the complete historical updater adversarial suite.
 Use temporary files when running them. The launcher now includes monthly/pre-upgrade protection and released-pair updates.

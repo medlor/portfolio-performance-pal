@@ -19,6 +19,7 @@ public final class Main {
                 case "history" -> line.allow(Set.of("securities-account", "cash-account", "security", "type", "from", "to", "sort", "ascending", "limit"));
                 case "configure" -> line.allow(Set.of("securities-account", "cash-account"));
                 case "purchase" -> line.allow(Set.of("securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write", "create-security", "name", "currency"));
+                case "sale" -> line.allow(Set.of("securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write"));
                 case "import" -> line.allow(Set.of("pdf", "securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time"));
                 case "backup-monthly", "backup-before-update" -> line.allow(Set.of());
                 default -> throw new IllegalArgumentException("Unknown command: " + line.command());
@@ -35,18 +36,18 @@ public final class Main {
                 System.out.println(backups.beforeUpgrade());
                 return 0;
             }
-            if (line.command().equals("purchase") && line.flag("recover-write")) {
+            if (Set.of("purchase", "sale").contains(line.command()) && line.flag("recover-write")) {
                 line.allow(Set.of("recover-write", "desktop-closed"));
                 if (!line.flag("desktop-closed")) throw new IllegalArgumentException("--recover-write requires --desktop-closed");
                 var outcome = new AtomicWriter(file, BackupService.launchClock()).recover();
                 System.out.print(outcome.text()); return outcome.status();
             }
-            if (line.command().equals("purchase") && line.flag("apply")) {
+            if (Set.of("purchase", "sale").contains(line.command()) && line.flag("apply")) {
                 if (!line.flag("desktop-closed")) throw new IllegalArgumentException("--apply requires --desktop-closed: close Portfolio Performance before writing; the GUI does not participate in the writer lock");
                 var outcome = new AtomicWriter(file, BackupService.launchClock()).apply(invocation -> {
                     var securities = Accounts.securities(invocation, config.selection(line, "securities-account"), true);
                     var cash = Accounts.cash(invocation, config.selection(line, "cash-account"), true);
-                    var planned = Purchase.plan(invocation, securities, cash, line);
+                    var planned = line.command().equals("sale") ? Sale.plan(invocation, securities, cash, line) : Purchase.plan(invocation, securities, cash, line);
                     if (planned.createsSecurity()) invocation.addSecurity(planned.entry().getPortfolioTransaction().getSecurity());
                     planned.entry().insert();
                     var change = AtomicWriter.Change.purchase(planned.entry());
@@ -62,6 +63,7 @@ public final class Main {
             var cash = Accounts.cash(client, config.selection(line, "cash-account"), false);
             switch (line.command()) {
                 case "purchase" -> System.out.print(Purchase.preview(Purchase.plan(client, securities, cash, line), client.getFileVersionAfterRead()));
+                case "sale" -> System.out.print(Purchase.preview(Sale.plan(client, securities, cash, line), client.getFileVersionAfterRead()));
                 case "import" -> System.out.print(PdfPurchase.preview(PdfPurchase.plan(client,securities,cash,line),client.getFileVersionAfterRead()));
                 case "holdings" -> System.out.print(Holdings.text(Holdings.query(client, securities, line.value("security"), line.flag("include-zero"), line.value("sort", "updated"), line.flag("ascending"), line.limit())));
                 case "history" -> {

@@ -1,6 +1,6 @@
 # Portfolio Performance Pal
 
-A Linux CLI around Portfolio Performance's Java core. Holdings, transaction history, explicit account configuration and monthly/pre-upgrade backups and validated local release updates are implemented. Same-currency manual purchase preview/application, including explicit security creation or identifier-based reuse, is implemented with mandatory release validation, atomic replacement, daily protection and verified cleanup recovery. Sales/dividends and Smartbroker import are pending.
+A Linux CLI around Portfolio Performance's Java core. Holdings, transaction history, explicit account configuration and monthly/pre-upgrade backups and validated local release updates are implemented. Same-currency manual purchase preview/application, including explicit security creation or identifier-based reuse, is implemented with mandatory release validation, atomic replacement, daily protection and verified cleanup recovery. Same-currency manual sales validate the complete affected holding history, retain definitions and transactions after full disposal, and use the same protected writer. Dividends and complete Smartbroker import are pending.
 
 Build the pinned local Java/Docker runtime and run the cumulative fixture checks:
 
@@ -31,7 +31,15 @@ preserves an additional exact snapshot for each actual upgrade attempt; it does
 not discover or activate updates. Launches never prune recovery files. Two-year
 additional-backup pruning will be wired only after successful financial writes.
 
-`./pp-pal --update --file '/path/to/portfolio.xml'` builds and validates changed upstream/wrapper release pairs locally before activation, including a disposable selected-file cross-engine comparison. It requires a stable wrapper release containing this implementation; no usable wrapper release currently exists, so production discovery fails clearly until that bootstrap package is released. The dispatcher runs this preparation before future preview/import commands. `--apply` remains pending with financial mutations. [Local updater and bootstrap packaging](docs/local-updater.md) describes Python 3, retained pair manifests, independent gates and recovery. Desktop updates remain the owner's responsibility.
+`./pp-pal --update --file '/path/to/portfolio.xml'` builds and validates changed upstream/wrapper release pairs locally before activation, including a disposable selected-file cross-engine comparison. It requires a stable wrapper release containing this implementation; no usable wrapper release currently exists, so production discovery fails clearly until that bootstrap package is released. The dispatcher runs this preparation before purchase/sale preview and application and PDF preview. Purchase and sale use `--apply --desktop-closed` to persist financial changes. [Local updater and bootstrap packaging](docs/local-updater.md) describes Python 3, retained pair manifests, independent gates and recovery. Desktop updates remain the owner's responsibility.
+
+Manual sales accept the existing-security purchase selectors and decimal options.
+For sales, `--total` means cash credit after fees/taxes. Missing sale times use the
+disclosed `11:00:01` fallback; explicit times are preserved. Backdated sales reject
+if any balance in the selected security/securities-account history would become
+negative. Equal timestamps process increases first, then decreases in persisted
+account-list order, with the proposed sale last among decreases. See
+[manual sale commands](docs/cli.md#manual-sales) for an example and validation rules.
 
 - [Current requirements and architecture](docs/spec.md)
 - [Domain glossary](GLOSSARY.md) and architectural decisions: [import bookkeeping](docs/adr/0001-separate-import-bookkeeping.md), [Java reuse](docs/adr/0002-reuse-portfolio-performance-java-core.md), [tested migrations](docs/adr/0003-allow-tested-migrations-with-transactions.md), [validated local updates](docs/adr/0004-validate-local-updates-before-processing.md)

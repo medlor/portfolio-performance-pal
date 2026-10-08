@@ -231,6 +231,30 @@ with released_work() as temporary, server() as api:
     check(pdf.read_bytes() == pdf_original and selected.read_bytes() == original and metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'PDF preview changed document, portfolio or metadata')
     check(not list(work.glob('selected portfolio.xml.????-??-??.bak')) and not list(work.glob('selected portfolio.xml.pp-pal.migration.*.bak')), 'PDF preview created daily/migration backups')
     print('PASS mandatory-release fixed-engine PDF preview preserves statement, financial input and opaque sidecar on released image ' + active['image'])
+    sale_file = work / 'sale portfolio.xml'
+    sale_file.write_bytes(original)
+    sale_args = ('sale', '--file', str(sale_file), '--security', 'DE0000000001',
+        '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A',
+        '--date', '2025-03-01', '--quantity', '2.5', '--price', '10', '--fees', '1', '--taxes', '.5')
+    request_count = len(api.requests)
+    result = run(work, api, *sale_args)
+    check(result.returncode == 0 and 'PREVIEW SALE' in result.stdout and 'BOOKED CREDIT EUR 23.50' in result.stdout
+          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+    check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:]
+          and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'Sale omitted mandatory releases')
+    check(sale_file.read_bytes() == original, 'Sale preview changed portfolio')
+    route = '/repos/medlor/portfolio-performance-pal/releases/latest'
+    release = api.routes.pop(route)
+    try:
+        result = run(work, api, *sale_args, '--apply', '--desktop-closed')
+        check(result.returncode == 3 and 'APPLIED SALE' not in result.stdout and sale_file.read_bytes() == original,
+              'Sale applied despite failed release check: ' + result.stderr)
+    finally:
+        api.routes[route] = release
+    result = run(work, api, *sale_args, '--apply', '--desktop-closed')
+    check(result.returncode == 0 and 'APPLIED SALE' in result.stdout and sale_file.read_bytes() != original
+          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+    print('PASS mandatory released-pair sale preview/application and release-failure immutability')
     if '--security-slice' in sys.argv[2:]:
         creation_args = ('purchase', '--file', str(selected), '--create-security', '--name', 'New Synthetic Instrument',
             '--currency', 'EUR', '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A',
