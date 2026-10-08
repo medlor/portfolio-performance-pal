@@ -10,6 +10,7 @@
     "tests/purchase-apply.sh",
     "tests/security-create.sh",
     "tests/pdf-purchase.sh",
-    "tests/sale.sh"
+    "tests/sale.sh",
+    "tests/dividend.sh"
   ]
 }

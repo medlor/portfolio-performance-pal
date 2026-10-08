@@ -11,6 +11,28 @@ public final class Amounts {
     public static Purchase purchase(CommandLine line) { return trade(line, false); }
     public static Purchase sale(CommandLine line) { return trade(line, true); }
 
+    public record Dividend(long gross, long fees, long taxes, long booked,
+            String grossOrigin, String bookedOrigin, String feeOrigin, String taxOrigin) {}
+
+    public static Dividend dividend(CommandLine line) {
+        long fees = money(line.value("fees", "0"), "fees");
+        long taxes = money(line.value("taxes", "0"), "taxes");
+        long costs = Math.addExact(fees, taxes);
+        Long suppliedGross = line.flag("gross") ? money(line.value("gross"), "gross") : null;
+        Long suppliedBooked = line.flag("total") ? money(line.value("total"), "total") : null;
+        if (suppliedGross == null && suppliedBooked == null)
+            throw new IllegalArgumentException("Dividend requires --gross or --total to determine the cash credit");
+        long gross = suppliedGross != null ? suppliedGross : Math.addExact(suppliedBooked, costs);
+        long booked = Math.subtractExact(gross, costs);
+        if (booked < 0) throw new IllegalArgumentException("Gross dividend value is less than fees and taxes");
+        if (suppliedBooked != null && booked != suppliedBooked)
+            throw new IllegalArgumentException("Booked total contradicts gross - fees - taxes");
+        return new Dividend(gross, fees, taxes, booked,
+                suppliedGross != null ? "supplied" : "derived from booked + fees + taxes",
+                suppliedBooked != null ? "supplied" : "derived from gross - fees - taxes",
+                line.flag("fees") ? "supplied" : "default zero", line.flag("taxes") ? "supplied" : "default zero");
+    }
+
     private static Purchase trade(CommandLine line, boolean sale) {
         long shares = scaled(line.value("quantity"), Values.Share.precision(), "quantity", true);
         BigDecimal price = line.flag("price") ? BigDecimal.valueOf(scaled(line.value("price"), Values.Quote.precision(), "price", true), Values.Quote.precision()) : null;
