@@ -6,13 +6,25 @@
   "baseImage": "eclipse-temurin:21.0.11_10-jdk-jammy@sha256:dbfd085220ae632a0830166e443747d1ee89e9038d92e3b48c3e5e9d8292b9a7",
   "input": {
     "representation": "XML-ID-references",
-    "modelVersion": 70
+    "modelVersion": 70,
+    "modelVersions": [
+      69,
+      70
+    ]
   },
   "output": {
     "representation": "XML-ID-references",
     "modelVersion": 70
   },
-  "migrations": [],
+  "migrations": [
+    {
+      "inputModelVersion": 69,
+      "outputModelVersion": 70,
+      "representation": "XML-ID-references",
+      "semantics": "Optional client-filter weight; existing unweighted selections, financial records and unrelated persisted state unchanged",
+      "validatedBy": "tests/migrations.sh"
+    }
+  ],
   "layouts": [
     "Baader synthetic domestic purchase PDF/text v1 only",
     "baader-german-eur-purchase-flat-v1",
@@ -37,6 +49,7 @@
     "complete-sale-quantity-history-validation",
     "same-currency-dividend-preview",
     "atomic-same-currency-dividend-application",
-    "explicit-manual-foreign-currency-transactions"
+    "explicit-manual-foreign-currency-transactions",
+    "transaction-only-model69-to70-migration"
   ]
 }

@@ -59,6 +59,18 @@ public final class BackupService {
         return result[0];
     }
 
+    /** Every persisted migration protects this exact operation input, independently of daily protection. */
+    public Path beforeMigration(FileSnapshot snapshot, int inputModel) throws IOException {
+        if (!portfolio.equals(snapshot.path())) throw new IOException("Migration snapshot belongs to a different portfolio");
+        Path[] result = new Path[1];
+        withLock(() -> {
+            snapshot.requireCurrent();
+            result[0] = create(records(), "migration", inputModel + "-to-" + Core.MODEL, snapshot.bytes());
+            snapshot.requireCurrent();
+        });
+        return result[0];
+    }
+
     /** Exact validated invocation input, preserved once per Berlin calendar day. */
     public Path daily(FileSnapshot snapshot) throws IOException {
         Path[] result = new Path[1];
@@ -119,7 +131,7 @@ public final class BackupService {
                     var month = YearMonth.from(date);
                     if (month.isBefore(oldest)) selected.add(name);
                     else months.computeIfAbsent(month, m -> new TreeMap<>()).put(date, name);
-                } else if (!daily && Set.of("monthly", "update").contains(kind)) {
+                } else if (!daily && Set.of("monthly", "update", "migration").contains(kind)) {
                     final Instant created;
                     try { created = Instant.parse(records.getProperty(name + ".created", "")); }
                     catch (DateTimeException e) { throw new IOException("Invalid backup creation date: " + name, e); }
@@ -150,9 +162,11 @@ public final class BackupService {
     }
 
     private Path create(Properties records, String kind, String label) throws IOException {
+        return create(records, kind, label, snapshot());
+    }
+    private Path create(Properties records, String kind, String label, byte[] snapshot) throws IOException {
         if (Files.exists(index, LinkOption.NOFOLLOW_LINKS) && !Files.isWritable(index))
             throw new IOException("Backup ownership index is not writable: " + index);
-        byte[] snapshot = snapshot();
         Instant created = clock.instant();
         String name = portfolio.getFileName() + ".pp-pal." + kind + "." + label + "." + UUID.randomUUID() + ".bak";
         Path backup = portfolio.resolveSibling(name);
@@ -213,7 +227,7 @@ public final class BackupService {
             if (!name.equals(portfolio.getFileName() + "." + date + ".bak")) throw new IOException("Unsafe daily ownership record: " + name);
             return portfolio.resolveSibling(name);
         }
-        if (!Set.of("monthly", "update").contains(kind == null ? "" : kind)
+        if (!Set.of("monthly", "update", "migration").contains(kind == null ? "" : kind)
                 || Path.of(name).getNameCount() != 1
                 || !name.startsWith(portfolio.getFileName() + ".pp-pal." + kind + ".") || !name.endsWith(".bak"))
             throw new IOException("Unsafe backup ownership record: " + name);

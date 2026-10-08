@@ -50,7 +50,7 @@ public final class Purchase {
         var out = new StringBuilder(sale ? "PREVIEW SALE\n" : "PREVIEW PURCHASE\n");
         String image = System.getenv("PP_PAL_ENGINE_IMAGE");
         if (image != null) out.append("ENGINE IMAGE ").append(image).append('\n');
-        out.append("OUTPUT MODEL ").append(Core.MODEL).append(" (input ").append(inputModel).append("; no migration)\n");
+        out.append(Core.outputModel(inputModel));
         out.append("SECURITY ").append(tx.getSecurity().getName()).append(" | ").append(tx.getSecurity().getUUID()).append(" | ").append(tx.getSecurity().getCurrencyCode()).append(plan.createsSecurity() ? " (create)\n" : " (existing)\n");
         out.append("SECURITIES ACCOUNT ").append(entry.getPortfolio().getName()).append(" | ").append(entry.getPortfolio().getUUID()).append('\n');
         out.append("CASH ACCOUNT ").append(entry.getAccount().getName()).append(" | ").append(entry.getAccount().getUUID()).append('\n');

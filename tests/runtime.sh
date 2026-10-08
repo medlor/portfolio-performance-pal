@@ -22,7 +22,7 @@ oracle /fixtures/v1/baader-buy.pdf
 oracle /fixtures/v1/baader-buy.txt
 for unsupported in model xpath; do
   if [[ $unsupported == model ]]; then
-    sed 's/<version>70<\/version>/<version>69<\/version>/' fixtures/v1/portfolio.xml > "$work/unsupported.xml"
+    sed 's/<version>70<\/version>/<version>68<\/version>/' fixtures/v1/portfolio.xml > "$work/unsupported.xml"
   else
     sed 's/reference="2"/reference="..\/..\/securities\/security"/' fixtures/v1/portfolio.xml > "$work/unsupported.xml"
   fi

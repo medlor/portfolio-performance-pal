@@ -88,6 +88,24 @@ non-numeric reference attributes before core loading/writing. Binary, ZIP,
 encrypted, protobuf and XPath formats are untested and unsupported. Linux arm64,
 macOS and Windows are untested. No desktop release installation is consulted.
 
+Story #29 adds the separately validated **XML ID-reference 69 -> 70** migration
+on the same pinned upstream revision. The existing **70 -> 70** combination stays
+covered. Queries/previews/update validation leave selected bytes unchanged;
+financial apply protects exact model69 input in a separate migration backup before
+atomic replacement. See `fixtures/v1/migrations/README.md` for independent pre/post
+expectations and `docs/cli.md` for backup/retention/recovery rules. No other
+migration or representation is declared.
+
+Final development image
+`sha256:91fb26246364053e22dddb521e65f77ea4b3957d4e3734fe32e1909b6c064285`
+passed focused migration/holdings checks and `bash tests/all.sh pp-pal:issue29-final`
+on 2026-10-08. Full elapsed time was 1234 seconds (20 minutes 34 seconds).
+The released candidate
+`sha256:c5a332eb3a9cd5871d7d763a127b3666c1375e317808d2a88278a04f3ae5eb1c`
+passed all twelve mandatory gates exactly once, selected-copy preservation,
+owner migration update/preview/apply, and historical updater adversarial checks.
+Exact identities and both model combinations are recorded in the support matrix.
+
 ## Attribution and licenses
 
 Portfolio Performance is copyright Andreas Buchen and its contributors and is

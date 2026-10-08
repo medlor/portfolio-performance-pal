@@ -110,7 +110,7 @@ reject holdings --file query.xml --unknown value
 reject holdings --file query.xml --limit
 reject holdings --config "$work/absent.properties"
 reject --file query.xml configure --securities-account 'Other Depot'
-sed 's/<version>70<\/version>/<version>69<\/version>/' query.xml > unsupported.xml
+sed 's/<version>70<\/version>/<version>68<\/version>/' query.xml > unsupported.xml
 reject holdings --file unsupported.xml
 sed 's/Other Cash/Shared Cash/' query.xml > ambiguous-cash.xml
 reject holdings --file ambiguous-cash.xml --cash-account 'Shared Cash'
