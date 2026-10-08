@@ -2,12 +2,13 @@
 set -euo pipefail
 if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
 root=$(cd "$(dirname "$0")/.." && pwd)
-launcher=${PP_PAL_LAUNCHER:-$root/tools/run-container}
+launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 cp "$root/fixtures/v1/portfolio.xml" "$work/portfolio.xml"
 cd "$work"
-sale() { "$launcher" sale --file portfolio.xml --security DE0000000001 --securities-account 'Synthetic Securities A' --cash-account 'Synthetic Cash A' --date 2025-03-01 --quantity 2.5 --price 10 --fees 1 --taxes .5 "$@"; }
+sale_file=portfolio.xml
+sale() { "$launcher" sale --file "$sale_file" --security DE0000000001 --securities-account 'Synthetic Securities A' --cash-account 'Synthetic Cash A' --date 2025-03-01 --quantity 2.5 --price 10 --fees 1 --taxes .5 "$@"; }
 sale > preview
 rg -q '^PREVIEW SALE$' preview
 rg -Fq 'fallback time 11:00:01' preview
@@ -15,6 +16,13 @@ rg -Fq 'GROSS EUR 25.00' preview
 rg -Fq 'BOOKED CREDIT EUR 23.50' preview
 cmp portfolio.xml "$root/fixtures/v1/portfolio.xml"
 echo 'PASS sale preview amounts and immutability'
+# Keep a representative apply through the owner launcher as well as preview.
+cp portfolio.xml owner-applied.xml
+sale_file=owner-applied.xml
+sale --apply --desktop-closed > applied
+rg -q '^APPLIED SALE$' applied
+sale_file=portfolio.xml
+launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-container}
 python3 - "$root" "$launcher" "$work" <<'PY'
 import os, pathlib, subprocess, sys, xml.etree.ElementTree as ET
 root, launcher, work = map(pathlib.Path, sys.argv[1:])
@@ -29,10 +37,14 @@ def expect(result, status, text):
     assert result.returncode==status and text in result.stdout+result.stderr, result.stdout+result.stderr
 def reset(content=source): (work/'portfolio.xml').write_bytes(content)
 def oracle(quantity, date):
-    subprocess.run(['docker','run','--rm','--network','none','--user',f'{os.getuid()}:{os.getgid()}',
+    subprocess.run(['python3',str(root/'tests/oracle.py'),'run','--rm','--network','none','--user',f'{os.getuid()}:{os.getgid()}',
         '-v',f'{root}/runtime/src/test/java:/tests:ro','-v',f'{work}:/work:ro',
         '--entrypoint','java',os.environ['PP_PAL_IMAGE'],'-cp','/opt/pp/classes:/opt/pp/lib/*',
         '/tests/pal/SaleAppliedOracle.java','/work/before.xml','/work/portfolio.xml',quantity,date],check=True)
+(work/'before.xml').write_bytes(source)
+(work/'portfolio.xml').write_bytes((work/'owner-applied.xml').read_bytes())
+oracle('2.5', '2025-03-01T11:00:01')
+reset()
 # Decimal alternatives, origins, rounding, and explicit midnight/nanoseconds.
 for options,text in [
     ({'--price':None,'--gross':'25'},'BOOKED CREDIT EUR 23.50'),

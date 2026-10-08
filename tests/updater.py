@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 IMAGE = sys.argv[1] if len(sys.argv) > 1 else os.environ.get('PP_PAL_IMAGE', 'pp-pal:0.88.0')
@@ -67,8 +68,20 @@ def run(work, api, *args, **changes):
                        PP_PAL_RELEASE_API=f'http://127.0.0.1:{api.server_port}',
                        PP_PAL_NOW='2026-10-07T12:00:00Z')
     environment.update(changes)
-    return subprocess.run([str(ROOT / 'pp-pal'), *args], cwd=work, env=environment,
-                          text=True, capture_output=True)
+    command = [str(ROOT / 'pp-pal'), *args]
+    with subprocess.Popen(command, cwd=work, env=environment, text=True,
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1) as process:
+        output, errors = [], []
+        def tee(source, destination, captured):
+            for line in source:
+                captured.append(line)
+                print(line, end='', file=destination, flush=True)
+        threads = [threading.Thread(target=tee, args=(process.stdout, sys.stdout, output)),
+                   threading.Thread(target=tee, args=(process.stderr, sys.stderr, errors))]
+        for thread in threads: thread.start()
+        status = process.wait()
+        for thread in threads: thread.join()
+    return subprocess.CompletedProcess(command, status, ''.join(output), ''.join(errors))
 
 def check(condition, detail):
     if not condition:
@@ -201,6 +214,17 @@ with released_work() as temporary, server() as api:
         target.write_text(text.replace('set -euo pipefail', 'set -euo pipefail\necho RELEASED-LAUNCHER-FIXTURE >&2', 1))
     prior_attempts = len(list(work.glob('selected portfolio.xml.pp-pal.update.*.bak')))
     was_active = (work / 'state/active.json').exists()
+    if not was_active:
+        # Distinct baseline coverage runs once before qualifying the new released pair.
+        baseline_env = dict(os.environ, PP_PAL_IMAGE=IMAGE, PP_PAL_STATE_DIR=str(work/'baseline-state'))
+        classes = work / 'baseline-oracle-classes'
+        subprocess.run([sys.executable, str(ROOT/'tests/oracle.py'), '--compile', IMAGE, str(classes)], check=True)
+        baseline_env['PP_PAL_TEST_CLASSES'] = str(classes)
+        for gate in ('runtime', 'holdings', 'history', 'backups'):
+            started = time.monotonic()
+            print('BASELINE CHECK START ' + gate, flush=True)
+            subprocess.run(['bash', str(ROOT/'tests'/f'{gate}.sh')], env=baseline_env, check=True)
+            print(f'BASELINE CHECK END {gate} elapsed={time.monotonic()-started:.2f}s', flush=True)
     revision = released_snapshot(work, api, mutate=marker)
     upstream_release(api)
     result = run(work, api, '--update', '--file', str(selected))
@@ -218,7 +242,12 @@ with released_work() as temporary, server() as api:
     report = (work / 'state/reports' / (active['cacheKey'] + '.json')).read_text()
     check('owner-local-validation-marker-22' not in report, 'Report disclosed selected contents')
     check(metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Metadata changed')
-    print('PASS released immutable pair builds, passes trusted gates, validates local selected copy and activates')
+    registry = json.loads((ROOT/'runtime/candidate-gates.json').read_text())['checks']
+    check(active['checks'][:len(registry)] == registry, 'Activation omitted a registered fixture gate')
+    if not was_active:
+        check(all(result.stdout.count('CHECK END ' + gate + ' elapsed=') == 1 for gate in registry),
+              'Successful candidate must execute every fixture gate exactly once')
+    print('PASS released immutable pair builds, passes every trusted gate once, validates local selected copy and activates')
 
     pdf = work / 'purchase statement.pdf'
     shutil.copyfile(ROOT / 'fixtures/v1/pdf-purchase/paged.pdf', pdf)
@@ -453,6 +482,7 @@ with released_work() as temporary, server() as api:
     attack_revision = released_snapshot(work, api, tag='v0.2.0', mutate=tamper_selected_only)
     result = run(work, api, '--update', '--file', str(selected))
     check(result.returncode == 3, 'Candidate overwrote independent selected-copy oracle and activated: ' + result.stdout)
+    check('CHECK START ' not in result.stdout, 'Selected-copy refusal ran expensive fixture qualification')
     check((work / 'state/active.json').read_bytes() == before, 'Failed selected-copy oracle replaced old pair')
     check(selected.read_bytes() == original and metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Selected oracle failure changed original/import data')
     print('PASS selected-copy oracle/input are isolated from candidate output and attempted semantic changes retain old pair')
@@ -495,6 +525,8 @@ with released_work() as temporary, server() as api:
     for retry in range(2):
         result = run(work, api, '--update', '--file', str(selected))
         check(result.returncode == 3 and 'Local check failed' in result.stderr, result.stderr + result.stdout)
+        check('CHECK START tests/holdings.sh' in result.stdout and 'CHECK START tests/pdf-purchase.sh' not in result.stdout,
+              'Wrong quantities must fail the early holdings gate before PDF checks')
         check((work / 'state/active.json').read_bytes() == before, 'Candidate-only passing tests activated wrong quantities')
         check(selected.read_bytes() == original and metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Fixed-gate failure changed portfolio/import bytes')
     check(len(list(work.glob('selected portfolio.xml.pp-pal.update.*.bak'))) == attempts + 2, 'Each failed retry must have distinct protection')

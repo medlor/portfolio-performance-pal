@@ -5,7 +5,7 @@ image=${PP_PAL_IMAGE:-pp-pal:0.88.0}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 run() { docker run --rm --network none --user "$(id -u):$(id -g)" -v "$PWD/fixtures:/fixtures:ro" -v "$work:/work" "$image" "$@"; }
-oracle() { docker run --rm --network none --user "$(id -u):$(id -g)" -v "$PWD/fixtures:/fixtures:ro" -v "$PWD/runtime/src/test/java:/tests:ro" -v "$work:/work" --entrypoint java "$image" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/FixtureOracle.java "$1"; }
+oracle() { python3 "$PWD/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$PWD/fixtures:/fixtures:ro" -v "$PWD/runtime/src/test/java:/tests:ro" -v "$work:/work" --entrypoint java "$image" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/FixtureOracle.java "$1"; }
 oracle /fixtures/v1/portfolio.xml
 run inspect /fixtures/v1/portfolio.xml > "$work/before"
 test "$(head -n 1 "$work/before")" = 'MODEL 70 EUR'

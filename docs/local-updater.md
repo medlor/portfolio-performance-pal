@@ -69,13 +69,18 @@ headless patch. An unfamiliar patch target requires adapter maintenance.
 
 Only released runtime code, the fixed build recipe and public upstream archives
 enter the Docker build context. The original portfolio, PDFs, adjacent metadata
-and backups are excluded. Candidate checks use fixed bootstrap expectations and
-the candidate's real launcher and image. Then a disposable selected-file copy is
-mounted read-only for the candidate, which can write only a separate disposable
-output directory. The trusted canonical comparison artifacts are never mounted in
+and backups are excluded. First a disposable selected-file copy is mounted
+read-only for the candidate, which can write only a separate disposable output
+directory. The trusted canonical comparison artifacts are never mounted in
 the candidate container. Its output is inspected/serialized again by the previous
-trusted engine. The complete supported persisted state and independently recorded
-financial relationships must agree. All selected-file containers have no network;
+trusted engine in one JVM running the trusted `SelectedPortfolioOracle.java`
+entry point. Both original/output canonical roundtrips and financial relationships
+must agree. Candidate generation and trusted evaluation use two isolated
+containers. After this check and an original-input identity check pass, all fixed
+fixture gates remain mandatory. Holdings runs first, then gates run in batches
+of two with private state, qualification sockets, and identical release copies.
+Trusted test oracles compile once per qualification; candidate containers mount
+those test classes readonly. Gate output streams with elapsed times. All selected-file containers have no network;
 private inspection output is captured, compared and discarded without reporting
 its contents. The current policy permits only model 70 ID-reference XML to model
 70, with no migrations, and the previously proved synthetic Baader purchase layout.

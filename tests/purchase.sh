@@ -24,6 +24,8 @@ rg -q '^GROSS EUR 25.00 \(derived' preview
 rg -q '^BOOKED DEBIT EUR 26.50 \(derived' preview
 cmp portfolio_performance.xml "$root/fixtures/v1/portfolio.xml"
 echo 'PASS exact linked same-currency purchase preview preserves the portfolio'
+# Broad behavior uses the real container boundary after the owner integration case.
+launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-container}
 purchase() {
   local options=("$@") defaults=() key value found arg
   for key in security securities-account cash-account date; do
@@ -136,8 +138,9 @@ cmp portfolio_performance.xml.pp-pal.migration.2020.bak migration-before
 test "$(find . -name '*.????-??-??.bak' | wc -l)" = 1
 test "$(find . -name '*.pp-pal.migration.*.bak' | wc -l)" = 1
 test "$(stat -c %a portfolio_performance.xml)" = 600
-docker run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PurchaseOracle.java /fixtures/v1/portfolio.xml
+python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PurchaseOracle.java /fixtures/v1/portfolio.xml
 echo 'PASS exact rounding/range/contradictions, selector intersections, accounts, explicit times, paths and immutable preview'
+launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 # Exercise qualification refusal through the same live candidate launcher. No
 # fabricated qualification payload can grant reuse to an owner process.
 python3 - "$launcher" "$work/portfolio_performance.xml" <<'PY'

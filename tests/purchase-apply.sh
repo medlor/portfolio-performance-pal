@@ -26,7 +26,7 @@ cmp portfolio_performance.xml.pp-pal.json metadata-before
 test "$(stat -c %a portfolio_performance.xml)" = 600
 test "$(stat -c %u portfolio_performance.xml)" = "$(id -u)"
 test "$(stat -c %g portfolio_performance.xml)" = "$(id -g)"
-docker run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" -v "$work:/work:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PurchaseAppliedOracle.java /fixtures/v1/portfolio.xml /work/portfolio_performance.xml 1
+python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" -v "$work:/work:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PurchaseAppliedOracle.java /fixtures/v1/portfolio.xml /work/portfolio_performance.xml 1
 echo 'PASS declared desktop-closed fresh purchase commits linked entries with exact daily recovery and preserved complete unrelated model'
 fi
 export PP_PAL_TEST_ROOT="$root"
@@ -61,7 +61,7 @@ def expect(result, code, text):
     check(result.returncode == code and text in result.stdout + result.stderr, f'expected {code} {text}: {result.returncode}\n{result.stdout}\n{result.stderr}')
 
 def oracle(work, count=1):
-    result = subprocess.run(['docker', 'run', '--rm', '--network', 'none', '--user', f'{os.getuid()}:{os.getgid()}', '-v', f'{ROOT}/fixtures:/fixtures:ro', '-v', f'{ROOT}/runtime/src/test/java:/tests:ro', '-v', f'{work}:/work:ro', '--entrypoint', 'java', IMAGE, '-cp', '/opt/pp/classes:/opt/pp/lib/*', '/tests/pal/PurchaseAppliedOracle.java', '/fixtures/v1/portfolio.xml', '/work/portfolio.xml', str(count)], text=True, capture_output=True)
+    result = subprocess.run(['python3', str(ROOT/'tests/oracle.py'), 'run', '--rm', '--network', 'none', '--user', f'{os.getuid()}:{os.getgid()}', '-v', f'{ROOT}/fixtures:/fixtures:ro', '-v', f'{ROOT}/runtime/src/test/java:/tests:ro', '-v', f'{work}:/work:ro', '--entrypoint', 'java', IMAGE, '-cp', '/opt/pp/classes:/opt/pp/lib/*', '/tests/pal/PurchaseAppliedOracle.java', '/fixtures/v1/portfolio.xml', '/work/portfolio.xml', str(count)], text=True, capture_output=True)
     check(result.returncode == 0, result.stdout + result.stderr)
 
 def observe(work, action):

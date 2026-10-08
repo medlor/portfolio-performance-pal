@@ -42,6 +42,8 @@ assert any(path+':'+path+':ro' in command for command in runs), 'PDF needs an ex
 assert not any(path+':'+path+':rw' in command for command in runs)
 PY
 echo 'PASS owner PDF purchase preview converts the actual statement and preserves inputs'
+# Broad behavior uses the real container boundary after the owner integration case.
+launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-container}
 cp "$root/fixtures/v1/pdf-purchase/missing-fee.pdf" 'input directory/missing fee.pdf'
 "$launcher" import --pdf 'input directory/missing fee.pdf' --securities-account 'Synthetic Securities A' --cash-account 'Synthetic Cash A' --fees 1 > supplemented-preview
 rg -Fq 'FEES EUR 1.00 (SUPPLEMENT)' supplemented-preview
@@ -108,5 +110,5 @@ cmp portfolio_performance.xml.pp-pal.migration.2020.bak migration-before
 [[ $(find . -name '*.????-??-??.bak' | wc -l) == 1 ]]
 [[ $(find . -name '*.pp-pal.migration.*.bak' | wc -l) == 1 ]]
 echo 'PASS section-scoped times, missing-only supplements, all-member coverage, exact monetary evidence and joint security identity'
-docker run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PdfTextOracle.java /fixtures/v1/pdf-purchase
-docker run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PdfPurchaseOracle.java /fixtures/v1/portfolio.xml /fixtures/v1/pdf-purchase/two-purchases.pdf
+python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PdfTextOracle.java /fixtures/v1/pdf-purchase
+python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PdfPurchaseOracle.java /fixtures/v1/portfolio.xml /fixtures/v1/pdf-purchase/two-purchases.pdf
