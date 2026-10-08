@@ -6,7 +6,7 @@ unknown options fail. Names and paths with spaces must be quoted. `--help` is
 handled by the host launcher before Docker, configuration or portfolio lookup.
 The Java dispatcher uses the same `runtime/help.txt` text.
 
-Current owner commands are `holdings`, `history`, `purchase`, `import`, `configure`, `backup-before-update`,
+Current owner commands are `holdings`, `history`, `purchase`, `sale`, `dividend`, `import`, `configure`, `backup-before-update`,
 and `--update`. Developer diagnostics
 `inspect`, `roundtrip`, `prove` and `pdf` remain available through the **container**
 entry point for the runtime fixture gates; the host launcher exposes owner commands.
@@ -543,3 +543,53 @@ past purchases/sales and unrelated settings remain after full disposal. This
 command neither calculates nor persists FIFO or profit. Mandatory released-pair
 qualification includes `tests/sale.sh`; run it directly against a local development
 image with `bash tests/sale.sh pp-pal:issue26`.
+
+## Manual dividends
+
+`dividend` credits a selected cash account for an existing security. Select both
+unambiguously by stable ID, exact unique name or security identifiers. A configured
+cash-account ID can supply the default; a securities account is not required.
+
+```sh
+./pp-pal dividend --security DE0000000001 --cash-account 'Synthetic Cash A' \
+  --date 2025-03-01 --gross 25 --fees 1 --taxes .5
+```
+
+The preview shows EUR 25.00 gross, EUR 1.00 fees, EUR 0.50 taxes and EUR 23.50
+booked cash credit using upstream monetary units. `--total 23.50` can replace
+`--gross 25`; gross is then derived from booked credit plus fees/taxes. Supplying
+both requires exact agreement. All monetary inputs must be nonnegative exact
+cents in the cash/security currency; negative credits, overflow and excess
+precision reject. Omitted fees/taxes default to zero. No quantity or price input
+is accepted. Foreign-currency dividends await the separately validated FX path.
+
+`--date` is required. Missing time uses the disclosed `11:00:00` fallback; explicit
+midnight and fractional seconds are preserved. Backdated dividends and dividends
+after full disposal retain the security reference and leave securities history,
+held quantity and holding last updated unchanged. No securities transaction or
+securities-account ownership link is created. History uses the documented upstream
+reference-cash-account/security relevance over the complete history: a closed
+holding remains relevant, shared cash/security history can make attribution
+ambiguous, and an unrelated cash dividend is excluded from securities history.
+
+Use `--apply --desktop-closed` for a fresh validated write after mandatory release
+checks. The same writer lock, stale-input checks, roundtrip/unrelated-state
+validation, atomic replacement, exact daily backup, retention and verified
+`--recover-write --desktop-closed` rules apply as for purchases. Preview does not
+create daily/migration backups or alter portfolio/import metadata.
+
+`tests/dividend.sh` is a mandatory candidate gate. It exercises owner preview/apply,
+container financial cases and an independent pinned-core saved-model oracle for
+fees/taxes, derivations, references and relevance, closed/shared holdings, unchanged
+quantity/timestamps, exact times, ambiguous/missing selectors, configuration,
+invalid decimals, backup failure and stale input. Run a local development image
+with `PP_PAL_LAUNCHER="$PWD/tools/run-container" bash tests/dividend.sh pp-pal:issue27`;
+`bash tests/all.sh IMAGE` qualifies the released owner launcher as well.
+
+The final cumulative run on 2026-10-08 passed in 1023 seconds (17 minutes 3
+seconds), qualifying all ten candidate gates once and the complete historical
+updater adversarial suite. The validated dividend-capable released image is
+`sha256:7ac4e8891b41d613759bc024481c5c29ce5ab3e7fcbec4551080604197b6816f`,
+retained locally under `pp-pal:retained-7ac4e8891b41d613759bc024481c5c29ce5ab3e7fcbec4551080604197b6816f`.
+The support matrix records the exact pair and tested scope. Production use still
+requires the initial official stable wrapper bootstrap release.

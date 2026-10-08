@@ -284,6 +284,35 @@ with released_work() as temporary, server() as api:
     check(result.returncode == 0 and 'APPLIED SALE' in result.stdout and sale_file.read_bytes() != original
           and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
     print('PASS mandatory released-pair sale preview/application and release-failure immutability')
+    dividend_file = work / 'dividend portfolio.xml'
+    dividend_file.write_bytes(original)
+    dividend_args = ('dividend', '--file', str(dividend_file), '--security', 'DE0000000001',
+        '--cash-account', 'Synthetic Cash A', '--date', '2025-03-01', '--total', '23.50', '--fees', '1', '--taxes', '.5')
+    request_count = len(api.requests)
+    result = run(work, api, *dividend_args)
+    check(result.returncode == 0 and 'PREVIEW DIVIDEND' in result.stdout and 'GROSS EUR 25.00 (derived from booked + fees + taxes)' in result.stdout
+          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+    check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:]
+          and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'Dividend omitted mandatory releases')
+    check(dividend_file.read_bytes() == original, 'Dividend preview changed portfolio')
+    release = api.routes.pop(route)
+    try:
+        result = run(work, api, *dividend_args, '--apply', '--desktop-closed')
+        check(result.returncode == 3 and 'APPLIED DIVIDEND' not in result.stdout and dividend_file.read_bytes() == original,
+              'Dividend applied despite failed release check: ' + result.stderr)
+    finally:
+        api.routes[route] = release
+    api.before[route] = lambda: dividend_file.write_bytes(original + b'\n')
+    try:
+        result = run(work, api, *dividend_args, '--apply', '--desktop-closed')
+        check(result.returncode == 3 and 'changed' in result.stderr.lower() and 'APPLIED DIVIDEND' not in result.stdout, result.stderr)
+    finally:
+        api.before.pop(route); dividend_file.write_bytes(original)
+    check(not list(work.glob('dividend portfolio.xml.????-??-??.bak')), 'Rejected dividend created daily backup')
+    result = run(work, api, *dividend_args, '--apply', '--desktop-closed')
+    check(result.returncode == 0 and 'APPLIED DIVIDEND' in result.stdout and dividend_file.read_bytes() != original
+          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+    print('PASS mandatory released-pair dividend preview/application, release-failure and changed-input immutability')
     if '--security-slice' in sys.argv[2:]:
         creation_args = ('purchase', '--file', str(selected), '--create-security', '--name', 'New Synthetic Instrument',
             '--currency', 'EUR', '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A',
