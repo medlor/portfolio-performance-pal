@@ -19,6 +19,7 @@ public final class Main {
                 case "history" -> line.allow(Set.of("securities-account", "cash-account", "security", "type", "from", "to", "sort", "ascending", "limit"));
                 case "configure" -> line.allow(Set.of("securities-account", "cash-account"));
                 case "purchase" -> line.allow(Set.of("securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write"));
+                case "import" -> line.allow(Set.of("pdf", "securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time"));
                 case "backup-monthly", "backup-before-update" -> line.allow(Set.of());
                 default -> throw new IllegalArgumentException("Unknown command: " + line.command());
             }
@@ -58,6 +59,7 @@ public final class Main {
             var cash = Accounts.cash(client, config.selection(line, "cash-account"), false);
             switch (line.command()) {
                 case "purchase" -> System.out.print(Purchase.preview(Purchase.plan(client, securities, cash, line), client.getFileVersionAfterRead()));
+                case "import" -> System.out.print(PdfPurchase.preview(PdfPurchase.plan(client,securities,cash,line),client.getFileVersionAfterRead()));
                 case "holdings" -> System.out.print(Holdings.text(Holdings.query(client, securities, line.value("security"), line.flag("include-zero"), line.value("sort", "updated"), line.flag("ascending"), line.limit())));
                 case "history" -> {
                     if (!line.value("sort", "date").equals("date")) throw new IllegalArgumentException("History --sort must be date");

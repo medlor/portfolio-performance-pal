@@ -1,0 +1,11 @@
+Baader Bank AG
+Vorgangs-Nr.: SYNTHETIC-0001
+Wertpapierabrechnung: Kauf
+Nominale ISIN: DE0000000001 WKN: TEST01 Kurs
+STK 2 Synthetic Euro Instrument EUR 25,00
+Invented public security
+Kurswert EUR 50,00
+Handelsdatum Handelsuhrzeit
+03.01.2025 00:00:00:00
+Zu Lasten Konto 00000000 Valuta: 06.01.2025 EUR 51,00
+Provision EUR 1,00
