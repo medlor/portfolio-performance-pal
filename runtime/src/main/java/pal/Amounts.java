@@ -8,7 +8,10 @@ public final class Amounts {
     public record Purchase(long shares, BigDecimal price, long gross, long fees, long taxes, long booked,
             String priceOrigin, String grossOrigin, String bookedOrigin, String feeOrigin, String taxOrigin) {}
 
-    public static Purchase purchase(CommandLine line) {
+    public static Purchase purchase(CommandLine line) { return trade(line, false); }
+    public static Purchase sale(CommandLine line) { return trade(line, true); }
+
+    private static Purchase trade(CommandLine line, boolean sale) {
         long shares = scaled(line.value("quantity"), Values.Share.precision(), "quantity", true);
         BigDecimal price = line.flag("price") ? BigDecimal.valueOf(scaled(line.value("price"), Values.Quote.precision(), "price", true), Values.Quote.precision()) : null;
         long fees = money(line.value("fees", "0"), "fees");
@@ -19,20 +22,21 @@ public final class Amounts {
         Long pricedGross = price == null ? null : BigDecimal.valueOf(shares, Values.Share.precision()).multiply(price)
                 .setScale(Values.Money.precision(), RoundingMode.HALF_UP).movePointRight(Values.Money.precision()).longValueExact();
         if (suppliedGross == null && suppliedBooked == null && pricedGross == null)
-            throw new IllegalArgumentException("Quantity requires --price, --gross or --total to determine the purchase amount");
-        long gross = suppliedGross != null ? suppliedGross : pricedGross != null ? pricedGross : Math.subtractExact(suppliedBooked, costs);
+            throw new IllegalArgumentException("Quantity requires --price, --gross or --total to determine the trade amount");
+        long gross = suppliedGross != null ? suppliedGross : pricedGross != null ? pricedGross : sale ? Math.addExact(suppliedBooked, costs) : Math.subtractExact(suppliedBooked, costs);
         if (gross < 0) throw new IllegalArgumentException("Booked total is less than fees and taxes");
         if (pricedGross != null && gross != pricedGross) throw new IllegalArgumentException("Gross value contradicts quantity x price after HALF_UP cents rounding");
-        long booked = Math.addExact(gross, costs);
-        if (suppliedBooked != null && booked != suppliedBooked) throw new IllegalArgumentException("Booked total contradicts gross + fees + taxes");
+        long booked = sale ? Math.subtractExact(gross, costs) : Math.addExact(gross, costs);
+        if (booked < 0) throw new IllegalArgumentException("Gross sale value is less than fees and taxes");
+        if (suppliedBooked != null && booked != suppliedBooked) throw new IllegalArgumentException(sale ? "Booked total contradicts gross - fees - taxes" : "Booked total contradicts gross + fees + taxes");
         String priceOrigin = price == null ? "derived from gross / quantity; display HALF_EVEN 8 places" : "supplied";
         if (price == null) price = BigDecimal.valueOf(gross, Values.Money.precision())
                 .divide(BigDecimal.valueOf(shares, Values.Share.precision()), Values.Quote.precision(), RoundingMode.HALF_EVEN);
         try { price.movePointRight(Values.Quote.precision()).longValueExact(); }
         catch (ArithmeticException e) { throw new IllegalArgumentException("Derived price exceeds supported quote range", e); }
         return new Purchase(shares, price, gross, fees, taxes, booked, priceOrigin,
-                suppliedGross != null ? "supplied" : pricedGross != null ? "derived from quantity x price; HALF_UP cents" : "derived from booked - fees - taxes",
-                suppliedBooked != null ? "supplied" : "derived from gross + fees + taxes",
+                suppliedGross != null ? "supplied" : pricedGross != null ? "derived from quantity x price; HALF_UP cents" : sale ? "derived from booked + fees + taxes" : "derived from booked - fees - taxes",
+                suppliedBooked != null ? "supplied" : sale ? "derived from gross - fees - taxes" : "derived from gross + fees + taxes",
                 line.flag("fees") ? "supplied" : "default zero", line.flag("taxes") ? "supplied" : "default zero");
     }
 

@@ -389,6 +389,65 @@
       ],
       "validationNotes": "Exited 0. Every trusted candidate gate passed: security creation, PDF purchase preview, runtime, holdings/configuration, history, backups, purchase preview and purchase application. Actual local stable tagged synthetic wrapper and official pinned upstream archives built this image; isolated selected-copy semantic preservation and pair activation passed. Mandatory fixed-image owner creation preview/application passed with release-failure and changed-input refusal, opaque metadata preservation and independently specified pinned-core definition/linked-transaction oracle. New gate covers identifier-free definitions, optional identifiers, exact reuse without existing-definition edits, ambiguity/disagreement refusal, invalid/missing currency/name, contradictory amounts, detached preview and explicit midnight. All unrelated supported state is compared after removing only the intended additions. No all.sh exit-0 claim; historical updater attacks were not repeated. Only README and support evidence metadata changed after the candidate snapshot was frozen; Java, help, gates and release policy remained unchanged.",
       "releaseValidation": "Linux amd64, XML ID-reference model70, same-currency manual purchases and existing fixture-scoped Baader preview layouts only; no migration or FX. Official stable wrapper bootstrap publication remains prerequisite."
+    },
+    {
+      "upstreamRelease": "0.88.0",
+      "upstreamRevision": "8de1fe41d71a2c1b74a6bfbe913f885899aaf123",
+      "sourceArchiveSha256": "ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656",
+      "dependencyReleaseArchiveSha256": "1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2",
+      "jdk": "Temurin 21.0.11+10-LTS",
+      "platform": "linux/amd64",
+      "input": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "output": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "migrations": [],
+      "fixtureVersion": "v1",
+      "image": "sha256:dce241a4c5e6a20ab9909dc9423182e3119c9f7b33b0ca0b6123862c7a270d52",
+      "baselineImage": "sha256:db422338b674572ddca0270955e76db079aa1b49a18754e680bf7845bd45e92b",
+      "retentionTag": "pp-pal:retained-dce241a4c5e6a20ab9909dc9423182e3119c9f7b33b0ca0b6123862c7a270d52",
+      "validatedOn": "2026-10-08",
+      "validatedBy": "bash tests/all.sh pp-pal:issue26",
+      "releasedWrapperRevision": "f28ba5d3764b8f4ec80bb7ca8dc24fa215ac8812",
+      "features": [
+        "headless-core-proof",
+        "holdings",
+        "configuration",
+        "history",
+        "monthly-launch-backups",
+        "exact-pre-upgrade-backups",
+        "released-wrapper-upstream-resolution",
+        "independent-candidate-validation",
+        "isolated-selected-copy-validation",
+        "atomic-released-engine-activation",
+        "unchanged-release-cache-reuse",
+        "immutable-image-retention",
+        "same-currency-purchase-preview",
+        "exact-fixed-check-candidate-qualification",
+        "installed-symlink-launcher",
+        "atomic-same-currency-purchase-application",
+        "verified-financial-write-recovery",
+        "successful-write-backup-retention",
+        "baader-purchase-pdf-preview",
+        "explicit-purchase-security-creation",
+        "same-currency-sale-preview",
+        "atomic-same-currency-sale-application",
+        "complete-sale-quantity-history-validation"
+      ],
+      "layouts": [
+        "baader-german-eur-purchase-flat-v1",
+        "baader-german-eur-purchase-page1-of1-v1"
+      ],
+      "validationCommands": [
+        "bash tests/sale.sh pp-pal:issue26",
+        "bash tests/all.sh pp-pal:issue26"
+      ],
+      "validationNotes": "Both commands exited 0. The full cumulative suite ran runtime, holdings, history and backup checks and the complete historical updater adversarial suite. Every registered trusted candidate gate passed, including sale preview/application with complete quantity-history validation, partial/full disposal, valid/later-negative backdating, account isolation, inbound deliveries/outbound transfers, equal timestamps, explicit midnight/nanoseconds, fallback timestamps and independent saved-model preservation. The released pair built from pinned official upstream archives, qualified, validated a disposable selected copy and activated. Owner-level sale preview/application passed with mandatory release checks and release-failure immutability. Historical selected-copy tampering, changed bootstrap, stale input, wrong candidate expectations, retries and interrupted updates retained the previous pair. Full-suite elapsed time was approximately 88 minutes. Only usage documentation and this evidence record changed after the candidate snapshot; Java, help, gates and release policy were unchanged.",
+      "releaseValidation": "Linux amd64, upstream 0.88.0 XML ID-reference model70, same-currency manual purchases/sales and existing fixture-scoped Baader purchase previews; no migration or FX. Official stable wrapper bootstrap publication remains prerequisite."
     }
   ]
 }
