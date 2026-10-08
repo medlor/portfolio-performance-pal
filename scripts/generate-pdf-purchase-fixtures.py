@@ -12,7 +12,11 @@ for source in sorted(root.glob('*.txt')):
     # This is renderer metadata; production classification uses verified markers.
     pages = source.read_text().split('\nBaader Bank AG\n')
     if source.stem == 'page-marker-on-wrong-page':
-        pages = [source.read_text(),''] # two logical markers on page 1; blank page 2
+        # The final extra paired-text newline comes from the blank physical page.
+        # It is extraction formatting, not a text line drawn on the first page.
+        paired = source.read_text()
+        assert paired.endswith('\n\n'), 'Blank page requires its literal extraction newline'
+        pages = [paired[:-1],''] # two logical markers on page 1; blank page 2
     for index, page in enumerate(pages):
         if index and page: page = 'Baader Bank AG\n' + page
         text = pdf.beginText(36, A4[1] - 40)

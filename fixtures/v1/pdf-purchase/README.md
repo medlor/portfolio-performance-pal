@@ -16,6 +16,8 @@ requires exact equality with actual upstream conversion for every PDF. The rende
 does no financial modelling. It uses the repeated invented issuer header solely
 as fixture page metadata; production classification uses actual physical PDF pages.
 The wrong-page trap puts both statement markers on page 1 and leaves page 2 blank.
+That blank physical page contributes one extra literal newline at the paired
+text's end; the renderer consumes it as page formatting, not page-1 content.
 Global counts alone would accept it; each physical page must have exactly one start.
 
 Regenerate only PDFs with Python and ReportLab 4.4.7:
