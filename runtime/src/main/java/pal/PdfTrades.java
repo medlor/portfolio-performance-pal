@@ -14,7 +14,7 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.text.PDFTextStripper;
 
 /** Tested statement evidence, actual upstream extraction and one detached document plan. */
-public final class PdfPurchase {
+public final class PdfTrades {
     private static final String NUMBER = "(?:[0-9]+|[0-9]{1,3}(?:\\.[0-9]{3})+)(?:,[0-9]+)?";
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd.MM.uuuu").withResolverStyle(ResolverStyle.STRICT);
     public record Snapshot(Path path, byte[] bytes, String sha256) {
@@ -25,22 +25,26 @@ public final class PdfPurchase {
                 throw new IllegalArgumentException("PDF changed during planning; retry against the current document");
         }
     }
-    public record Member(int index, String brokerReference, Purchase.Plan purchase, Map<String,String> origins) {
+    public record Member(int index, String brokerReference, Purchase.Plan trade, Map<String,String> origins) {
         public Member { origins = Map.copyOf(origins); }
     }
     public record Document(Snapshot snapshot, String pdfBoxVersion, List<Member> members) {
         public Document { members = List.copyOf(members); }
+        public String description() {
+            var types = members.stream().map(m -> m.trade().entry().getPortfolioTransaction().getType()).distinct().toList();
+            return "PDF " + (types.size() > 1 ? "TRADE" : types.getFirst() == PortfolioTransaction.Type.SELL ? "SALE" : "PURCHASE") + " DOCUMENT";
+        }
     }
 
     /** Apply to the invocation's disposable model, then admit the complete batch. */
     public static List<AtomicWriter.Added> insertAndValidate(List<Member> members) {
         var records = new ArrayList<AtomicWriter.Added>();
         for (var member : members) {
-            member.purchase().entry().insert();
-            records.addAll(AtomicWriter.Change.purchase(member.purchase().entry()).records());
+            member.trade().entry().insert();
+            records.addAll(AtomicWriter.Change.purchase(member.trade().entry()).records());
         }
         for (var member : members) {
-            var entry = member.purchase().entry();
+            var entry = member.trade().entry();
             Sale.validateHistory(entry.getPortfolio(), entry.getPortfolioTransaction().getSecurity());
         }
         return List.copyOf(records);
@@ -80,7 +84,7 @@ public final class PdfPurchase {
             throw rejected(1,"Financial supplements require a single-member document");
         var references = new HashSet<String>();
         for (int i = 0; i < parts.size(); i++) {
-            var member = purchase(client,securities,cash,command,parts.get(i),path.getFileName().toString(),i+1);
+            var member = trade(client,securities,cash,command,parts.get(i),path.getFileName().toString(),i+1);
             if (!references.add(member.brokerReference())) throw rejected(i+1,"Ambiguous repeated reference across document members");
             members.add(member);
         }
@@ -105,13 +109,14 @@ public final class PdfPurchase {
         return pages;
     }
 
-    private static Member purchase(Client client, Portfolio securities, Account cash, CommandLine command, String text, String filename, int index) {
+    private static Member trade(Client client, Portfolio securities, Account cash, CommandLine command, String text, String filename, int index) {
         var facts = new LinkedHashMap<String,String>();
         String reference = null;
         int bank = 0, heading = 0, nominal = 0, quantity = 0;
         boolean nameContinuation = false, expectTime = false;
         LocalDate bookingDate = null, tradeDate = null;
         LocalTime time = null;
+        Boolean sale = null;
         for (var raw : text.split("\\n")) {
             String line = raw.strip();
             if (line.isEmpty()) continue;
@@ -134,7 +139,9 @@ public final class PdfPurchase {
                 if (reference != null) throw rejected(index, "Repeated broker reference");
                 reference = match.group(1); continue;
             }
-            if (line.equals("Wertpapierabrechnung: Kauf")) { heading++; continue; }
+            if (line.equals("Wertpapierabrechnung: Kauf") || line.equals("Wertpapierabrechnung: Verkauf")) {
+                heading++; sale = line.endsWith("Verkauf"); continue;
+            }
             match = Pattern.compile("Nominale ISIN: ([A-Z]{2}[A-Z0-9]{9}[0-9]) WKN: ([A-Z0-9]{6}) Kurs").matcher(line);
             if (match.matches()) { nominal++; put(facts,"isin",match.group(1),index); put(facts,"wkn",match.group(2),index); continue; }
             match = Pattern.compile("STK (" + NUMBER + ") (.+) ([A-Z]{3}) (" + NUMBER + ")").matcher(line);
@@ -148,12 +155,14 @@ public final class PdfPurchase {
             if (match.matches()) {
                 currency(match.group(2),index); put(facts,match.group(1).equals("Provision") ? "fees" : "taxes",decimal(match.group(3)),index); continue;
             }
-            match = Pattern.compile("Zu Lasten Konto [A-Za-z0-9]+ Valuta: ([0-9]{2}\\.[0-9]{2}\\.[0-9]{4}) ([A-Z]{3}) (" + NUMBER + ")").matcher(line);
+            match = Pattern.compile("Zu (Gunsten|Lasten) Konto [A-Za-z0-9]+ Valuta: ([0-9]{2}\\.[0-9]{2}\\.[0-9]{4}) ([A-Z]{3}) (" + NUMBER + ")").matcher(line);
             if (match.matches()) {
-                currency(match.group(2),index);
-                try { bookingDate = LocalDate.parse(match.group(1),DATE); }
+                if (sale == null || !match.group(1).equals(sale ? "Gunsten" : "Lasten"))
+                    throw rejected(index,"Booked direction disagrees with statement type");
+                currency(match.group(3),index);
+                try { bookingDate = LocalDate.parse(match.group(2),DATE); }
                 catch (DateTimeException e) { throw rejected(index,"Invalid value date"); }
-                put(facts,"total",decimal(match.group(3)),index); continue;
+                put(facts,"total",decimal(match.group(4)),index); continue;
             }
             if (line.equals("Handelsdatum Handelsuhrzeit")) {
                 if (tradeDate != null) throw rejected(index,"Repeated trade time");
@@ -162,7 +171,7 @@ public final class PdfPurchase {
             throw rejected(index,"Unsupported or uncovered statement line: " + line);
         }
         if (bank != 1 || heading != 1 || nominal != 1 || quantity > 1 || reference == null || expectTime || nameContinuation)
-            throw rejected(index,"Incomplete or ambiguous Baader purchase member");
+            throw rejected(index,"Incomplete or ambiguous Baader trade member");
         var date = tradeDate == null ? bookingDate : tradeDate;
         if (date != null) put(facts,"date",date.toString(),index);
         if (time != null) put(facts,"time",time.toString(),index);
@@ -172,10 +181,10 @@ public final class PdfPurchase {
             if (supplied != null && !same(fact.getKey(),supplied,fact.getValue())) throw rejected(index,"CLI conflicts with extracted " + fact.getKey());
             options.put(fact.getKey(),fact.getValue());
         }
-        if (!facts.containsKey("total") && !command.flag("total")) throw rejected(index,"Missing booked debit requires --total");
+        if (!facts.containsKey("total") && !command.flag("total")) throw rejected(index,"Missing booked amount requires --total");
         if (quantity == 0 && (!command.flag("quantity") || !command.flag("price")))
             throw rejected(index,"Absent quantity/price section requires both --quantity and --price");
-        var determined = Purchase.plan(client, securities, cash, new CommandLine("purchase",options));
+        var determined = Purchase.trade(client, securities, cash, new CommandLine(sale ? "sale" : "purchase",options), sale);
         // Complete only truly absent source fields, then use upstream monetary/model extraction.
         // Present malformed lines were rejected above, so no ignored value can be replaced here.
         String completed = text;
@@ -184,7 +193,7 @@ public final class PdfPurchase {
                     + " EUR " + german(options.get("price")) + "\nExisting selected security\n";
             completed = completed.replaceFirst("(?m)^(Nominale ISIN: .*\\n)","$1" + Matcher.quoteReplacement(section));
         }
-        if (!facts.containsKey("total")) completed += "Zu Lasten Konto SUPPLEMENT EUR " + german(options.get("total")) + "\n";
+        if (!facts.containsKey("total")) completed += "Zu " + (sale ? "Gunsten" : "Lasten") + " Konto SUPPLEMENT EUR " + german(options.get("total")) + "\n";
         if (!facts.containsKey("fees") && command.flag("fees")) completed += "Provision EUR " + german(options.get("fees")) + "\n";
         if (!facts.containsKey("taxes") && command.flag("taxes")) completed += "Kapitalertragsteuer EUR " + german(options.get("taxes")) + " -\n";
         if (tradeDate == null && (command.flag("time") || date == null)) {
@@ -199,10 +208,10 @@ public final class PdfPurchase {
         var extracted = new BaaderBankPDFExtractor(extractionClient).extract(new SecurityCache(extractionClient), input, errors);
         if (!errors.isEmpty() || extracted.size() != 1 || extracted.getFirst().isFailure() || extracted.getFirst().isSkipped()
                 || !(extracted.getFirst().getSubject() instanceof BuySellEntry))
-            throw rejected(index,"Upstream extraction did not produce one valid purchase");
+            throw rejected(index,"Upstream extraction did not produce one valid trade");
         var entry = (BuySellEntry)extracted.getFirst().getSubject();
         var tx = entry.getPortfolioTransaction(); var expected = determined.entry().getPortfolioTransaction();
-        if (tx.getType() != PortfolioTransaction.Type.BUY || tx.getShares() != expected.getShares() || tx.getAmount() != expected.getAmount()
+        if (tx.getType() != expected.getType() || tx.getShares() != expected.getShares() || tx.getAmount() != expected.getAmount()
                 || !tx.getCurrencyCode().equals(expected.getCurrencyCode()) || !tx.getSecurity().getIsin().equals(facts.get("isin"))
                 || !tx.getSecurity().getWkn().equals(facts.get("wkn")) || !tx.getSecurity().getCurrencyCode().equals("EUR")
                 || tx.getGrossValueAmount() != expected.getGrossValueAmount()
@@ -219,7 +228,7 @@ public final class PdfPurchase {
             if (!origins.containsKey(key) && command.flag(key)) origins.put(key,"SUPPLEMENT");
         return new Member(index,reference,plan,origins);
     }
-    private static void currency(String value, int member) { if (!value.equals("EUR")) throw rejected(member,"Foreign-currency layout is not supported by this purchase preview"); }
+    private static void currency(String value, int member) { if (!value.equals("EUR")) throw rejected(member,"Foreign-currency layout is not supported by this trade import"); }
     private static String decimal(String text) { return text.replace(".","").replace(',','.'); }
     private static String german(String text) { return new BigDecimal(text).stripTrailingZeros().toPlainString().replace('.',','); }
     private static void put(Map<String,String> values,String key,String value,int member) {
@@ -240,18 +249,18 @@ public final class PdfPurchase {
 
     public static String preview(Document document,int inputModel) throws Exception {
         document.snapshot().unchanged();
-        var out = new StringBuilder("PREVIEW PDF PURCHASE DOCUMENT (" + document.members().size() + " members)\n");
+        var out = new StringBuilder("PREVIEW " + document.description() + " (" + document.members().size() + " members)\n");
         out.append("INPUT PDF ").append(document.snapshot().path()).append('\n');
         for (var member : document.members()) {
             out.append("MEMBER ").append(member.index()).append(" | Baader Bank AG | Vorgangs-Nr.: ").append(member.brokerReference()).append('\n');
-            for (String line : Purchase.preview(member.purchase(),inputModel).split("\\n")) {
+            for (String line : Purchase.preview(member.trade(),inputModel).split("\\n")) {
                 if (line.startsWith("DATE ")) {
                     String date = member.origins().getOrDefault("date","SUPPLEMENT");
-                    String time = member.origins().getOrDefault("time","fallback time 11:00:00");
+                    String time = member.origins().getOrDefault("time","fallback time " + (member.trade().entry().getPortfolioTransaction().getType() == PortfolioTransaction.Type.SELL ? "11:00:01" : "11:00:00"));
                     String origin = date.equals(time) ? date + " date and time" : date + " date; " + time + (time.equals("SUPPLEMENT") ? " time" : "");
                     line = line.substring(0,line.indexOf(" (")) + " (" + origin + ")";
                 } else {
-                    var fields = Map.of("QUANTITY ","quantity","PRICE ","price","GROSS ","gross","FEES ","fees","TAXES ","taxes","BOOKED DEBIT ","total");
+                    var fields = Map.of("QUANTITY ","quantity","PRICE ","price","GROSS ","gross","FEES ","fees","TAXES ","taxes","BOOKED DEBIT ","total","BOOKED CREDIT ","total");
                     for (var field : fields.entrySet()) if (line.startsWith(field.getKey()) && member.origins().containsKey(field.getValue()))
                         line = line.substring(0,line.indexOf(" (")) + " (" + member.origins().get(field.getValue()) + ")";
                 }

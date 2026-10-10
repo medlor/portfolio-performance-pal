@@ -200,18 +200,18 @@ absolute external PDF paths follow the launcher rules. The Java planner snapshot
 the actual bytes before conversion, converts those bytes through upstream
 `PDFInputFile.convertPDFtoText()`, and rechecks source bytes before returning output.
 
-Supported profiles are the independently invented German Baader EUR purchase
+Supported profiles are the independently invented German Baader EUR purchase/sale
 fixtures: one flat single-page member, or one or more one-page members with an
 exact `Baader Bank AG` header immediately followed by `Seite 1/1`. The number of
 proved page starts must match the physical PDF page count. Each member requires
-its own unique broker reference, purchase heading and ISIN/WKN section. All
+its own unique broker reference, trade heading and ISIN/WKN section. All
 nonblank lines must match the reviewed grammar, including the security name
 continuation. Other issuers, Smartbroker branding alone, unknown/trailing lines,
-continuations, FX, sales and dividends reject the entire PDF before any preview.
+continuations, FX and dividends reject the entire PDF before any preview.
 This proves fixture-scoped grammar, not support for every current Baader layout.
 
 Raw German decimal tokens are checked against the exact shared `Amounts` rules
-before comparison with actual upstream extracted models. Booked debit is
+before comparison with actual upstream extracted models. Booked amount is
 authoritative; quantity, price, gross, fees and taxes must agree. Present ignored,
 malformed, duplicated or contradictory values cannot be replaced by CLI options.
 ISIN and WKN jointly resolve one existing security, with any CLI constraints also
@@ -224,7 +224,7 @@ single-member PDF. An absent quantity/price section requires both `--quantity` a
 `--price`; an absent booked debit requires explicit `--total`. Missing fees/taxes
 may be supplied, otherwise default to zero. A missing date needs `--date`; source
 value date is used when trade date is absent, following upstream extraction.
-Missing time defaults to 11:00:00, while explicit midnight stays midnight; an
+Missing time defaults to 11:00:00 for purchases or 11:00:01 for sales, while explicit midnight stays midnight; an
 absent time can be supplied at whole-second precision. Supplements are inserted
 only into temporary extraction text and upstream extraction is rerun. Missing
 identity, malformed partial sections and unsupported layouts conservatively reject.
@@ -232,7 +232,7 @@ Financial supplements for multiple members reject because no member selector has
 been defined. Origins distinguish `PDF`, `SUPPLEMENT`, derivation, default zero and
 fallback time. Statement values supplied identically through CLI retain `PDF` origin.
 
-`PdfPurchase.plan(Client, Portfolio, Account, CommandLine)` returns a detached
+`PdfTrades.plan(Client, Portfolio, Account, CommandLine)` returns a detached
 `Document` with ordered `Member` plans, origins, broker references and an immutable
 byte snapshot/hash. All members must validate before output. The upstream entry
 retains legitimate bank/reference notes and source filename. Snapshot, hash,
@@ -749,4 +749,34 @@ saved model facts, repeats and changed document identity, partial confirmations,
 uncertain evidence, overrides, invalid later members, late PDF/portfolio/metadata
 changes, protected migrations and post-replacement metadata recovery. It is a
 mandatory candidate gate alongside retained `tests/pdf-purchase.sh` layout tests.
-PDF sales, dividends, FX and unproved layouts remain outside this story's support.
+PDF dividends, FX and unproved layouts remain outside current support.
+
+
+## PDF sale import
+
+`import --pdf statement.pdf --securities-account ID --cash-account ID` also admits
+invented German Baader EUR sale profiles. Add `--apply --desktop-closed` to write
+all new members together; `--allow-suspected-duplicates` authorizes document-wide
+uncertainty only. Each member must independently identify Baader, the verified
+heading, reference, security and financial fields. Sale headings require
+`Zu Gunsten` booked credits; purchase headings require `Zu Lasten` debits.
+Booked credits are authoritative, with gross minus fees/taxes checked against the
+pinned upstream extractor. Missing-only supplements and explicit timestamps retain
+their origin; date-only sales disclose `11:00:01`.
+
+All new entries are inserted into the disposable model before complete-history
+validation. Quantity increases precede decreases at equal timestamps, including
+when the sale appears earlier in the PDF. A backdated sale that makes a later
+holding negative rejects the whole document. Confirmed members are excluded from
+insertion, so repeated full sales skip rather than failing hypothetical replay.
+Sale imports use the existing daily/migration backups, stale-input checks, atomic
+writer and metadata recovery; failed follow-up work reports financial success and
+`import --recover-write --desktop-closed` repairs bookkeeping without replay.
+
+[Sale fixture facts and limits](../fixtures/v1/pdf-sale/README.md) and
+`tests/pdf-sale.sh` cover actual PDF conversion, partial/full and backdated sales,
+explicit/fallback times, batches, same-time ordering, rejects, duplicates and
+post-replacement metadata recovery. The updater registers this gate alongside
+all earlier purchase/layout regressions. These invented fixtures establish only
+their exact grammar; real owner statements, other banks, continuations,
+foreign-currency PDFs and dividend PDFs remain unverified.

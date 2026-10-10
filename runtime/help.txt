@@ -15,7 +15,7 @@ Commands:
   purchase   Preview or apply a purchase after mandatory release validation.
   sale       Preview or apply a sale with complete holding-history validation.
   dividend   Preview or apply a security-associated cash credit with fees/taxes.
-  import     Preview or atomically apply purchases in one proved Baader EUR PDF.
+  import     Preview or atomically apply trades in one proved Baader EUR PDF.
   configure  Save portfolio path and resolved default account IDs explicitly.
   backup-monthly  Check due launch protection without loading the financial model.
   backup-before-update  Preserve an exact snapshot before an actual upgrade attempt.
@@ -96,7 +96,7 @@ Manual foreign-currency options (purchase, sale, dividend):
   Preview discloses currencies, exact rate, origins and rounding; no rates fetched.
   Same-currency entries reject FX options. Existing apply/backup/update rules apply.
 
-PDF purchase import:
+PDF purchase/sale import:
   import --pdf PATH          One readable .pdf; preview by default.
   --apply --desktop-closed   Apply all new members together with daily protection.
   --allow-suspected-duplicates  Document-wide uncertainty override only.
@@ -105,12 +105,12 @@ PDF purchase import:
   import --recover-write --desktop-closed  Finish pending metadata/cleanup only.
   Requires existing securities and selected securities/cash accounts.
   Supported: synthetic German Baader EUR flat single-page or page 1/1 members.
-  Every member/page must be covered. Other banks, continuations, FX, sale and
+  Every member/page must be covered. Other banks, continuations, FX and
   dividend layouts reject the whole document. Smartbroker branding is insufficient.
-  Purchase options supplement only absent fields; conflicting present values reject.
-  Absent quantity/price section needs both values; absent booked debit needs --total.
+  Trade options supplement only absent fields; conflicting present values reject.
+  Absent quantity/price section needs both values; absent booked amount needs --total.
   Financial supplements require a single member. Origins show PDF, SUPPLEMENT,
-  derivation/defaults or fallback 11:00:00; explicit midnight remains midnight.
+  derivation/defaults or fallback 11:00:00 (buy), 11:00:01 (sale); explicit midnight remains midnight.
 
 Configuration defaults: pp-pal.properties in cwd; portfolio_performance.xml in cwd.
 Configured file paths resolve relative to the configuration directory.
@@ -119,4 +119,4 @@ Launches create a due Berlin monthly backup; each backup-before-update call crea
 another exact backup. That command does not discover, build or activate updates.
 Exit codes: 0 success; 2 input/validation rejected; 3 operational failure;
 4 completed financial change with failed follow-up work.
-Sale/dividend/FX statement layouts are pending.
+Dividend/FX and real owner statement layouts are pending.
