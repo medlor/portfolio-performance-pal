@@ -311,6 +311,32 @@ with released_work() as temporary, server() as api:
     check(result.returncode == 0 and 'SKIPPED PDF SALE DOCUMENT' in result.stdout
           and pdf_sale_file.read_bytes() == pdf_sale_bytes, 'Owner replayed confirmed PDF sale')
     print('PASS released owner PDF sale preview/apply checks releases, fixes engine, refuses failed discovery and skips repeats')
+    pdf_dividend_file = work / 'PDF dividend portfolio.xml'
+    pdf_dividend_file.write_bytes(original)
+    pdf_dividend_args = ('import', '--file', str(pdf_dividend_file), '--pdf', str(ROOT/'fixtures/v1/pdf-dividend/basic.pdf'),
+        '--cash-account', 'Synthetic Cash A')
+    request_count = len(api.requests)
+    result = run(work, api, *pdf_dividend_args)
+    check(result.returncode == 0 and 'PREVIEW PDF DIVIDEND DOCUMENT' in result.stdout
+          and 'BOOKED CREDIT EUR 23.50 (PDF)' in result.stdout and 'ENGINE IMAGE ' + active['image'] in result.stdout,
+          result.stderr + result.stdout)
+    check(pdf_dividend_file.read_bytes() == original, 'Owner PDF dividend preview changed portfolio')
+    check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:]
+          and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'PDF dividend omitted mandatory releases')
+    release = api.routes.pop(route)
+    try:
+        result = run(work, api, *pdf_dividend_args, '--apply', '--desktop-closed')
+        check(result.returncode == 3 and pdf_dividend_file.read_bytes() == original, 'Owner PDF dividend continued after release failure')
+    finally:
+        api.routes[route] = release
+    result = run(work, api, *pdf_dividend_args, '--apply', '--desktop-closed')
+    check(result.returncode == 0 and 'APPLIED PDF DIVIDEND DOCUMENT' in result.stdout
+          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+    pdf_dividend_bytes = pdf_dividend_file.read_bytes()
+    result = run(work, api, *pdf_dividend_args, '--apply', '--desktop-closed', '--allow-suspected-duplicates')
+    check(result.returncode == 0 and 'SKIPPED PDF DIVIDEND DOCUMENT' in result.stdout
+          and pdf_dividend_file.read_bytes() == pdf_dividend_bytes, 'Owner replayed confirmed PDF dividend')
+    print('PASS released owner PDF dividend cash-only selection, release checks, fixed engine, discovery refusal and confirmed repeats')
     sale_file = work / 'sale portfolio.xml'
     sale_file.write_bytes(original)
     sale_args = ('sale', '--file', str(sale_file), '--security', 'DE0000000001',
