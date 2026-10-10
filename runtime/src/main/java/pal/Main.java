@@ -49,7 +49,7 @@ public final class Main {
                     if (line.command().equals("dividend")) {
                         var cash = Accounts.cash(invocation, config.selection(line, "cash-account"), true);
                         var planned = Dividend.plan(invocation, cash, line);
-                        cash.addTransaction(planned.transaction());
+                        UpstreamImports.insert(invocation, UpstreamImports.item(cash, planned.transaction()));
                         return new AtomicWriter.Change("DIVIDEND", java.util.List.of(new AtomicWriter.Added(
                                 AtomicWriter.Owner.CASH, cash.getUUID(), planned.transaction().getUUID())), java.util.List.of());
                     }
@@ -59,12 +59,11 @@ public final class Main {
                         var document = PdfTrades.plan(invocation, securities, cash, line);
                         var decision = ImportBookkeeping.decide(file, invocation, document);
                         if (decision.uncertain() && !line.flag("allow-suspected-duplicates")) throw new IllegalArgumentException(decision.text());
-                        var records = PdfTrades.insertAndValidate(decision.additions());
+                        var records = PdfTrades.insertAndValidate(invocation, decision.additions());
                         return new AtomicWriter.Change(document.description(), records, java.util.List.of(), decision.update());
                     }
                     var planned = line.command().equals("sale") ? Sale.plan(invocation, securities, cash, line) : Purchase.plan(invocation, securities, cash, line);
-                    if (planned.createsSecurity()) invocation.addSecurity(planned.entry().getPortfolioTransaction().getSecurity());
-                    planned.entry().insert();
+                    UpstreamImports.insert(invocation, UpstreamImports.item(planned.entry()));
                     var change = AtomicWriter.Change.purchase(planned.entry());
                     return planned.createsSecurity() ? new AtomicWriter.Change(change.description(), change.records(),
                             java.util.List.of(planned.entry().getPortfolioTransaction().getSecurity().getUUID())) : change;
@@ -88,7 +87,7 @@ public final class Main {
                     var document = PdfTrades.plan(client, securities, cash, line);
                     var decision = ImportBookkeeping.decide(file, client, document);
                     // Validate the whole proposed batch in memory, excluding confirmed skips.
-                    PdfTrades.insertAndValidate(decision.additions());
+                    PdfTrades.insertAndValidate(client, decision.additions());
                     decision.update().requireCurrent(); snapshot.requireCurrent();
                     System.out.print(PdfTrades.preview(document, client.getFileVersionAfterRead()) + decision.text());
                 }

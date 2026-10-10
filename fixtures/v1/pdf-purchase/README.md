@@ -1,5 +1,17 @@
 # Invented Baader purchase preview fixtures
 
+The PP-authority refactor supersedes the strict wrapper-parser behavior described
+in the historical fixture notes below. These original PDFs/text/literals remain
+retained regression evidence. Missing mandatory PP sections now reject even with
+CLI values; ignored printed gross/price, repeated or unknown fields follow PP;
+complete continuations are supported. Fees/taxes and time may supplement absent
+upstream-extracted values. The invented dividend payment-time extension is ignored;
+its explicit/midnight saved-model literals are now exercised with CLI times.
+See [the reuse boundary](../../../docs/upstream-reuse.md) and
+[authority regressions](../pp-extraction/README.md) for the current contract.
+
+Historical fixture notes (former strict-parser behavior):
+
 Every identity, account, reference, date and amount is invented. No owner portfolio,
 private statement or repository reference sample was read or copied. The starting
 text is the existing public invented `../baader-buy.txt`. Grammar comes from the

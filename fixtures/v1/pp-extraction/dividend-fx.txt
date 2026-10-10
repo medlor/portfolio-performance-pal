@@ -1,0 +1,13 @@
+Baader Bank AG
+Seite 1/1
+Vorgangs-Nr.: SYNTHETIC-DIVIDEND
+Dividendenabrechnung
+Nominale ISIN: US0000000002 WKN: TEST02 Ausschüttung
+STK 10 Synthetic Dollar Instrument USD 2,50 p.STK
+Invented public security
+Umrechnungskurs: EUR/USD 1,25
+Bruttobetrag USD 25,00
+Bruttobetrag EUR 20,00
+Zu Gunsten Konto 00000000 Valuta: 01.03.2025 EUR 18,50
+Provision EUR 1,00
+Kapitalertragsteuer EUR 0,50 -
