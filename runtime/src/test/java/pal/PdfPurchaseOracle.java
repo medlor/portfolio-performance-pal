@@ -12,10 +12,10 @@ class PdfPurchaseOracle {
         var client = Core.load(Path.of(args[0]));
         byte[] before = Core.semanticState(client);
         var securities = client.getPortfolios().getFirst(); var cash = client.getAccounts().getFirst();
-        var document = PdfPurchase.plan(client,securities,cash,CommandLine.parse("import","--pdf",args[1]));
+        var document = PdfTrades.plan(client,securities,cash,CommandLine.parse("import","--pdf",args[1]));
         check(document.members().size() == 2,"complete two-member batch");
         for (int index = 0; index < 2; index++) {
-            var member = document.members().get(index); var entry = member.purchase().entry();
+            var member = document.members().get(index); var entry = member.trade().entry();
             var trade = entry.getPortfolioTransaction(); var payment = entry.getAccountTransaction();
             check(trade.getType() == PortfolioTransaction.Type.BUY && payment.getType() == AccountTransaction.Type.BUY,"linked purchase types");
             check(trade.getShares() == (index == 0 ? 200000000L : 300000000L) && payment.getShares() == 0,"literal shares only on securities");

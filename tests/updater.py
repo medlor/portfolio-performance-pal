@@ -284,6 +284,33 @@ with released_work() as temporary, server() as api:
           and pdf_file.read_bytes() == applied_pdf_bytes, 'Released owner replayed confirmed PDF import')
     check(pdf.read_bytes() == pdf_original and selected.read_bytes() == original and metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Owner PDF apply changed source/unrelated inputs')
     print('PASS released owner PDF apply checks releases, refuses uncertainty/failure, fixes engine and skips confirmed repeats')
+    pdf_sale_file = work / 'PDF sale portfolio.xml'
+    pdf_sale_file.write_bytes(original)
+    pdf_sale_args = ('import', '--file', str(pdf_sale_file), '--pdf', str(ROOT/'fixtures/v1/pdf-sale/partial.pdf'),
+        '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A')
+    request_count = len(api.requests)
+    result = run(work, api, *pdf_sale_args)
+    check(result.returncode == 0 and 'PREVIEW PDF SALE DOCUMENT' in result.stdout
+          and 'BOOKED CREDIT EUR 23.50 (PDF)' in result.stdout and 'ENGINE IMAGE ' + active['image'] in result.stdout,
+          result.stderr + result.stdout)
+    check(pdf_sale_file.read_bytes() == original, 'Owner PDF sale preview changed portfolio')
+    check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:]
+          and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'PDF sale omitted mandatory releases')
+    route = '/repos/medlor/portfolio-performance-pal/releases/latest'
+    release = api.routes.pop(route)
+    try:
+        result = run(work, api, *pdf_sale_args, '--apply', '--desktop-closed', '--allow-suspected-duplicates')
+        check(result.returncode == 3 and pdf_sale_file.read_bytes() == original, 'Owner PDF sale continued after release failure')
+    finally:
+        api.routes[route] = release
+    result = run(work, api, *pdf_sale_args, '--apply', '--desktop-closed', '--allow-suspected-duplicates')
+    check(result.returncode == 0 and 'APPLIED PDF SALE DOCUMENT' in result.stdout
+          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+    pdf_sale_bytes = pdf_sale_file.read_bytes()
+    result = run(work, api, *pdf_sale_args, '--apply', '--desktop-closed')
+    check(result.returncode == 0 and 'SKIPPED PDF SALE DOCUMENT' in result.stdout
+          and pdf_sale_file.read_bytes() == pdf_sale_bytes, 'Owner replayed confirmed PDF sale')
+    print('PASS released owner PDF sale preview/apply checks releases, fixes engine, refuses failed discovery and skips repeats')
     sale_file = work / 'sale portfolio.xml'
     sale_file.write_bytes(original)
     sale_args = ('sale', '--file', str(sale_file), '--security', 'DE0000000001',

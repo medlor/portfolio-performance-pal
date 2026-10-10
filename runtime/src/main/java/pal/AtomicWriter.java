@@ -86,7 +86,7 @@ public final class AtomicWriter {
             if (change.records().isEmpty()) {
                 if (change.imports() == null) throw new IllegalArgumentException("No planned financial records");
                 change.imports().requireCurrent(); snapshot.requireCurrent();
-                aborted = new Outcome(0, false, List.of(), null, null, "SKIPPED PDF PURCHASE DOCUMENT: all members are confirmed re-imports; no financial or metadata changes\n");
+                aborted = new Outcome(0, false, List.of(), null, null, "SKIPPED " + change.description() + ": all members are confirmed re-imports; no financial or metadata changes\n");
             } else {
             Set<String> proposedIds = new HashSet<>();
             for (var added : change.records()) if (originalIds.contains(added.transactionId()) || !proposedIds.add(added.transactionId())) throw new IOException("Proposed transaction identity is not new and unique");
