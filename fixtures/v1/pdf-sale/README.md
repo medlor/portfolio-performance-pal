@@ -1,7 +1,7 @@
 # Invented Baader EUR sale fixtures
 
-All names, references, dates, accounts and amounts are invented. No owner portfolio
-or private statement was read or copied. Grammar is derived from the pinned
+All names, references, dates, accounts and amounts are invented. No owner portfolio was read. Private statement identities and financial contents
+were not copied. Grammar is derived from the pinned
 [Baader extractor](https://github.com/portfolio-performance/portfolio/blob/8de1fe41d71a2c1b74a6bfbe913f885899aaf123/name.abuchen.portfolio/src/name/abuchen/portfolio/datatransfer/pdf/BaaderBankPDFExtractor.java)
 (EPL 1.0). These fixtures establish their exact synthetic German EUR profile,
 not support for real current Smartbroker statements. Other issuers, continuations,
@@ -39,3 +39,11 @@ Exact passing image identities and cumulative commands belong in
 launcher for representative preview/apply and the released container launcher for
 broad behavior; neither fixture expectations nor upstream model assertions come
 from candidate output.
+
+The retained `samples/Smartbroker_Sell.pdf` was inspected locally through pinned
+PDF conversion during review. It uses a different two-page continuation profile
+and has no readable `Vorgangs-Nr.` member reference. Its private identities and
+financial contents were not copied into these fixtures or validation evidence.
+It remains unsupported: this release does not establish that retained layout's
+current-statement compatibility. A complete anonymized representative specimen
+is still required before claiming support for that layout.
