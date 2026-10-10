@@ -63,10 +63,10 @@ public final class ImportBookkeeping {
                         && java.math.BigInteger.valueOf(existing.getGrossValueAmount()).multiply(java.math.BigInteger.valueOf(proposed.getShares()))
                             .equals(java.math.BigInteger.valueOf(proposed.getGrossValueAmount()).multiply(java.math.BigInteger.valueOf(existing.getShares())))));
     }
-    public record Decision(List<PdfPurchase.Member> additions, String text, boolean uncertain, Update update) {
+    public record Decision(List<PdfTrades.Member> additions, String text, boolean uncertain, Update update) {
         public Decision { additions = List.copyOf(additions); }
     }
-    public record Update(Path portfolio, String metadataInput, Properties evidence, PdfPurchase.Snapshot document) {
+    public record Update(Path portfolio, String metadataInput, Properties evidence, PdfTrades.Snapshot document) {
         void requireCurrent() throws Exception {
             document.unchanged();
             if (!metadataInput.equals(identity(path(portfolio)))) throw new IOException("Import metadata changed during planning; financial data unchanged");
@@ -76,7 +76,7 @@ public final class ImportBookkeeping {
             evidence.forEach((key,value) -> receipt.setProperty("import.evidence." + key, value.toString()));
         }
     }
-    public static Decision decide(Path file, Client client, PdfPurchase.Document document) throws Exception {
+    public static Decision decide(Path file, Client client, PdfTrades.Document document) throws Exception {
         Path metadata = path(file);
         String metadataInput = identity(metadata);
         var data = read(metadata);
@@ -84,9 +84,9 @@ public final class ImportBookkeeping {
         var evidence = new Properties();
         if (trusted) evidence.putAll(data);
         evidence.setProperty("format", FORMAT);
-        var additions = new ArrayList<PdfPurchase.Member>(); var text = new StringBuilder(); boolean uncertain = false;
+        var additions = new ArrayList<PdfTrades.Member>(); var text = new StringBuilder(); boolean uncertain = false;
         for (var member : document.members()) {
-            var entry = member.purchase().entry(); String key = key(member.brokerReference()), signature = signature(entry);
+            var entry = member.trade().entry(); String key = key(member.brokerReference()), signature = signature(entry);
             boolean confirmed = trusted && recorded(client, data, key, member.brokerReference(), data.getProperty(key + "signature"));
             if (confirmed) {
                 if (!signature.equals(data.getProperty(key + "signature"))) throw new IllegalArgumentException("PDF member " + member.index()
@@ -104,7 +104,7 @@ public final class ImportBookkeeping {
                             .append(existing.getUUID()).append(" in securities account ").append(owner.getUUID()).append('\n');
                 }
             }
-            for (var earlier : additions) if (resembles(earlier.purchase().entry().getPortfolioTransaction(), proposed)) {
+            for (var earlier : additions) if (resembles(earlier.trade().entry().getPortfolioTransaction(), proposed)) {
                 uncertain = true; text.append("SUSPECTED DUPLICATE member ").append(member.index()).append(" resembles document member ").append(earlier.index()).append('\n');
             }
             additions.add(member);
