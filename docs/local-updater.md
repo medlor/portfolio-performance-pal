@@ -12,7 +12,7 @@ released Java code and `tools/run-container` can update automatically. Purchase,
 this same preparation before any preview or write. Manual purchases,
 sales and dividends, including explicit foreign-currency transactions, support
 preview/application; PDF import supports the validated
-purchase preview profiles. Other statement layouts and PDF application remain pending.
+purchase profiles with atomic application and duplicate-safe bookkeeping recovery. Other statement layouts remain pending.
 
 Linux amd64, Bash, Python 3.10 or newer, Docker and standard Linux core utilities
 are required. Python handles HTTP, JSON, locks, cache directories and opaque file
