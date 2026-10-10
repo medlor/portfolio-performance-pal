@@ -22,7 +22,7 @@ public final class PdfPurchase {
         @Override public byte[] bytes() { return bytes.clone(); }
         public void unchanged() throws Exception {
             if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS) || !Arrays.equals(bytes, Files.readAllBytes(path)))
-                throw new IllegalArgumentException("PDF changed during preview; retry against the current document");
+                throw new IllegalArgumentException("PDF changed during planning; retry against the current document");
         }
     }
     public record Member(int index, String brokerReference, Purchase.Plan purchase, Map<String,String> origins) {
@@ -30,6 +30,20 @@ public final class PdfPurchase {
     }
     public record Document(Snapshot snapshot, String pdfBoxVersion, List<Member> members) {
         public Document { members = List.copyOf(members); }
+    }
+
+    /** Apply to the invocation's disposable model, then admit the complete batch. */
+    public static List<AtomicWriter.Added> insertAndValidate(List<Member> members) {
+        var records = new ArrayList<AtomicWriter.Added>();
+        for (var member : members) {
+            member.purchase().entry().insert();
+            records.addAll(AtomicWriter.Change.purchase(member.purchase().entry()).records());
+        }
+        for (var member : members) {
+            var entry = member.purchase().entry();
+            Sale.validateHistory(entry.getPortfolio(), entry.getPortfolioTransaction().getSecurity());
+        }
+        return List.copyOf(records);
     }
 
     public static Document plan(Client client, Portfolio securities, Account cash, CommandLine command) throws Exception {

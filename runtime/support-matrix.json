@@ -714,6 +714,154 @@
       "validationElapsedSeconds": 1234,
       "validationNotes": "Final focused migration and holdings suites exited 0. Full cumulative suite exited 0 in 1234 seconds (20 minutes 34 seconds). Four distinct baseline suites and all twelve mandatory candidate gates passed; every candidate gate ran exactly once during successful qualification, retaining all eleven earlier gates and their financial assertions. Independent pre/post fixtures and pinned-core oracles inspect model69-to70 no-op semantics and literal purchase/sale/dividend changes plus complete unrelated-state preservation. Coverage includes read/preview/disposable-copy immutability, every migration exact separate snapshot despite prior daily protection, repeated/restored input, same-model writes without migration backup, required index failure, unsupported models, invalid plans, stale input, Berlin two-year boundary and post-replacement failure/recovery without replay. The selected-copy oracle was also run successfully on the previous issue28 image. Released owner --update and preview preserve original model69/import bytes; financial apply alone persists model70 using fixed validated engine, exact migration snapshot and preserved daily protection. The full historical updater adversarial suite passed. An earlier full attempt stopped at the legacy holdings unsupported-model69 assertion; that fixture was corrected to unsupported68, all assertions retained, focused holdings passed, and the full suite restarted. Only documentation/evidence was added after the passing frozen qualification snapshot.",
       "releaseValidation": "Same exact validated runtime/candidate pair: XML ID-reference model70 -> model70 with no migration, retaining previous manual FX/purchase/sale/dividend and fixture-scoped Baader PDF-preview coverage. The model69 -> model70 path is declared separately in the adjacent entry; no earlier model/representation support is inferred."
+    },
+    {
+      "upstreamRelease": "0.88.0",
+      "upstreamRevision": "8de1fe41d71a2c1b74a6bfbe913f885899aaf123",
+      "sourceArchiveSha256": "ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656",
+      "dependencyReleaseArchiveSha256": "1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2",
+      "jdk": "Temurin 21.0.11+10-LTS",
+      "platform": "linux/amd64",
+      "fixtureVersion": "v1",
+      "image": "sha256:d91da318e0f34612f66326d8fd9c48790d8ffac40003e3379a327720b057d0c4",
+      "retentionTag": "pp-pal:retained-91fb26246364053e22dddb521e65f77ea4b3957d4e3734fe32e1909b6c064285",
+      "validatedOn": "2026-10-10",
+      "validatedBy": "tests/all.sh",
+      "input": {
+        "representation": "XML-ID-references",
+        "modelVersion": 69
+      },
+      "output": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "migrations": [
+        {
+          "inputModelVersion": 69,
+          "outputModelVersion": 70,
+          "representation": "XML-ID-references",
+          "semantics": "Optional client-filter weight; existing unweighted selections, financial records and unrelated persisted state unchanged",
+          "validatedBy": "tests/migrations.sh"
+        }
+      ],
+      "features": [
+        "headless-core-proof",
+        "holdings",
+        "configuration",
+        "history",
+        "monthly-launch-backups",
+        "exact-pre-upgrade-backups",
+        "released-wrapper-upstream-resolution",
+        "independent-candidate-validation",
+        "isolated-selected-copy-validation",
+        "atomic-released-engine-activation",
+        "unchanged-release-cache-reuse",
+        "immutable-image-retention",
+        "same-currency-purchase-preview",
+        "exact-fixed-check-candidate-qualification",
+        "installed-symlink-launcher",
+        "atomic-same-currency-purchase-application",
+        "verified-financial-write-recovery",
+        "successful-write-backup-retention",
+        "baader-purchase-pdf-preview",
+        "explicit-purchase-security-creation",
+        "same-currency-sale-preview",
+        "atomic-same-currency-sale-application",
+        "complete-sale-quantity-history-validation",
+        "same-currency-dividend-preview",
+        "atomic-same-currency-dividend-application",
+        "explicit-manual-foreign-currency-transactions",
+        "transaction-only-model69-to70-migration",
+        "atomic-baader-purchase-pdf-application",
+        "duplicate-safe-import-bookkeeping-recovery"
+      ],
+      "layouts": [
+        "baader-german-eur-purchase-flat-v1",
+        "baader-german-eur-purchase-page1-of1-v1"
+      ],
+      "validationCommands": [
+        "PP_PAL_LAUNCHER=\"$PWD/tools/run-container\" bash tests/pdf-apply.sh pp-pal:issue31",
+        "PP_PAL_LAUNCHER=\"$PWD/tools/run-container\" bash tests/pdf-purchase.sh pp-pal:issue31",
+        "PP_PAL_LAUNCHER=\"$PWD/tools/run-container\" bash tests/sale.sh pp-pal:issue31",
+        "bash tests/all.sh pp-pal:issue31"
+      ],
+      "implementationCommit": "07431fb6b5432addbe0d64943ab4a869e7fe89e2",
+      "previousBaselineImage": "sha256:d91da318e0f34612f66326d8fd9c48790d8ffac40003e3379a327720b057d0c4",
+      "releasedCandidateImage": "sha256:3dbe276b4b2f4813ea450c2766e15442c00a5c81b423864f6a45b1e767bd0f90",
+      "releasedWrapperRevision": "5f037f5a607475f9d214f64d9fd714af3c34ac79",
+      "validationElapsedSeconds": 1310,
+      "validationNotes": "Focused PDF application, retained PDF preview and sale suites exited 0. Full cumulative suite exited 0 in 1310 seconds (21 minutes 50 seconds). All four baseline suites and thirteen mandatory candidate gates passed; every gate ran exactly once in successful released-candidate qualification. All twelve previous gates and assertions remain, with tests/pdf-apply.sh added. Independent pinned-core literals inspect saved complete PDF purchases, quantities, booked/gross amounts, fee/tax units, dates, linked owners and unrelated-state preservation. Cases cover confirmed document/reference repeats, conservative similarity, document-wide overrides, partial confirmations, missing/malformed/stale/inconsistent metadata, external edits, restored backups, changed supplements, invalid later members, complete later quantity histories, changed PDF/portfolio/metadata inputs, post-replacement metadata failure, hard interruption before/after replacement, no-replay recovery and exact protected model69 migration. Released owner commands verify mandatory updates, fixed engine, uncertainty/release-failure refusal and confirmed skipping. Full historical updater adversity checks passed. Standards and spec review findings were resolved before final focused checks and the frozen cumulative run. Only documentation/support evidence was added after qualification.",
+      "releaseValidation": "Exact validated runtime/candidate pair: XML ID-reference model69 -> model70 with tested transaction-only migration. PDF application adds no new statement layouts: retained synthetic Baader flat and page-1/1 EUR purchase profiles only; sale/dividend/FX PDFs and unproved owner layouts remain unsupported."
+    },
+    {
+      "upstreamRelease": "0.88.0",
+      "upstreamRevision": "8de1fe41d71a2c1b74a6bfbe913f885899aaf123",
+      "sourceArchiveSha256": "ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656",
+      "dependencyReleaseArchiveSha256": "1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2",
+      "jdk": "Temurin 21.0.11+10-LTS",
+      "platform": "linux/amd64",
+      "fixtureVersion": "v1",
+      "image": "sha256:d91da318e0f34612f66326d8fd9c48790d8ffac40003e3379a327720b057d0c4",
+      "retentionTag": "pp-pal:retained-91fb26246364053e22dddb521e65f77ea4b3957d4e3734fe32e1909b6c064285",
+      "validatedOn": "2026-10-10",
+      "validatedBy": "tests/all.sh",
+      "input": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "output": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "migrations": [],
+      "features": [
+        "headless-core-proof",
+        "holdings",
+        "configuration",
+        "history",
+        "monthly-launch-backups",
+        "exact-pre-upgrade-backups",
+        "released-wrapper-upstream-resolution",
+        "independent-candidate-validation",
+        "isolated-selected-copy-validation",
+        "atomic-released-engine-activation",
+        "unchanged-release-cache-reuse",
+        "immutable-image-retention",
+        "same-currency-purchase-preview",
+        "exact-fixed-check-candidate-qualification",
+        "installed-symlink-launcher",
+        "atomic-same-currency-purchase-application",
+        "verified-financial-write-recovery",
+        "successful-write-backup-retention",
+        "baader-purchase-pdf-preview",
+        "explicit-purchase-security-creation",
+        "same-currency-sale-preview",
+        "atomic-same-currency-sale-application",
+        "complete-sale-quantity-history-validation",
+        "same-currency-dividend-preview",
+        "atomic-same-currency-dividend-application",
+        "explicit-manual-foreign-currency-transactions",
+        "transaction-only-model69-to70-migration",
+        "atomic-baader-purchase-pdf-application",
+        "duplicate-safe-import-bookkeeping-recovery"
+      ],
+      "layouts": [
+        "baader-german-eur-purchase-flat-v1",
+        "baader-german-eur-purchase-page1-of1-v1"
+      ],
+      "validationCommands": [
+        "PP_PAL_LAUNCHER=\"$PWD/tools/run-container\" bash tests/pdf-apply.sh pp-pal:issue31",
+        "PP_PAL_LAUNCHER=\"$PWD/tools/run-container\" bash tests/pdf-purchase.sh pp-pal:issue31",
+        "PP_PAL_LAUNCHER=\"$PWD/tools/run-container\" bash tests/sale.sh pp-pal:issue31",
+        "bash tests/all.sh pp-pal:issue31"
+      ],
+      "implementationCommit": "07431fb6b5432addbe0d64943ab4a869e7fe89e2",
+      "previousBaselineImage": "sha256:d91da318e0f34612f66326d8fd9c48790d8ffac40003e3379a327720b057d0c4",
+      "releasedCandidateImage": "sha256:3dbe276b4b2f4813ea450c2766e15442c00a5c81b423864f6a45b1e767bd0f90",
+      "releasedWrapperRevision": "5f037f5a607475f9d214f64d9fd714af3c34ac79",
+      "validationElapsedSeconds": 1310,
+      "validationNotes": "Focused PDF application, retained PDF preview and sale suites exited 0. Full cumulative suite exited 0 in 1310 seconds (21 minutes 50 seconds). All four baseline suites and thirteen mandatory candidate gates passed; every gate ran exactly once in successful released-candidate qualification. All twelve previous gates and assertions remain, with tests/pdf-apply.sh added. Independent pinned-core literals inspect saved complete PDF purchases, quantities, booked/gross amounts, fee/tax units, dates, linked owners and unrelated-state preservation. Cases cover confirmed document/reference repeats, conservative similarity, document-wide overrides, partial confirmations, missing/malformed/stale/inconsistent metadata, external edits, restored backups, changed supplements, invalid later members, complete later quantity histories, changed PDF/portfolio/metadata inputs, post-replacement metadata failure, hard interruption before/after replacement, no-replay recovery and exact protected model69 migration. Released owner commands verify mandatory updates, fixed engine, uncertainty/release-failure refusal and confirmed skipping. Full historical updater adversity checks passed. Standards and spec review findings were resolved before final focused checks and the frozen cumulative run. Only documentation/support evidence was added after qualification.",
+      "releaseValidation": "Exact validated runtime/candidate pair: XML ID-reference model70 -> model70 with no migration. PDF application adds no new statement layouts: retained synthetic Baader flat and page-1/1 EUR purchase profiles only; sale/dividend/FX PDFs and unproved owner layouts remain unsupported."
     }
   ]
 }

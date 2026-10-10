@@ -157,3 +157,37 @@ Earlier final runs stopped on test-only container-selection and blank-page paire
 text formatting errors; no passing result is claimed for them. The final scoped
 updater retained all seven gates and stopped before unrelated historical release/
 retry attacks already verified in #23. No full `tests/all.sh` exit-0 claim is made.
+
+## Purchase PDF application evidence (#31)
+
+On 2026-10-10, the final focused PDF application, retained PDF preview and sale
+suites passed against `pp-pal:issue31`, immutable image
+`sha256:d91da318e0f34612f66326d8fd9c48790d8ffac40003e3379a327720b057d0c4`.
+`bash tests/all.sh pp-pal:issue31` then exited 0 in **1310 seconds (21 minutes
+50 seconds)**. All four distinct baseline suites and all thirteen candidate gates
+passed. The twelve earlier gates and assertions remain; `tests/pdf-apply.sh` is the
+additional mandatory gate. Its released-candidate run took 134.61 seconds.
+
+The frozen synthetic released-wrapper revision was
+`5f037f5a607475f9d214f64d9fd714af3c34ac79`, paired with upstream
+`8de1fe41d71a2c1b74a6bfbe913f885899aaf123` (0.88.0) and candidate image
+`sha256:3dbe276b4b2f4813ea450c2766e15442c00a5c81b423864f6a45b1e767bd0f90`.
+See the appended model69/70 entries in the support matrix for exact dependencies,
+commands, protected migration and fixture-scoped layout evidence. These are local
+validation artifacts; no container or wrapper bootstrap release was published.
+
+Independent saved-model oracles inspect complete linked purchases and unrelated
+state. Real commands cover document/reference confirmation, every suspected match,
+uncertainty overrides, partial confirmations, degraded evidence and restored
+backups, invalid later members, later quantity-history failures, stale PDF/portfolio/
+metadata, metadata failure after financial success, hard interruption before/after
+replacement and idempotent recovery without financial replay. A changed missing-time
+supplement cannot override an already confirmed broker identity. Released owner
+commands also verify mandatory updates, fixed engine, refusal after release failure
+and confirmed repeats. The full historical updater adversity suite passed.
+
+Both review axes had no remaining findings after cleanup-error reporting and shared
+preview/application batch validation were corrected. Qualification inputs stayed
+fixed during the full run; subsequent changes only record documentation/evidence.
+This adds application of the retained synthetic EUR purchase profiles, with tested
+transaction-only model69-to70 migration; it establishes no new statement layout.
