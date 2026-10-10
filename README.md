@@ -44,7 +44,7 @@ account-list order, with the proposed sale last among decreases. See
 - [Current requirements and architecture](docs/spec.md)
 - [Domain glossary](GLOSSARY.md) and architectural decisions: [import bookkeeping](docs/adr/0001-separate-import-bookkeeping.md), [Java reuse](docs/adr/0002-reuse-portfolio-performance-java-core.md), [tested migrations](docs/adr/0003-allow-tested-migrations-with-transactions.md), [validated local updates](docs/adr/0004-validate-local-updates-before-processing.md)
 - [Version-support maintenance](docs/upgrading-version-support.md)
-- [Broker-extractor maintenance](docs/updating-broker-extractor.md)
+- [Broker-extractor maintenance](docs/updating-broker-extractor.md) and [PP reuse audit](docs/upstream-reuse.md)
 - [Update automation research](docs/update-automation-research.md)
 
 The previous Python design and published-ticket record are preserved on the local `python-design` branch. Existing Python-focused GitHub tickets are historical; they are not the implementation plan for this Java baseline.
@@ -56,5 +56,6 @@ Dividend PDF imports now share duplicate-safe atomic application and recovery.
 The [fixture-tested dividend profile](fixtures/v1/pdf-dividend/README.md) accepts
 invented German EUR Baader page-1-of-1 members and mixed purchase/dividend
 batches; dividend-only requests need a cash account, with no securities account.
-Real current Smartbroker dividend layouts remain unverified without a representative
-sample. See [CLI details](docs/cli.md#pdf-dividend-import).
+PP is authoritative for all three PDF transaction paths. No parallel financial
+parser or manufactured supplemental text remains. Real current Smartbroker layouts
+still require complete representative qualification. See [CLI details](docs/cli.md#pdf-dividend-import).

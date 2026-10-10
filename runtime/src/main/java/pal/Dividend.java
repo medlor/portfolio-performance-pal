@@ -27,6 +27,7 @@ public final class Dividend {
         if (amounts.forexGross() != null) tx.addUnit(amounts.forexGross());
         if (amounts.fees() != 0) tx.addUnit(new Transaction.Unit(Transaction.Unit.Type.FEE, Money.of(currency, amounts.fees())));
         if (amounts.taxes() != 0) tx.addUnit(new Transaction.Unit(Transaction.Unit.Type.TAX, Money.of(currency, amounts.taxes())));
+        UpstreamImports.validate(UpstreamImports.item(cash, tx));
         return new Plan(cash, tx, amounts, !line.flag("time"));
     }
 

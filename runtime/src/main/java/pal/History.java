@@ -6,6 +6,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 import name.abuchen.portfolio.model.*;
+import name.abuchen.portfolio.snapshot.filter.PortfolioClientFilter;
 
 /** Recorded upstream transaction history, with cash ownership kept explicit. */
 public final class History {
@@ -35,13 +36,18 @@ public final class History {
                 rows.add(new Record(transaction, recordedType, List.of(p), owner));
             }
         }
-        // Same reference-cash-account/security rule as upstream PortfolioClientFilter.
-        // Compute relevance over complete history before applying query filters.
+        // Ask the upstream projection for relevance over complete history.
+        var relevance = new IdentityHashMap<AccountTransaction, List<Portfolio>>();
+        for (var portfolio : client.getPortfolios()) {
+            var projected = new PortfolioClientFilter(portfolio).filter(client);
+            for (var account : projected.getAccounts()) for (var tx : account.getTransactions()) {
+                if (tx.getType() == AccountTransaction.Type.DIVIDENDS)
+                    relevance.computeIfAbsent(tx, ignored -> new ArrayList<>()).add(portfolio);
+            }
+        }
         for (var cash : client.getAccounts()) for (var transaction : cash.getTransactions()) {
             if (transaction.getType() != AccountTransaction.Type.DIVIDENDS || transaction.getSecurity() == null) continue;
-            var relevant = client.getPortfolios().stream()
-                .filter(p -> p.getReferenceAccount() == cash)
-                .filter(p -> p.getTransactions().stream().anyMatch(t -> t.getSecurity() == transaction.getSecurity()))
+            var relevant = relevance.getOrDefault(transaction, List.of()).stream()
                 .sorted(Comparator.comparing(Portfolio::getUUID)).toList();
             if (relevant.isEmpty() || selected != null && !relevant.contains(selected)) continue;
             rows.add(new Record(transaction, "DIVIDEND", relevant, cash));

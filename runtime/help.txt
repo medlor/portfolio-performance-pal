@@ -15,7 +15,7 @@ Commands:
   purchase   Preview or apply a purchase after mandatory release validation.
   sale       Preview or apply a sale with complete holding-history validation.
   dividend   Preview or apply a security-associated cash credit with fees/taxes.
-  import     Preview or atomically apply trades in one proved Baader EUR PDF.
+  import     Preview or atomically apply PP-extracted Baader PDF transactions.
   configure  Save portfolio path and resolved default account IDs explicitly.
   backup-monthly  Check due launch protection without loading the financial model.
   backup-before-update  Preserve an exact snapshot before an actual upgrade attempt.
@@ -104,16 +104,23 @@ PDF purchase/sale/dividend import:
   Preview lists every suspected duplicate; --apply alone cannot authorize them.
   import --recover-write --desktop-closed  Finish pending metadata/cleanup only.
   Requires existing securities and a cash account; trades also need a securities account.
-  Supported: synthetic German Baader EUR flat single-page or page 1/1 members.
-  Dividends require the fixture-tested German EUR Baader page 1/1 profile.
-  Every member/page must be covered. Other banks, continuations and FX layouts
-  reject the whole document. Smartbroker branding is insufficient.
-  Trade options supplement only absent fields; conflicting present values reject.
-  Absent quantity/price section needs both values; absent booked amount needs --total.
-  Financial supplements require a single member. Origins show PDF, SUPPLEMENT,
-  derivation/defaults or fallback 11:00:00 (buy/dividend), 11:00:01 (sale).
-  Explicit midnight remains midnight. Dividend statement shares are informational;
-  quantity history and holding last updated stay unchanged.
+  PP's Baader extractor is authoritative for financial fields and bank layouts.
+  No separate bank parser or supplemental statement text is used. Tested synthetic
+  profiles include EUR trades/dividends, complete continuations, fund distributions,
+  multiple costs and EUR/USD purchase/dividend units; real owner layouts remain unverified.
+  Each complete physical-page sequence must yield one valid supported PP item.
+  Failure/skip, unsupported items or missing pages reject the whole document.
+  PP derives domestic gross and trade price; fields/unknown lines it ignores are
+  not independently validated. Preview identifies PP derivations.
+  Required PP quantity/booked/date sections cannot be reconstructed with CLI values.
+  Absent extracted fees/taxes and time can be supplied; extracted zero is present.
+  Other financial options assert consistency with PP, for a single statement only.
+  Dividend --price rejects: PP has no dividend unit-price field.
+  Preserve PP explicit time including midnight, otherwise use supplied time or
+  fallback 11:00:00 (buy/dividend), 11:00:01 (sale), all disclosed in preview.
+  Informational dividend shares leave quantities/holding timestamps unchanged.
+  Missing broker reference uses exact document hash/member identity; other encodings
+  remain uncertain. Original PP notes are preserved; bookkeeping stays adjacent.
 
 Configuration defaults: pp-pal.properties in cwd; portfolio_performance.xml in cwd.
 Configured file paths resolve relative to the configuration directory.
@@ -122,4 +129,4 @@ Launches create a due Berlin monthly backup; each backup-before-update call crea
 another exact backup. That command does not discover, build or activate updates.
 Exit codes: 0 success; 2 input/validation rejected; 3 operational failure;
 4 completed financial change with failed follow-up work.
-FX PDFs and real owner statement layouts are pending.
+Broader representative FX/mixed-document and real owner layout qualification remain pending.

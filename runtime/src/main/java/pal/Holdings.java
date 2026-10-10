@@ -1,10 +1,12 @@
 package pal;
 
-import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import name.abuchen.portfolio.model.*;
+import name.abuchen.portfolio.money.*;
+import name.abuchen.portfolio.snapshot.SecurityPosition;
 
 /** Quantity-only holdings over the complete upstream securities transaction types. */
 public final class Holdings {
@@ -19,10 +21,17 @@ public final class Holdings {
                 if (t.getSecurity() != null && t.getShares() != 0) groups.computeIfAbsent(t.getSecurity(), s -> new ArrayList<>()).add(t);
             }
             for (var group : groups.entrySet()) {
-                long quantity = 0;
+                var security = group.getKey();
+                // Range admission only: PP remains responsible for the displayed quantity.
+                group.getValue().stream().map(t -> BigInteger.valueOf(t.getShares())
+                        .multiply(BigInteger.valueOf(t.getType().isPurchase() ? 1 : -1)))
+                        .reduce(BigInteger.ZERO,BigInteger::add).longValueExact();
+                var converter = new CurrencyConverterImpl(new ExchangeRateProviderFactory(client), security.getCurrencyCode());
+                // Construction calculates shares; getShares never values the holding or requests FX.
+                long quantity = new SecurityPosition(security, converter,
+                        new SecurityPrice(java.time.LocalDate.MIN, 0), group.getValue()).getShares();
                 LocalDateTime latest = LocalDateTime.MIN;
                 for (var t : group.getValue()) {
-                    quantity = Math.addExact(quantity, t.getType().isPurchase() ? t.getShares() : Math.negateExact(t.getShares()));
                     if (t.getDateTime().isAfter(latest)) latest = t.getDateTime();
                 }
                 if ((quantity != 0 || includeZero) && matches(group.getKey(), securityFilter)) rows.add(new Holding(p, group.getKey(), quantity, latest));
@@ -44,7 +53,7 @@ public final class Holdings {
         return security.getName().toLowerCase(Locale.ROOT).contains(filter.toLowerCase(Locale.ROOT));
     }
     private static String nullToEmpty(String text) { return text == null ? "" : text; }
-    public static String quantity(long shares) { return BigDecimal.valueOf(shares, 8).stripTrailingZeros().toPlainString(); }
+    public static String quantity(long shares) { return Amounts.quantityText(shares); }
     public static String text(List<Holding> holdings) {
         var out = new StringBuilder("SECURITIES ACCOUNT | SECURITY | QUANTITY | HOLDING LAST UPDATED\n");
         for (var row : holdings) out.append(clean(row.account().getName())).append(" | ").append(clean(row.security().getName())).append(" | ").append(quantity(row.shares())).append(" | ").append(row.lastUpdated().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append('\n');

@@ -1,5 +1,17 @@
 # Invented Baader EUR sale fixtures
 
+The PP-authority refactor supersedes the strict wrapper-parser behavior described
+in the historical fixture notes below. These original PDFs/text/literals remain
+retained regression evidence. Missing mandatory PP sections now reject even with
+CLI values; ignored printed gross/price, repeated or unknown fields follow PP;
+complete continuations are supported. Fees/taxes and time may supplement absent
+upstream-extracted values. The invented dividend payment-time extension is ignored;
+its explicit/midnight saved-model literals are now exercised with CLI times.
+See [the reuse boundary](../../../docs/upstream-reuse.md) and
+[authority regressions](../pp-extraction/README.md) for the current contract.
+
+Historical fixture notes (former strict-parser behavior):
+
 All names, references, dates, accounts and amounts are invented. No owner portfolio was read. Private statement identities and financial contents
 were not copied. Grammar is derived from the pinned
 [Baader extractor](https://github.com/portfolio-performance/portfolio/blob/8de1fe41d71a2c1b74a6bfbe913f885899aaf123/name.abuchen.portfolio/src/name/abuchen/portfolio/datatransfer/pdf/BaaderBankPDFExtractor.java)
