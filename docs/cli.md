@@ -192,7 +192,8 @@ pp-pal import --pdf 'statements/purchase statement.pdf' \
 ```
 
 `import` reads one PDF, performs mandatory released-pair preparation, and previews
-all supported purchase members together. No `--apply` option exists for PDF import.
+all supported purchase members together. `--apply --desktop-closed` applies new
+members as one protected financial change; duplicate decisions are described below.
 The source file is individually mounted read-only, including when its parent is
 also the writable portfolio directory. Paths with spaces, relative paths and
 absolute external PDF paths follow the launcher rules. The Java planner snapshots
@@ -236,8 +237,8 @@ fallback time. Statement values supplied identically through CLI retain `PDF` or
 byte snapshot/hash. All members must validate before output. The upstream entry
 retains legitimate bank/reference notes and source filename. Snapshot, hash,
 coverage and origin bookkeeping stay in wrapper records, never financial notes or
-XML. The plan does not insert records or save the portfolio. Later application
-must use its own request snapshot and consume the complete batch once.
+XML. The detached plan does not insert records or save the portfolio. Application
+uses its own request snapshot and consumes the complete validated batch once.
 
 `tests/pdf-purchase.sh` is the first trusted candidate gate and uses the real
 qualified release launcher, actual PDF conversion and independent literal values.
@@ -676,3 +677,76 @@ Run the focused gate with
 gates. Independent literal pre/post fixtures and pinned saved-model oracles check
 financial changes and complete unrelated-state preservation. The updater also
 checks a disposable model69 selected copy and released owner preview/application.
+
+## PDF purchase application and re-import recovery
+
+```sh
+pp-pal import --pdf 'statements/purchases.pdf' \
+  --securities-account 'My Securities' --cash-account 'My Cash' \
+  --apply --desktop-closed
+```
+
+All recognized members must pass the same statement, monetary, security/account
+and complete affected quantity-history checks before one financial replacement.
+The existing writer supplies Berlin daily protection, an exact separate backup
+for a tested model69 migration, semantic staged validation, writer coordination
+and stale portfolio checks. The PDF bytes and adjacent metadata are also rechecked
+immediately before replacement. Same-timestamp increases precede decreases; ties
+within each direction retain persisted account-list order, then document order.
+
+Import evidence lives in `<portfolio>.pp-pal-imports.properties`, with private
+Linux permissions, format `pp-pal-imports-v1`, the last financial output hash,
+PDF SHA-256 hashes, Baader broker references, linked transaction UUIDs and
+financial fingerprints. No wrapper bookkeeping is added to XML or transaction
+notes. Existing legitimate extractor reference notes and source filenames remain.
+The earlier reserved `.pp-pal.json` sidecar is untouched by this format.
+
+A confirmed re-import needs evidence for that reference, the current portfolio
+hash, uniquely present linked securities/cash records, matching owners, security,
+date/time, shares, booked values, currencies and units. A changed PDF encoding or
+filename can still confirm through the reference and matching financial records.
+A confirmation always skips that member, including when an override is supplied.
+Changing supplementation or selected accounts for a reference already confirmed
+in the current model rejects conflicting values; an override cannot replay it.
+A wholly confirmed document creates no financial replacement, daily/migration
+backup, metadata/receipt update or pruning. Launch/update protection still applies.
+
+Preview lists every suspected match. Detection conservatively compares the same
+security across securities accounts for matching dates, quantities, booked/gross
+values or exact gross unit prices, plus matching broker references. It also checks
+members against earlier proposed members. Missing/malformed metadata, stale IDs,
+inconsistent evidence, external edits or backup restoration cannot establish a
+confirmation and fall back to these checks. This conservative policy can flag
+legitimate repeated purchases. `--apply` alone refuses uncertainty; explicitly
+adding `--allow-suspected-duplicates` overrides uncertainty for the whole document
+while retaining financial validation and confirmed skips. Financial options still
+supplement absent fields only; a document-wide duplicate override never overrides
+extracted amounts or invalid members. Preview requires no override.
+
+Portfolio and metadata writes are separate. Before replacement, the durable
+financial receipt records the planned import evidence and original metadata hash.
+After replacement, evidence is atomically saved before backup pruning and receipt
+completion. Interruption or failure after replacement reports exit 4 and
+`financial change succeeded; do not repeat apply`. Pending receipts block further
+financial application, even when the PDF has an override. Close Portfolio
+Performance and run:
+
+```sh
+pp-pal import --file portfolio_performance.xml --recover-write --desktop-closed
+```
+
+Recovery verifies the exact current financial output and transaction identities,
+then finishes metadata and cleanup without inserting records. Fix any reported
+filesystem obstacle first. If metadata was externally changed, restore its exact
+pre-operation bytes (or absence) before recovery; already-written matching evidence
+is accepted idempotently. Changed financial output requires investigation rather
+than replay. An interrupted operation with the original input still present only
+cleans staging and never writes import evidence. Missing evidence after a completed
+operation invokes suspected-duplicate rules on the next import.
+
+`tests/pdf-apply.sh` covers real command/container application and pinned-core
+saved model facts, repeats and changed document identity, partial confirmations,
+uncertain evidence, overrides, invalid later members, late PDF/portfolio/metadata
+changes, protected migrations and post-replacement metadata recovery. It is a
+mandatory candidate gate alongside retained `tests/pdf-purchase.sh` layout tests.
+PDF sales, dividends, FX and unproved layouts remain outside this story's support.

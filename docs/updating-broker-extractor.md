@@ -19,3 +19,8 @@ Missing time, explicit midnight, references and rates are member-scoped facts.
 Present-but-ignored amounts/rates must reject rather than become supplements.
 
 Locate contributor instructions, importer implementations, and extraction tests in the chosen upstream checkout. Record revision-specific source links in concrete update records rather than using mutable `master` as evidence.
+
+Purchase application now retains these same fixtures and adds the mandatory
+`tests/pdf-apply.sh` gate for complete-document writes, current-model duplicate
+evidence, overrides, stale inputs, migration protection and metadata recovery.
+No new broker grammar or statement layout is inferred from application support.

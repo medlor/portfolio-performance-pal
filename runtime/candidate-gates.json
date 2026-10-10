@@ -12,6 +12,7 @@
     "tests/fx.sh",
     "tests/security-create.sh",
     "tests/pdf-purchase.sh",
+    "tests/pdf-apply.sh",
     "tests/sale.sh",
     "tests/dividend.sh"
   ]
