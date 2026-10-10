@@ -30,5 +30,20 @@ Sale grammar and independent literals are in [the sale fixture contract](../fixt
 purchase gates. Verify cash direction, gross minus costs, explicit/fallback times,
 whole-history admission after all new members, confirmed skip before insertion,
 and metadata failure recovery before widening sale layout support. Invented
-purchase/sale mixed members cover atomic ordering; dividends/FX await their own
-fixture-backed stories.
+purchase/sale mixed members cover atomic ordering; FX awaits its own fixture-backed story.
+
+
+Dividend grammar and independent literals are in the
+[dividend fixture contract](../fixtures/v1/pdf-dividend/README.md).
+`tests/pdf-dividend.sh` is mandatory cumulative qualification. Keep cash-only
+selection, authoritative credits, distribution shares, explicit/fallback times,
+closed-holding invariance/relevance, mixed-member atomicity and cash-record
+identity/recovery checks when changing extraction. The separate pinned upstream
+Baader dividend extraction must agree with exact statement evidence before
+binding the existing security and final timestamp. All earlier layout gates stay
+mandatory. Synthetic rendered PDFs prove conversion and their exact grammar;
+complete representative current-layout evidence is still required before claiming
+real Smartbroker dividend support. The supplied local CHF reference is outside the
+EUR profile, has one physical page marked `Seite 1/2`, and lacks a readable broker
+reference. Pinned extraction recognizes its dividend, but wrapper refusal preserves
+financial bytes; do not treat extraction success as rewrite or layout-coverage proof.

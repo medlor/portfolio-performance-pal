@@ -50,3 +50,11 @@ account-list order, with the proposed sale last among decreases. See
 The previous Python design and published-ticket record are preserved on the local `python-design` branch. Existing Python-focused GitHub tickets are historical; they are not the implementation plan for this Java baseline.
 
 Files in `samples/` remain reference inputs, not proof of tested support or anonymization. Never commit the owner's real portfolio or publish financial contents. Portfolio Performance must be closed when applying changes.
+
+
+Dividend PDF imports now share duplicate-safe atomic application and recovery.
+The [fixture-tested dividend profile](fixtures/v1/pdf-dividend/README.md) accepts
+invented German EUR Baader page-1-of-1 members and mixed purchase/dividend
+batches; dividend-only requests need a cash account, with no securities account.
+Real current Smartbroker dividend layouts remain unverified without a representative
+sample. See [CLI details](docs/cli.md#pdf-dividend-import).

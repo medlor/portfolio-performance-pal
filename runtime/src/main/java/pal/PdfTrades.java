@@ -25,14 +25,21 @@ public final class PdfTrades {
                 throw new IllegalArgumentException("PDF changed during planning; retry against the current document");
         }
     }
-    public record Member(int index, String brokerReference, Purchase.Plan trade, Map<String,String> origins) {
-        public Member { origins = Map.copyOf(origins); }
+    public record Member(int index, String brokerReference, Purchase.Plan trade, Dividend.Plan dividend, Map<String,String> origins) {
+        public Member {
+            if ((trade == null) == (dividend == null)) throw new IllegalArgumentException("Exactly one financial plan required");
+            origins = Map.copyOf(origins);
+        }
+        public name.abuchen.portfolio.model.Transaction transaction() { return trade != null ? trade.entry().getPortfolioTransaction() : dividend.transaction(); }
+        public Account cash() { return trade != null ? trade.entry().getAccount() : dividend.account(); }
+        public AccountTransaction cashTransaction() { return trade != null ? trade.entry().getAccountTransaction() : dividend.transaction(); }
+        public String type() { return trade != null ? trade.entry().getPortfolioTransaction().getType() == PortfolioTransaction.Type.SELL ? "SALE" : "PURCHASE" : "DIVIDEND"; }
     }
     public record Document(Snapshot snapshot, String pdfBoxVersion, List<Member> members) {
         public Document { members = List.copyOf(members); }
         public String description() {
-            var types = members.stream().map(m -> m.trade().entry().getPortfolioTransaction().getType()).distinct().toList();
-            return "PDF " + (types.size() > 1 ? "TRADE" : types.getFirst() == PortfolioTransaction.Type.SELL ? "SALE" : "PURCHASE") + " DOCUMENT";
+            var types = members.stream().map(Member::type).distinct().toList();
+            return "PDF " + (types.size() > 1 ? "TRADE" : types.getFirst()) + " DOCUMENT";
         }
     }
 
@@ -40,12 +47,19 @@ public final class PdfTrades {
     public static List<AtomicWriter.Added> insertAndValidate(List<Member> members) {
         var records = new ArrayList<AtomicWriter.Added>();
         for (var member : members) {
-            member.trade().entry().insert();
-            records.addAll(AtomicWriter.Change.purchase(member.trade().entry()).records());
+            if (member.trade() != null) {
+                member.trade().entry().insert();
+                records.addAll(AtomicWriter.Change.purchase(member.trade().entry()).records());
+            } else {
+                member.cash().addTransaction(member.cashTransaction());
+                records.add(new AtomicWriter.Added(AtomicWriter.Owner.CASH, member.cash().getUUID(), member.cashTransaction().getUUID()));
+            }
         }
         for (var member : members) {
-            var entry = member.trade().entry();
-            Sale.validateHistory(entry.getPortfolio(), entry.getPortfolioTransaction().getSecurity());
+            if (member.trade() != null) {
+                var entry = member.trade().entry();
+                Sale.validateHistory(entry.getPortfolio(), entry.getPortfolioTransaction().getSecurity());
+            }
         }
         return List.copyOf(records);
     }
@@ -84,7 +98,10 @@ public final class PdfTrades {
             throw rejected(1,"Financial supplements require a single-member document");
         var references = new HashSet<String>();
         for (int i = 0; i < parts.size(); i++) {
-            var member = trade(client,securities,cash,command,parts.get(i),path.getFileName().toString(),i+1);
+            String part = parts.get(i);
+            var member = part.lines().anyMatch(l -> l.strip().equals("Dividendenabrechnung"))
+                    ? PdfDividends.plan(client,cash,command,part,path.getFileName().toString(),i+1)
+                    : trade(client,securities,cash,command,part,path.getFileName().toString(),i+1);
             if (!references.add(member.brokerReference())) throw rejected(i+1,"Ambiguous repeated reference across document members");
             members.add(member);
         }
@@ -226,15 +243,15 @@ public final class PdfTrades {
         for (var key : facts.keySet()) origins.put(key,"PDF");
         for (var key : Set.of("quantity","price","gross","total","fees","taxes","date","time"))
             if (!origins.containsKey(key) && command.flag(key)) origins.put(key,"SUPPLEMENT");
-        return new Member(index,reference,plan,origins);
+        return new Member(index,reference,plan,null,origins);
     }
     private static void currency(String value, int member) { if (!value.equals("EUR")) throw rejected(member,"Foreign-currency layout is not supported by this trade import"); }
-    private static String decimal(String text) { return text.replace(".","").replace(',','.'); }
-    private static String german(String text) { return new BigDecimal(text).stripTrailingZeros().toPlainString().replace('.',','); }
-    private static void put(Map<String,String> values,String key,String value,int member) {
+    static String decimal(String text) { return text.replace(".","").replace(',','.'); }
+    static String german(String text) { return new BigDecimal(text).stripTrailingZeros().toPlainString().replace('.',','); }
+    static void put(Map<String,String> values,String key,String value,int member) {
         if (values.putIfAbsent(key,value) != null) throw rejected(member,"Repeated " + key + " field");
     }
-    private static boolean same(String key,String supplied,String extracted) {
+    static boolean same(String key,String supplied,String extracted) {
         if (Set.of("quantity","price","gross","total","fees","taxes").contains(key)) {
             try { return new BigDecimal(supplied).compareTo(new BigDecimal(extracted)) == 0; }
             catch (NumberFormatException e) { throw new IllegalArgumentException("Invalid supplemental decimal",e); }
@@ -245,7 +262,7 @@ public final class PdfTrades {
         }
         return supplied.equalsIgnoreCase(extracted);
     }
-    private static IllegalArgumentException rejected(int member,String reason) { return new IllegalArgumentException("PDF member " + member + ": " + reason); }
+    static IllegalArgumentException rejected(int member,String reason) { return new IllegalArgumentException("PDF member " + member + ": " + reason); }
 
     public static String preview(Document document,int inputModel) throws Exception {
         document.snapshot().unchanged();
@@ -253,10 +270,10 @@ public final class PdfTrades {
         out.append("INPUT PDF ").append(document.snapshot().path()).append('\n');
         for (var member : document.members()) {
             out.append("MEMBER ").append(member.index()).append(" | Baader Bank AG | Vorgangs-Nr.: ").append(member.brokerReference()).append('\n');
-            for (String line : Purchase.preview(member.trade(),inputModel).split("\\n")) {
+            for (String line : (member.trade() != null ? Purchase.preview(member.trade(),inputModel) : Dividend.preview(member.dividend(),inputModel)).split("\\n")) {
                 if (line.startsWith("DATE ")) {
                     String date = member.origins().getOrDefault("date","SUPPLEMENT");
-                    String time = member.origins().getOrDefault("time","fallback time " + (member.trade().entry().getPortfolioTransaction().getType() == PortfolioTransaction.Type.SELL ? "11:00:01" : "11:00:00"));
+                    String time = member.origins().getOrDefault("time","fallback time " + (member.type().equals("SALE") ? "11:00:01" : "11:00:00"));
                     String origin = date.equals(time) ? date + " date and time" : date + " date; " + time + (time.equals("SUPPLEMENT") ? " time" : "");
                     line = line.substring(0,line.indexOf(" (")) + " (" + origin + ")";
                 } else {

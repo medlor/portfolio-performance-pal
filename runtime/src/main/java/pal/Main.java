@@ -53,7 +53,7 @@ public final class Main {
                         return new AtomicWriter.Change("DIVIDEND", java.util.List.of(new AtomicWriter.Added(
                                 AtomicWriter.Owner.CASH, cash.getUUID(), planned.transaction().getUUID())), java.util.List.of());
                     }
-                    var securities = Accounts.securities(invocation, config.selection(line, "securities-account"), true);
+                    var securities = Accounts.securities(invocation, config.selection(line, "securities-account"), !line.command().equals("import"));
                     var cash = Accounts.cash(invocation, config.selection(line, "cash-account"), true);
                     if (line.command().equals("import")) {
                         var document = PdfTrades.plan(invocation, securities, cash, line);
@@ -83,7 +83,7 @@ public final class Main {
                 case "import" -> {
                     var snapshot = FileSnapshot.capture(file);
                     client = snapshot.load();
-                    securities = Accounts.securities(client, config.selection(line, "securities-account"), true);
+                    securities = Accounts.securities(client, config.selection(line, "securities-account"), false);
                     cash = Accounts.cash(client, config.selection(line, "cash-account"), true);
                     var document = PdfTrades.plan(client, securities, cash, line);
                     var decision = ImportBookkeeping.decide(file, client, document);

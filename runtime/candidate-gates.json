@@ -14,6 +14,7 @@
     "tests/pdf-purchase.sh",
     "tests/pdf-apply.sh",
     "tests/pdf-sale.sh",
+    "tests/pdf-dividend.sh",
     "tests/sale.sh",
     "tests/dividend.sh"
   ]
