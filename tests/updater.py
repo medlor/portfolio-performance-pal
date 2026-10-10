@@ -700,7 +700,10 @@ with released_work() as temporary, server() as api:
 
     def wrong_query_and_own_tests(package):
         target = package / 'runtime/src/main/java/pal/Holdings.java'
-        text = target.read_text().replace('return BigDecimal.valueOf(shares, 8).stripTrailingZeros().toPlainString();', 'return "999";')
+        text = target.read_text()
+        original_quantity = 'return Amounts.quantityText(shares);'
+        check(text.count(original_quantity) == 1, 'Holdings attack must mutate exactly one quantity formatter')
+        text = text.replace(original_quantity, 'return "999";')
         target.write_text(text)
         (package / 'tests/all.sh').write_text('#!/usr/bin/env bash\nexit 0\n')
         (package / 'fixtures/v1/baader-buy.expected').write_text('candidate-controlled expectation\n')

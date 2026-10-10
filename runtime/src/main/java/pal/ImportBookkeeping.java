@@ -58,7 +58,7 @@ public final class ImportBookkeeping {
             if (matches.size() != 1) return false;
             var owner = matches.getFirst().getKey(); var tx = matches.getFirst().getValue();
             return tx.getType() == AccountTransaction.Type.DIVIDENDS && tx.getSecurity() != null && tx.getCrossEntry() == null
-                    && ("Vorgangs-Nr.: " + reference).equals(tx.getNote()) && signature.equals(signature(owner,tx));
+                    && data.getProperty(key + "note", "Vorgangs-Nr.: " + reference).equals(Objects.toString(tx.getNote(), "")) && signature.equals(signature(owner,tx));
         }
         var trades = client.getPortfolios().stream().flatMap(p -> p.getTransactions().stream()).filter(t -> t.getUUID().equals(tradeId)).toList();
         long payments = client.getAccounts().stream().flatMap(a -> a.getTransactions().stream()).filter(t -> t.getUUID().equals(cashId)).count();
@@ -69,7 +69,7 @@ public final class ImportBookkeeping {
                 && entry.getAccountTransaction().getUUID().equals(cashId)
                 && entry.getAccount().getTransactions().contains(entry.getAccountTransaction())
                 && entry.getAccountTransaction().getCrossEntry() == entry
-                && ("Vorgangs-Nr.: " + reference).equals(entry.getNote()) && signature.equals(signature(entry));
+                && data.getProperty(key + "note", "Vorgangs-Nr.: " + reference).equals(Objects.toString(entry.getNote(), "")) && signature.equals(signature(entry));
     }
     private static boolean resembles(PortfolioTransaction existing, PortfolioTransaction proposed) {
         return existing.getSecurity() == proposed.getSecurity()
@@ -117,11 +117,20 @@ public final class ImportBookkeeping {
             boolean confirmed = trusted && recorded(client, data, key, member.brokerReference(), data.getProperty(key + "signature"));
             if (confirmed) {
                 if (!signature.equals(data.getProperty(key + "signature"))) throw new IllegalArgumentException("PDF member " + member.index()
-                        + ": proposed values conflict with a confirmed broker reference; a duplicate override cannot authorize replay");
+                        + ": proposed values conflict with a confirmed "
+                        + (member.origins().get("reference").equals("PDF") ? "broker reference" : "document identity")
+                        + "; a duplicate override cannot authorize replay");
                 text.append("CONFIRMED RE-IMPORT member ").append(member.index()).append(" reference ").append(member.brokerReference()).append("; skipped\n");
                 continue;
             }
             var proposed = member.transaction();
+            var upstream = UpstreamImports.duplicates(client, member.trade() != null
+                    ? UpstreamImports.item(member.trade().entry()) : UpstreamImports.item(member.cash(), member.cashTransaction()));
+            if (upstream.getCode() != name.abuchen.portfolio.datatransfer.ImportAction.Status.Code.OK) {
+                uncertain = true;
+                text.append("SUSPECTED DUPLICATE member ").append(member.index())
+                        .append(" Portfolio Performance: ").append(upstream.getMessage()).append('\n');
+            }
             if (data.containsKey(key + "reference") || data.stringPropertyNames().stream().anyMatch(k -> k.endsWith(".document") && document.snapshot().sha256().equals(data.getProperty(k)))) {
                 uncertain = true; text.append("SUSPECTED DUPLICATE member ").append(member.index()).append(" inconsistent document/reference evidence\n");
             }
@@ -145,6 +154,7 @@ public final class ImportBookkeeping {
             additions.add(member);
             evidence.setProperty(key + "document", document.snapshot().sha256()); evidence.setProperty(key + "reference", member.brokerReference());
             evidence.setProperty(key + "signature", signature); evidence.setProperty(key + "kind", member.type());
+            evidence.setProperty(key + "note", Objects.toString(proposed.getNote(), ""));
             if (member.trade() != null) evidence.setProperty(key + "trade", proposed.getUUID());
             else evidence.remove(key + "trade");
             evidence.setProperty(key + "cash", member.cashTransaction().getUUID());

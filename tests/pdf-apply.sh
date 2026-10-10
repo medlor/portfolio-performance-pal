@@ -137,11 +137,30 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-pdf-apply-') as temporary:
     expect(command(w,True,True,pdf=missing,extra=('--time','12:00:00')),2,'confirmed broker reference')
     check((w/'portfolio.xml').read_bytes()==current,'supplement override replayed a confirmed document')
     print('PASS changed supplements cannot override established current broker identity',flush=True)
-    for name in ('later-missing-reference','later-unsupported-sale','later-unknown-line','contradictory-gross','bad-time'):
+    for name in ('later-missing-reference','bad-time'):
         w=fixture(base,'invalid-'+name)
         expect(command(w,True,True,pdf=ROOT/f'fixtures/v1/pdf-purchase/{name}.pdf'),2,'ERROR:')
         check((w/'portfolio.xml').read_bytes()==SOURCE and not metadata(w).exists() and not list(w.glob('*.????-??-??.bak')),'invalid later member partially applied')
-    print('PASS unsupported/invalid later members and contradictions reject entire financial document despite override',flush=True)
+    print('PASS PP extraction errors reject entire financial document despite override',flush=True)
+    for name,count in [('later-unsupported-sale',2),('later-unknown-line',2),('contradictory-gross',1)]:
+        w=fixture(base,'pp-authority-'+name)
+        expect(command(w,True,True,pdf=ROOT/f'fixtures/v1/pdf-purchase/{name}.pdf'),0,'APPLIED PDF ')
+        # Independent literal facts: PP recognizes the sale title even though
+        # the invented cash-direction line still says debit.
+        (w/'before.xml').write_bytes(SOURCE)
+        first='SYNTHETIC-0001' if count==1 else 'SYNTHETIC-PAGED-0001'
+        facts=f'{first}\tBUY\t2\t5100\t5000\t100\t0\t2025-01-03T09:30:00\n'
+        if count==2:
+            kind='SELL' if name=='later-unsupported-sale' else 'BUY'
+            gross=7700 if kind=='SELL' else 7500
+            facts+=f'SYNTHETIC-PAGED-0002\t{kind}\t3\t7600\t{gross}\t100\t0\t2025-01-04T09:30:00\n'
+        (w/'facts.tsv').write_text(facts)
+        result=subprocess.run(['python3',str(ROOT/'tests/oracle.py'),'run','--rm','--network','none','--user',f'{os.getuid()}:{os.getgid()}', '-v',f'{ROOT}/runtime/src/test/java:/tests:ro','-v',f'{w}:/work:ro','--entrypoint','java',IMAGE,'-cp','/opt/pp/classes:/opt/pp/lib/*','/tests/pal/PdfSaleAppliedOracle.java','/work/before.xml','/work/portfolio.xml','/work/facts.tsv'],text=True,capture_output=True)
+        expect(result,0,'PASS saved PDF sale batch')
+        saved=(w/'portfolio.xml').read_bytes()
+        expect(command(w,True,pdf=ROOT/f'fixtures/v1/pdf-purchase/{name}.pdf'),0,'SKIPPED PDF ')
+        check((w/'portfolio.xml').read_bytes()==saved,'PP-authoritative confirmed document replayed')
+    print('PASS PP-ignored content preserves authoritative saved purchase facts and confirmed repeats',flush=True)
     broken=SOURCE.replace(b'<shares>400000000</shares>',b'<shares>2000000000</shares>')
     w=fixture(base,'later-negative-history',broken)
     expect(command(w,True,True),2,'negative holding at 2025-02-02')

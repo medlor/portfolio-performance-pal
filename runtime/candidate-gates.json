@@ -15,6 +15,7 @@
     "tests/pdf-apply.sh",
     "tests/pdf-sale.sh",
     "tests/pdf-dividend.sh",
+    "tests/upstream-reuse.sh",
     "tests/sale.sh",
     "tests/dividend.sh"
   ]

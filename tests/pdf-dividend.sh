@@ -40,7 +40,7 @@ def oracle(w,name,cash_id=None):
     expect(r,0,'PASS saved PDF dividend/mixed batch')
 with tempfile.TemporaryDirectory(prefix='pp-pal-pdf-dividend-') as tmp:
     base=pathlib.Path(tmp)
-    for name in ('basic','explicit','midnight','missing-gross','two-dividends','mixed'):
+    for name in ('basic','missing-gross','two-dividends','mixed'):
         w=fresh(base,name)
         expect(run(w,name),0,'PREVIEW PDF ')
         assert (w/'portfolio.xml').read_bytes()==SOURCE and not list(w.glob('*.????-??-??.bak')) and not (w/'portfolio.xml.pp-pal-imports.properties').exists()
@@ -50,15 +50,26 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-pdf-dividend-') as tmp:
         for override in (False,True):
             expect(run(w,name,True,override),0,'SKIPPED PDF ')
             assert (w/'portfolio.xml').read_bytes()==saved and (w/'portfolio.xml.pp-pal-imports.properties').read_bytes()==evidence
+    for name,time in [('explicit','09:30:00'),('midnight','00:00:00')]:
+        w=fresh(base,name)
+        expect(run(w,name,True,True,extra=('--time',time)),0,'APPLIED PDF ')
+        oracle(w,name)
+        saved=(w/'portfolio.xml').read_bytes()
+        expect(run(w,name,True,extra=('--time',time)),0,'SKIPPED PDF ')
+        assert (w/'portfolio.xml').read_bytes()==saved
     print('PASS dividends and mixed batches, statement shares, credit/fees/taxes, explicit/midnight/fallback times, preservation and confirmed repeats',flush=True)
-    for name in ('later-invalid','later-negative','later-unsupported','contradictory','foreign-currency','wrong-direction','repeated-tax','bad-time','unknown-line','conflicting-security','repeated-reference','continuation','quantity-precision'):
+    for name in ('later-negative','later-unsupported','foreign-currency','wrong-direction','conflicting-security','repeated-reference','continuation','quantity-precision'):
         w=fresh(base,name)
         for apply in (False,True):
             expect(run(w,name,apply,True),2,'ERROR:')
             assert (w/'portfolio.xml').read_bytes()==SOURCE and not (w/'portfolio.xml.pp-pal-imports.properties').exists() and not list(w.glob('*.????-??-??.bak'))
-    print('PASS unsupported/invalid later members, later-negative sale, precision and contradictions reject entire document without changes',flush=True)
+    for name in ('later-invalid','contradictory','repeated-tax','bad-time','unknown-line'):
+        w=fresh(base,'pp-authority-'+name)
+        expect(run(w,name),0,'PREVIEW PDF ')
+        assert (w/'portfolio.xml').read_bytes()==SOURCE
+    print('PASS unsupported/invalid later members, later-negative sale, precision and PP failures reject entire document without changes',flush=True)
     w=fresh(base,'supplements')
-    for name,extra,text in [('missing-fee',('--fees','1'),'FEES EUR 1.00 (SUPPLEMENT)'),('missing-tax',('--taxes','0.50'),'TAXES EUR 0.50 (SUPPLEMENT)'),('missing-booked',('--total','23.50','--date','2025-03-01'),'BOOKED CREDIT EUR 23.50 (SUPPLEMENT)'),('basic',('--time','12:34:56'),'SUPPLEMENT time')]:
+    for name,extra,text in [('missing-fee',('--fees','1'),'FEES EUR 1.00 (SUPPLEMENT)'),('missing-tax',('--taxes','0.50'),'TAXES EUR 0.50 (SUPPLEMENT)'),('basic',('--time','12:34:56'),'SUPPLEMENT time')]:
         expect(run(w,name,extra=extra),0,text)
         supplemented=fresh(base,'supplement-apply-'+name)
         expect(run(supplemented,name,True,extra=extra),0,'APPLIED PDF DIVIDEND')
@@ -66,7 +77,9 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-pdf-dividend-') as tmp:
         saved_supplement=(supplemented/'portfolio.xml').read_bytes()
         expect(run(supplemented,name,True,extra=extra),0,'SKIPPED PDF DIVIDEND')
         assert (supplemented/'portfolio.xml').read_bytes()==saved_supplement
-    for extra in [('--total','24'),('--gross','26'),('--fees','2'),('--taxes','0'),('--quantity','11'),('--price','3'),('--isin','DE0000000002'),('--time','11:00:00.1')]:
+    for apply in (False,True):
+        expect(run(w,'missing-booked',apply,extra=('--total','23.50','--date','2025-03-01')),2,'Portfolio Performance extraction failed')
+    for extra in [('--total','24'),('--gross','26'),('--fees','2'),('--taxes','0'),('--quantity','11'),('--price','3'),('--isin','DE0000000002')]:
         expect(run(w,extra=extra),2,'ERROR:')
     expect(run(w,'mixed',extra=('--fees','1')),2,'single-member')
     expect(run(w,cash='Synthetic Cash'),2,'ERROR:')

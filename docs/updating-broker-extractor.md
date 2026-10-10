@@ -9,14 +9,18 @@ The Java backend directly uses Portfolio Performance PDF extraction. The [update
 5. Test preview/application, supplementation and fallback times, purchase/sale/dividend and FX values, multi-transaction atomicity, duplicates, unsupported layouts, and failure without modification. Load successful outputs with the supported pinned core and inspect financial records and account links.
 6. Record only passing layouts plus the exact revision/image, commands, and limitations. Check file compatibility separately using [the version-support guide](upgrading-version-support.md); an importer update does not authorize a model version or migration.
 
-Whole-document coverage requires independent member boundaries and page counts.
-The pinned extractor's trade blocks begin at broker references, so an unsupported
-or missing-reference later member can be silently omitted without an extraction
-error. A successful first item is insufficient. Recognize the source-scoped bank,
-heading/reference and page grammar independently, reject uncovered lines/pages,
-extract each verified member separately, and compare every exact source value.
-Missing time, explicit midnight, references and rates are member-scoped facts.
-Present-but-ignored amounts/rates must reject rather than become supplements.
+Use the [PP reuse boundary](upstream-reuse.md): bank grammar and extracted financial
+records belong upstream. Do not validate extraction by implementing another bank
+parser or adding invented supplemental text. Observe PP's existing hooks for
+explicit time, identifiers, cost presence and numeric representability. Validate
+records with PP import actions and insert them with `InsertAction`.
+
+Physical page completeness is wrapper policy. Group complete actual-page sequences,
+convert each statement with PP and reject a whole PDF if any statement fails,
+skips, contains unsupported additional items or has incomplete page coverage.
+PP intentionally ignores some printed fields and content; do not promise exact
+coverage of every source line. Test that the wrapper preserves PP's result directly,
+with separate fixed financial/model-preservation expectations.
 
 Locate contributor instructions, importer implementations, and extraction tests in the chosen upstream checkout. Record revision-specific source links in concrete update records rather than using mutable `master` as evidence.
 
@@ -27,10 +31,11 @@ No new broker grammar or statement layout is inferred from application support.
 
 Sale grammar and independent literals are in [the sale fixture contract](../fixtures/v1/pdf-sale/README.md).
 `tests/pdf-sale.sh` is mandatory cumulative qualification and retains all prior
-purchase gates. Verify cash direction, gross minus costs, explicit/fallback times,
+purchase gates. Verify PP transaction types/gross/cost units, explicit/fallback times,
 whole-history admission after all new members, confirmed skip before insertion,
 and metadata failure recovery before widening sale layout support. Invented
-purchase/sale mixed members cover atomic ordering; FX awaits its own fixture-backed story.
+purchase/sale mixed members cover atomic ordering. Synthetic PP EUR/USD purchase/dividend
+regressions preserve extracted units; broader representative FX coverage remains #34 work.
 
 
 Dividend grammar and independent literals are in the
@@ -38,12 +43,12 @@ Dividend grammar and independent literals are in the
 `tests/pdf-dividend.sh` is mandatory cumulative qualification. Keep cash-only
 selection, authoritative credits, distribution shares, explicit/fallback times,
 closed-holding invariance/relevance, mixed-member atomicity and cash-record
-identity/recovery checks when changing extraction. The separate pinned upstream
-Baader dividend extraction must agree with exact statement evidence before
-binding the existing security and final timestamp. All earlier layout gates stay
+identity/recovery checks when changing extraction. Bind the existing security to PP-produced records, then apply PP import checks and
+the disclosed timestamp policy. `tests/upstream-reuse.sh` compares original PP
+extraction with plans and saved outputs; no second bank parser is permitted. All earlier layout gates stay
 mandatory. Synthetic rendered PDFs prove conversion and their exact grammar;
 complete representative current-layout evidence is still required before claiming
-real Smartbroker dividend support. The supplied local CHF reference is outside the
-EUR profile, has one physical page marked `Seite 1/2`, and lacks a readable broker
-reference. Pinned extraction recognizes its dividend, but wrapper refusal preserves
+real Smartbroker dividend support. The supplied local CHF reference has one physical page marked `Seite 1/2`; it
+cannot qualify a complete current layout. A missing broker reference alone is no
+longer a rejection: exact document identity handles that case. Pinned extraction recognizes its dividend, but wrapper refusal preserves
 financial bytes; do not treat extraction success as rewrite or layout-coverage proof.

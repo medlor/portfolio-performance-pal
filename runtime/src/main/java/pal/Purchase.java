@@ -40,6 +40,7 @@ public final class Purchase {
         if (amounts.forexGross() != null) transaction.addUnit(amounts.forexGross());
         if (amounts.fees() != 0) transaction.addUnit(new Transaction.Unit(Transaction.Unit.Type.FEE, Money.of(currency, amounts.fees())));
         if (amounts.taxes() != 0) transaction.addUnit(new Transaction.Unit(Transaction.Unit.Type.TAX, Money.of(currency, amounts.taxes())));
+        UpstreamImports.validate(UpstreamImports.item(entry));
         return new Plan(entry, amounts, !line.flag("time"), choice.created());
     }
 
