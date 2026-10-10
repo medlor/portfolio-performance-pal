@@ -56,11 +56,11 @@ public final class Main {
                     var securities = Accounts.securities(invocation, config.selection(line, "securities-account"), true);
                     var cash = Accounts.cash(invocation, config.selection(line, "cash-account"), true);
                     if (line.command().equals("import")) {
-                        var document = PdfPurchase.plan(invocation, securities, cash, line);
+                        var document = PdfTrades.plan(invocation, securities, cash, line);
                         var decision = ImportBookkeeping.decide(file, invocation, document);
                         if (decision.uncertain() && !line.flag("allow-suspected-duplicates")) throw new IllegalArgumentException(decision.text());
-                        var records = PdfPurchase.insertAndValidate(decision.additions());
-                        return new AtomicWriter.Change("PDF PURCHASE DOCUMENT", records, java.util.List.of(), decision.update());
+                        var records = PdfTrades.insertAndValidate(decision.additions());
+                        return new AtomicWriter.Change(document.description(), records, java.util.List.of(), decision.update());
                     }
                     var planned = line.command().equals("sale") ? Sale.plan(invocation, securities, cash, line) : Purchase.plan(invocation, securities, cash, line);
                     if (planned.createsSecurity()) invocation.addSecurity(planned.entry().getPortfolioTransaction().getSecurity());
@@ -85,12 +85,12 @@ public final class Main {
                     client = snapshot.load();
                     securities = Accounts.securities(client, config.selection(line, "securities-account"), true);
                     cash = Accounts.cash(client, config.selection(line, "cash-account"), true);
-                    var document = PdfPurchase.plan(client, securities, cash, line);
+                    var document = PdfTrades.plan(client, securities, cash, line);
                     var decision = ImportBookkeeping.decide(file, client, document);
                     // Validate the whole proposed batch in memory, excluding confirmed skips.
-                    PdfPurchase.insertAndValidate(decision.additions());
+                    PdfTrades.insertAndValidate(decision.additions());
                     decision.update().requireCurrent(); snapshot.requireCurrent();
-                    System.out.print(PdfPurchase.preview(document, client.getFileVersionAfterRead()) + decision.text());
+                    System.out.print(PdfTrades.preview(document, client.getFileVersionAfterRead()) + decision.text());
                 }
                 case "holdings" -> System.out.print(Holdings.text(Holdings.query(client, securities, line.value("security"), line.flag("include-zero"), line.value("sort", "updated"), line.flag("ascending"), line.limit())));
                 case "history" -> {

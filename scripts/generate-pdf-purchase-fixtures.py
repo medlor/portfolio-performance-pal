@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Render independently authored invented statements; no financial modelling."""
 from pathlib import Path
+import sys
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 
-root = Path(__file__).resolve().parents[1] / 'fixtures/v1/pdf-purchase'
+profile = sys.argv[1] if len(sys.argv) > 1 else 'pdf-purchase'
+if profile not in ('pdf-purchase', 'pdf-sale'): raise SystemExit('Choose pdf-purchase or pdf-sale')
+root = Path(__file__).resolve().parents[1] / 'fixtures/v1' / profile
 for source in sorted(root.glob('*.txt')):
     pdf = canvas.Canvas(str(source.with_suffix('.pdf')), pagesize=A4, invariant=True)
-    pdf.setTitle('Invented Baader purchase grammar fixture: ' + source.stem)
+    pdf.setTitle('Invented Baader ' + profile + ' grammar fixture: ' + source.stem)
     # These invented fixtures put an issuer header at each physical page start.
     # This is renderer metadata; production classification uses verified markers.
     pages = source.read_text().split('\nBaader Bank AG\n')
