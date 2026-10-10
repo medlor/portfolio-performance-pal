@@ -17,7 +17,8 @@ public final class AtomicWriter {
     public AtomicWriter(Path file, Clock clock) { this.file = file.toAbsolutePath().normalize(); this.clock = clock; }
     public enum Owner { SECURITIES, CASH }
     public record Added(Owner kind, String ownerId, String transactionId) {}
-    public record Change(String description, List<Added> records, List<String> securities) {
+    public record Change(String description, List<Added> records, List<String> securities, ImportBookkeeping.Update imports) {
+        public Change(String description, List<Added> records, List<String> securities) { this(description, records, securities, null); }
         public Change { records = List.copyOf(records); securities = List.copyOf(securities); }
         public static Change purchase(BuySellEntry entry) {
             return new Change(entry.getPortfolioTransaction().getType() == PortfolioTransaction.Type.SELL ? "SALE" : "PURCHASE", List.of(new Added(Owner.SECURITIES, entry.getPortfolio().getUUID(), entry.getPortfolioTransaction().getUUID()),
@@ -61,6 +62,7 @@ public final class AtomicWriter {
                     receipt.verifyOutput(snapshot); committed = true; outputHash = snapshot.sha256();
                     if (planner != null) throw new IOException("Previous financial replacement already succeeded; use --recover-write --desktop-closed, never repeat apply");
                     receipt.state("committed");
+                    ImportBookkeeping.complete(file, receipt.data);
                     var protection = new BackupService(file, clock);
                     protection.pruneDailyAfterSuccessfulWrite(); protection.pruneAdditionalAfterSuccessfulWrite();
                     cleanupAbortedStaging(receipt, snapshot);
@@ -81,7 +83,11 @@ public final class AtomicWriter {
             Set<String> originalIds = transactionIds(client);
             Set<String> originalSecurities = new HashSet<>(client.getSecurities().stream().map(Security::getUUID).toList());
             change = planner.plan(client);
-            if (change.records().isEmpty()) throw new IllegalArgumentException("No planned financial records");
+            if (change.records().isEmpty()) {
+                if (change.imports() == null) throw new IllegalArgumentException("No planned financial records");
+                change.imports().requireCurrent(); snapshot.requireCurrent();
+                aborted = new Outcome(0, false, List.of(), null, null, "SKIPPED PDF PURCHASE DOCUMENT: all members are confirmed re-imports; no financial or metadata changes\n");
+            } else {
             Set<String> proposedIds = new HashSet<>();
             for (var added : change.records()) if (originalIds.contains(added.transactionId()) || !proposedIds.add(added.transactionId())) throw new IOException("Proposed transaction identity is not new and unique");
             for (String id : change.securities()) if (originalSecurities.contains(id)) throw new IOException("Proposed security identity already exists");
@@ -109,15 +115,18 @@ public final class AtomicWriter {
             Path migration = inputModel == Core.MODEL ? null : protectionBeforeWrite.beforeMigration(snapshot, inputModel);
             receipt = WriteReceipt.prepare(file, snapshot, outputHash, change, daily, staging, inputModel, migration);
             WriteObserver.phase(file, "before-final-check", staging);
+            if (change.imports() != null) change.imports().requireCurrent();
             snapshot.requireCurrent(); stagedSnapshot.requireCurrent();
             stageDirectory.move(staging.getFileName(), directory, file.getFileName());
             committed = true;
             try (var parent = FileChannel.open(file.getParent(), StandardOpenOption.READ)) { parent.force(true); }
             receipt.state("committed");
             WriteObserver.phase(file, "committed-before-follow-up", null);
+            ImportBookkeeping.complete(file, receipt.data);
             var protection = new BackupService(file, clock);
             protection.pruneDailyAfterSuccessfulWrite(); protection.pruneAdditionalAfterSuccessfulWrite();
             receipt.state("complete");
+            }
             }
         } catch (Exception e) { failure = e; }
         finally {

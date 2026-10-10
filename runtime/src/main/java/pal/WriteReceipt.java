@@ -33,6 +33,7 @@ final class WriteReceipt {
         data.setProperty("transactions", String.join(" ", change.records().stream().map(AtomicWriter.Added::transactionId).toList()));
         data.setProperty("securities", String.join(" ", change.securities()));
         data.setProperty("engine", System.getenv().getOrDefault("PP_PAL_ENGINE_IMAGE", "unknown"));
+        if (change.imports() != null) change.imports().store(data);
         var receipt = new WriteReceipt(file.resolveSibling(file.getFileName() + ".pp-pal-write.properties"), data);
         receipt.save(); return receipt;
     }

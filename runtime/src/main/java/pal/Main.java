@@ -21,7 +21,7 @@ public final class Main {
                 case "purchase" -> line.allow(Set.of("securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "exchange-rate", "forex-gross", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write", "create-security", "name", "currency"));
                 case "sale" -> line.allow(Set.of("securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "exchange-rate", "forex-gross", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write"));
                 case "dividend" -> line.allow(Set.of("cash-account", "security", "security-id", "isin", "wkn", "ticker", "exchange-rate", "forex-gross", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write"));
-                case "import" -> line.allow(Set.of("pdf", "securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time"));
+                case "import" -> line.allow(Set.of("pdf", "securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write", "allow-suspected-duplicates"));
                 case "backup-monthly", "backup-before-update" -> line.allow(Set.of());
                 default -> throw new IllegalArgumentException("Unknown command: " + line.command());
             }
@@ -37,13 +37,13 @@ public final class Main {
                 System.out.println(backups.beforeUpgrade());
                 return 0;
             }
-            if (Set.of("purchase", "sale", "dividend").contains(line.command()) && line.flag("recover-write")) {
+            if (Set.of("purchase", "sale", "dividend", "import").contains(line.command()) && line.flag("recover-write")) {
                 line.allow(Set.of("recover-write", "desktop-closed"));
                 if (!line.flag("desktop-closed")) throw new IllegalArgumentException("--recover-write requires --desktop-closed");
                 var outcome = new AtomicWriter(file, BackupService.launchClock()).recover();
                 System.out.print(outcome.text()); return outcome.status();
             }
-            if (Set.of("purchase", "sale", "dividend").contains(line.command()) && line.flag("apply")) {
+            if (Set.of("purchase", "sale", "dividend", "import").contains(line.command()) && line.flag("apply")) {
                 if (!line.flag("desktop-closed")) throw new IllegalArgumentException("--apply requires --desktop-closed: close Portfolio Performance before writing; the GUI does not participate in the writer lock");
                 var outcome = new AtomicWriter(file, BackupService.launchClock()).apply(invocation -> {
                     if (line.command().equals("dividend")) {
@@ -55,6 +55,13 @@ public final class Main {
                     }
                     var securities = Accounts.securities(invocation, config.selection(line, "securities-account"), true);
                     var cash = Accounts.cash(invocation, config.selection(line, "cash-account"), true);
+                    if (line.command().equals("import")) {
+                        var document = PdfPurchase.plan(invocation, securities, cash, line);
+                        var decision = ImportBookkeeping.decide(file, invocation, document);
+                        if (decision.uncertain() && !line.flag("allow-suspected-duplicates")) throw new IllegalArgumentException(decision.text());
+                        var records = PdfPurchase.insertAndValidate(decision.additions());
+                        return new AtomicWriter.Change("PDF PURCHASE DOCUMENT", records, java.util.List.of(), decision.update());
+                    }
                     var planned = line.command().equals("sale") ? Sale.plan(invocation, securities, cash, line) : Purchase.plan(invocation, securities, cash, line);
                     if (planned.createsSecurity()) invocation.addSecurity(planned.entry().getPortfolioTransaction().getSecurity());
                     planned.entry().insert();
@@ -73,7 +80,18 @@ public final class Main {
                 case "purchase" -> System.out.print(Purchase.preview(Purchase.plan(client, securities, cash, line), client.getFileVersionAfterRead()));
                 case "sale" -> System.out.print(Purchase.preview(Sale.plan(client, securities, cash, line), client.getFileVersionAfterRead()));
                 case "dividend" -> System.out.print(Dividend.preview(Dividend.plan(client, cash, line), client.getFileVersionAfterRead()));
-                case "import" -> System.out.print(PdfPurchase.preview(PdfPurchase.plan(client,securities,cash,line),client.getFileVersionAfterRead()));
+                case "import" -> {
+                    var snapshot = FileSnapshot.capture(file);
+                    client = snapshot.load();
+                    securities = Accounts.securities(client, config.selection(line, "securities-account"), true);
+                    cash = Accounts.cash(client, config.selection(line, "cash-account"), true);
+                    var document = PdfPurchase.plan(client, securities, cash, line);
+                    var decision = ImportBookkeeping.decide(file, client, document);
+                    // Validate the whole proposed batch in memory, excluding confirmed skips.
+                    PdfPurchase.insertAndValidate(decision.additions());
+                    decision.update().requireCurrent(); snapshot.requireCurrent();
+                    System.out.print(PdfPurchase.preview(document, client.getFileVersionAfterRead()) + decision.text());
+                }
                 case "holdings" -> System.out.print(Holdings.text(Holdings.query(client, securities, line.value("security"), line.flag("include-zero"), line.value("sort", "updated"), line.flag("ascending"), line.limit())));
                 case "history" -> {
                     if (!line.value("sort", "date").equals("date")) throw new IllegalArgumentException("History --sort must be date");

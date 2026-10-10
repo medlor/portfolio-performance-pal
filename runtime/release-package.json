@@ -50,6 +50,8 @@
     "same-currency-dividend-preview",
     "atomic-same-currency-dividend-application",
     "explicit-manual-foreign-currency-transactions",
-    "transaction-only-model69-to70-migration"
+    "transaction-only-model69-to70-migration",
+    "atomic-baader-purchase-pdf-application",
+    "duplicate-safe-import-bookkeeping-recovery"
   ]
 }

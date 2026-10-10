@@ -260,6 +260,30 @@ with released_work() as temporary, server() as api:
     check(pdf.read_bytes() == pdf_original and selected.read_bytes() == original and metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'PDF preview changed document, portfolio or metadata')
     check(not list(work.glob('selected portfolio.xml.????-??-??.bak')) and not list(work.glob('selected portfolio.xml.pp-pal.migration.*.bak')), 'PDF preview created daily/migration backups')
     print('PASS mandatory-release fixed-engine PDF preview preserves statement, financial input and opaque sidecar on released image ' + active['image'])
+    pdf_file = work / 'PDF applied portfolio.xml'
+    pdf_file.write_bytes(original)
+    pdf_args = ('import', '--file', str(pdf_file), '--pdf', str(ROOT/'fixtures/v1/pdf-purchase/two-purchases.pdf'),
+        '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A', '--apply', '--desktop-closed')
+    request_count = len(api.requests)
+    result = run(work, api, *pdf_args)
+    check(result.returncode == 2 and 'SUSPECTED DUPLICATE' in result.stderr, result.stderr + result.stdout)
+    check(pdf_file.read_bytes() == original, 'Uncertain owner PDF import wrote financial data')
+    api.routes['/repos/medlor/portfolio-performance-pal/releases/latest'] = 503
+    result = run(work, api, *pdf_args, '--allow-suspected-duplicates')
+    check(result.returncode == 3 and pdf_file.read_bytes() == original, 'Owner PDF apply continued after release failure')
+    del api.routes['/repos/medlor/portfolio-performance-pal/releases/latest']
+    released_snapshot(work, api, mutate=marker)
+    result = run(work, api, *pdf_args, '--allow-suspected-duplicates')
+    check(result.returncode == 0 and 'APPLIED PDF PURCHASE DOCUMENT' in result.stdout
+          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+    check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:]
+          and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'PDF apply omitted mandatory releases')
+    applied_pdf_bytes = pdf_file.read_bytes()
+    result = run(work, api, *pdf_args, '--allow-suspected-duplicates')
+    check(result.returncode == 0 and 'SKIPPED PDF PURCHASE DOCUMENT' in result.stdout
+          and pdf_file.read_bytes() == applied_pdf_bytes, 'Released owner replayed confirmed PDF import')
+    check(pdf.read_bytes() == pdf_original and selected.read_bytes() == original and metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Owner PDF apply changed source/unrelated inputs')
+    print('PASS released owner PDF apply checks releases, refuses uncertainty/failure, fixes engine and skips confirmed repeats')
     sale_file = work / 'sale portfolio.xml'
     sale_file.write_bytes(original)
     sale_args = ('sale', '--file', str(sale_file), '--security', 'DE0000000001',
