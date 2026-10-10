@@ -26,9 +26,12 @@
     }
   ],
   "layouts": [
-    "Baader synthetic domestic purchase PDF/text v1 only",
+    "Baader synthetic domestic purchase/sale PDF/text v1 only",
     "baader-german-eur-purchase-flat-v1",
-    "baader-german-eur-purchase-page1-of1-v1"
+    "baader-german-eur-purchase-page1-of1-v1",
+    "baader-german-eur-sale-flat-v1",
+    "baader-german-eur-sale-page1-of1-v1",
+    "baader-german-eur-purchase-sale-page1-of1-v1"
   ],
   "bootstrapProtocol": 1,
   "features": [
@@ -52,6 +55,9 @@
     "explicit-manual-foreign-currency-transactions",
     "transaction-only-model69-to70-migration",
     "atomic-baader-purchase-pdf-application",
-    "duplicate-safe-import-bookkeeping-recovery"
+    "duplicate-safe-import-bookkeeping-recovery",
+    "baader-sale-pdf-preview",
+    "atomic-baader-sale-pdf-application",
+    "same-timestamp-pdf-purchase-sale-admission"
   ]
 }
