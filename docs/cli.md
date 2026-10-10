@@ -200,38 +200,37 @@ absolute external PDF paths follow the launcher rules. The Java planner snapshot
 the actual bytes before conversion, converts those bytes through upstream
 `PDFInputFile.convertPDFtoText()`, and rechecks source bytes before returning output.
 
-Supported profiles are the independently invented German Baader EUR purchase/sale
-fixtures: one flat single-page member, or one or more one-page members with an
-exact `Baader Bank AG` header immediately followed by `Seite 1/1`. The number of
-proved page starts must match the physical PDF page count. Each member requires
-its own unique broker reference, trade heading and ISIN/WKN section. All
-nonblank lines must match the reviewed grammar, including the security name
-continuation. Other issuers, Smartbroker branding alone, unknown/trailing lines,
-continuations and FX reject the entire PDF before any preview. The separate
-fixture-tested dividend profile is described below.
-This proves fixture-scoped grammar, not support for every current Baader layout.
+Extraction is authoritative Portfolio Performance behavior. The wrapper uses the
+pinned Baader extractor's bank identifiers and grammar, with no second financial
+parser or synthetic supplemental statement text. Existing fixture layouts remain
+regressions; the [PP reuse fixtures](../fixtures/v1/pp-extraction/README.md) also cover
+headers/footers, complete continuations, fund distributions, multiple costs and
+EUR/USD units. These synthetic cases do not establish every current owner layout.
 
-Raw German decimal tokens are checked against the exact shared `Amounts` rules
-before comparison with actual upstream extracted models. Booked amount is
-authoritative; quantity, price, gross, fees and taxes must agree. Present ignored,
-malformed, duplicated or contradictory values cannot be replaced by CLI options.
-ISIN and WKN jointly resolve one existing security, with any CLI constraints also
-intersected. Extraction uses an isolated security cache and then binds the detached
-entry to that exact existing definition, preserving its currency/name/settings.
-No definition is created or modified in the owner portfolio.
+Actual physical pages must form complete ordinal/count sequences. Each complete
+statement must produce one valid supported PP purchase, sale or dividend; an
+extraction error, failed/skipped item or unsupported additional item rejects the
+entire document. Multiple independent statements are extracted separately and
+admitted together. Other banks and Smartbroker branding alone remain insufficient.
 
-The existing purchase value options can supplement truly absent fields in a
-single-member PDF. An absent quantity/price section requires both `--quantity` and
-`--price`; an absent booked debit requires explicit `--total`. Missing fees/taxes
-may be supplied, otherwise default to zero. A missing date needs `--date`; source
-value date is used when trade date is absent, following upstream extraction.
-Missing time defaults to 11:00:00 for purchases or 11:00:01 for sales, while explicit midnight stays midnight; an
-absent time can be supplied at whole-second precision. Supplements are inserted
-only into temporary extraction text and upstream extraction is rerun. Missing
-identity, malformed partial sections and unsupported layouts conservatively reject.
-Financial supplements for multiple members reject because no member selector has
-been defined. Origins distinguish `PDF`, `SUPPLEMENT`, derivation, default zero and
-fallback time. Statement values supplied identically through CLI retain `PDF` origin.
+The statement's PP-extracted booked amount stays authoritative. PP's model derives
+domestic gross and trade unit price from booked amount and cost units. Printed
+values and unknown lines that PP ignores are not independently validated. Preview
+identifies PP derivations rather than claiming they were extracted. Exact numeric
+representability is checked through PP conversion hooks. The extracted security is
+bound unambiguously to an existing definition; matching known identifiers and CLI
+constraints must agree. Missing identifiers in an existing definition are preserved.
+
+Extraction must succeed before CLI consistency checks or supplementation. Missing
+mandatory quantity, booked amount or date cannot be repaired with fabricated PDF
+text. Absent upstream-extracted fees/taxes may be supplemented, otherwise default
+to zero; an extracted zero is present and cannot be overridden. CLI gross, total,
+quantity, date and rate values must agree with PP's result. A supplied trade price
+is checked against PP's derived price; dividend `--price` is rejected. Financial
+options require one statement. Missing extracted time uses 11:00:00 for purchases
+and dividends or 11:00:01 for sales; explicit PP time, including midnight, is
+preserved. A CLI time can supply the missing time, including fractional seconds.
+See [the full reuse boundary](upstream-reuse.md) for the approved behavior changes.
 
 `PdfTrades.plan(Client, Portfolio, Account, CommandLine)` returns a detached
 `Document` with ordered `Member` plans, origins, broker references and an immutable
@@ -750,7 +749,8 @@ saved model facts, repeats and changed document identity, partial confirmations,
 uncertain evidence, overrides, invalid later members, late PDF/portfolio/metadata
 changes, protected migrations and post-replacement metadata recovery. It is a
 mandatory candidate gate alongside retained `tests/pdf-purchase.sh` layout tests.
-FX and unproved layouts remain outside current support. See the dividend profile below.
+Broader unqualified FX layouts remain outside current support; the reuse gate
+checks synthetic PP EUR/USD purchase/dividend units. See the dividend profile below.
 
 
 ## PDF sale import
@@ -758,12 +758,10 @@ FX and unproved layouts remain outside current support. See the dividend profile
 `import --pdf statement.pdf --securities-account ID --cash-account ID` also admits
 invented German Baader EUR sale profiles. Add `--apply --desktop-closed` to write
 all new members together; `--allow-suspected-duplicates` authorizes document-wide
-uncertainty only. Each member must independently identify Baader, the verified
-heading, reference, security and financial fields. Sale headings require
-`Zu Gunsten` booked credits; purchase headings require `Zu Lasten` debits.
-Booked credits are authoritative, with gross minus fees/taxes checked against the
-pinned upstream extractor. Missing-only supplements and explicit timestamps retain
-their origin; date-only sales disclose `11:00:01`.
+uncertainty only. PP determines the transaction type and booked credit, and its
+model calculates gross and costs. The wrapper does not independently parse cash
+direction or ignored printed totals. PP import actions validate types, currency,
+security relationships, dates and FX gross units. Date-only sales disclose 11:00:01.
 
 All new entries are inserted into the disposable model before complete-history
 validation. Quantity increases precede decreases at equal timestamps, including
@@ -779,8 +777,8 @@ writer and metadata recovery; failed follow-up work reports financial success an
 explicit/fallback times, batches, same-time ordering, rejects, duplicates and
 post-replacement metadata recovery. The updater registers this gate alongside
 all earlier purchase/layout regressions. These invented fixtures establish only
-their exact grammar; real owner statements, other banks, continuations,
-foreign-currency PDFs and real owner dividend layouts remain unverified.
+their tested behavior; real owner layouts remain unverified. Additional
+continuation/cost/FX regressions are in `tests/upstream-reuse.sh`.
 
 
 ## PDF dividend import
@@ -791,26 +789,24 @@ members as one protected financial change. Dividend-only documents do not need
 a securities-account selection; mixed purchases still do. Existing securities
 are jointly resolved from the statement ISIN/WKN and any CLI constraints.
 
-The [dividend fixture contract](../fixtures/v1/pdf-dividend/README.md) defines
-physical page coverage and the exact invented profile. Booked credit is
-authoritative; gross equals credit plus fees/taxes and must agree with distribution
-shares times per-share distribution after HALF_UP cent rounding. Upstream
-extracts informational distribution shares on the cash record. This creates no
-securities transaction, changes no holding quantity or holding last updated, and
-works for closed holdings. History follows the existing upstream cash-account
-relevance rules, including ambiguous attribution for shared accounts.
+The [dividend fixture contract](../fixtures/v1/pdf-dividend/README.md) retains
+synthetic statement regressions. PP extracts the authoritative cash credit,
+informational shares and cost/FX units; its model computes gross. This creates no
+securities transaction and changes no quantity or holding last updated, including
+for a closed holding. History now calls PP's actual portfolio projection for
+reference-cash-account relevance and displays ambiguous shared-account attribution.
 
-Missing-only financial/date/time supplements are permitted for a single member.
-Present conflicting values, unsupported/unknown/repeated fields, unproved
-continuations or FX reject the complete document. Explicit whole-second times,
-including midnight, are preserved by the synthetic time extension; missing time
-is disclosed as 11:00:00. The extractor's value-date midnight is independently
-checked before assigning that final time.
+The same authoritative-extraction and CLI rules described above apply. PP does not
+read the old invented `Zahlungsdatum Zahlungsuhrzeit` section. It is intentionally
+ignored, with disclosed 11:00:00 fallback or supplied CLI time; no synthetic time
+extension remains. Missing mandatory fields reject even with CLI values. Failure,
+unsupported members and incomplete physical page coverage reject the whole document.
 
 Cash transaction UUIDs, owner/security identity and complete financial signatures
-are kept in adjacent import evidence. Confirmed dividends require current file
+are kept in adjacent import evidence. Confirmed dividends require current portfolio file
 identity plus agreement with the recorded cash transaction; document encoding
-changes can still confirm a broker reference. Overrides never replay confirmed
+changes can still confirm a readable broker reference. Without one, exact document
+hash/member identity confirms only identical PDFs, and original PP notes are preserved. Overrides never replay confirmed
 records. Missing/stale metadata, externally edited portfolios and backup restores
 fall back to suspected-duplicate checks. Mixed documents skip confirmed members
 and validate every new member together, including complete sale quantity histories.
@@ -829,4 +825,5 @@ refuses unproved physical coverage before any financial change. A disposable
 portfolio remained byte-for-byte unchanged. The reference stays local and is
 not a committed fixture. These synthetic fixtures do not qualify that current
 Smartbroker layout; #33 remains open for complete current-layout evidence.
-FX PDF support remains deferred to #34.
+The reuse gate preserves PP-extracted EUR/USD units in synthetic purchase/dividend
+fixtures; broader representative FX/mixed-layout qualification remains #34 work.

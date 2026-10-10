@@ -53,15 +53,19 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-pdf-sale-') as tmp:
             expect(run(w,name,True,override),0,'SKIPPED PDF ')
             assert (w/'portfolio.xml').read_bytes()==saved and (w/'portfolio.xml.pp-pal-imports.properties').read_bytes()==evidence
     print('PASS partial/full/backdated sales, explicit/fallback times, same-time increases first, atomic batches and confirmed repeats',flush=True)
-    for name in ('later-negative','before-purchase','wrong-direction','contradictory','unsupported-dividend','foreign-currency','later-invalid','later-unsupported'):
+    for name in ('later-negative','before-purchase','unsupported-dividend','foreign-currency','later-invalid'):
         w=fresh(base,name)
         for apply in (False,True):
             expect(run(w,name,apply,True),2,'ERROR:')
             assert (w/'portfolio.xml').read_bytes()==SOURCE and not (w/'portfolio.xml.pp-pal-imports.properties').exists() and not list(w.glob('*.????-??-??.bak'))
-    print('PASS later-negative holdings, invalid/unsupported members, wrong cash direction and contradictions preserve original bytes',flush=True)
+    for name in ('wrong-direction','contradictory','later-unsupported'):
+        w=fresh(base,'pp-authority-'+name)
+        expect(run(w,name),0,'PREVIEW PDF ')
+        assert (w/'portfolio.xml').read_bytes()==SOURCE
+    print('PASS later-negative holdings, invalid/unsupported members, PP extraction errors preserve original bytes; ignored fields defer to PP',flush=True)
     w=fresh(base,'supplements')
     expect(run(w,'missing-fee',extra=('--fees','1')),0,'FEES EUR 1.00 (SUPPLEMENT)')
-    expect(run(w,'missing-booked',extra=('--total','23.50')),0,'BOOKED CREDIT EUR 23.50 (SUPPLEMENT)')
+    expect(run(w,'missing-booked',extra=('--total','23.50')),2,'Portfolio Performance extraction failed')
     expect(run(w,extra=('--total','24')),2,'CLI conflicts')
     expect(run(w,apply=True),2,'--allow-suspected-duplicates')
     expect(run(w,apply=True,override=True),0,'APPLIED PDF SALE'); oracle(w,'partial')

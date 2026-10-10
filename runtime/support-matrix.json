@@ -1196,6 +1196,168 @@
       "validationElapsedSeconds": 1764,
       "validationNotes": "Pinned Java build and all oracle typechecking passed. Focused dividend sections, supplemented apply/literal-oracle/repeat checks, actual paired PDF conversion and retained purchase/sale regressions passed before cumulative qualification. Full cumulative suite exited 0 in 1764 seconds (29 minutes 24 seconds): all four baseline suites and fifteen mandatory candidate gates passed, each gate exactly once during successful released qualification. All fourteen previous gates and assertions remain; tests/pdf-dividend.sh was added. Independent saved-model literals cover authoritative credits, gross, fees/taxes, informational statement shares, exact explicit/fallback times, existing security/cash owners, mixed purchase links and complete unrelated-state preservation. Twenty-three paired dividend texts match actual upstream PDF conversion. Coverage includes closed holdings and unchanged holding timestamps, ambiguity, missing-only supplemented writes and confirmed repeats, invalid later members and later-negative sales, partial confirmation across mixed types, cash evidence uncertainty after missing/stale/restored/edited metadata, protected model69 migration and post-replacement metadata recovery without replay. Released-owner dividend requests verify cash-only selection, mandatory releases, fixed image, discovery-failure refusal and confirmed skipping. All retained updater attack/refusal/cache/interruption checks passed. Runtime/help/release-policy/gate/executable-test inputs stayed frozen throughout the cumulative run; documentation and support evidence were updated afterwards.",
       "releaseValidation": "Exact tested development/released pair: ID-reference XML model70 -> model70; no migration. Dividend profiles are independently invented German Baader EUR page1-of1 and purchase/dividend members. The supplied local owner reference is a CHF fund distribution, with one physical page labeled Seite 1/2 and no readable broker reference. Pinned upstream extraction recognizes a dividend and security definition without errors; wrapper refusal preserves disposable portfolio bytes. The original reference remains local, not a committed fixture. No current owner-layout or foreign-currency PDF support is claimed; complete current-layout evidence for #33 remains unqualified and FX imports belong to #34. Standards review: no required violations, one optional repeated-discriminator note. Spec review: supplemented-persistence coverage gap resolved with passing saved-model/repeat checks; representative current-layout qualification remains open."
+    },
+    {
+      "upstreamRelease": "0.88.0",
+      "upstreamRevision": "8de1fe41d71a2c1b74a6bfbe913f885899aaf123",
+      "sourceArchiveSha256": "ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656",
+      "dependencyReleaseArchiveSha256": "1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2",
+      "jdk": "Temurin 21.0.11+10-LTS",
+      "platform": "linux/amd64",
+      "fixtureVersion": "v1",
+      "image": "sha256:cd085dee8c573723cc6b04ff8828a4125a35065bc4642b9e7a193cf07b00a3e3",
+      "retentionTag": "pp-pal:upstream-reuse-final",
+      "validatedOn": "2026-10-10",
+      "validatedBy": "tests/all.sh",
+      "input": {
+        "representation": "XML-ID-references",
+        "modelVersion": 69
+      },
+      "output": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "migrations": [
+        {
+          "inputModelVersion": 69,
+          "outputModelVersion": 70,
+          "representation": "XML-ID-references",
+          "semantics": "Optional client-filter weight; existing unweighted selections, financial records and unrelated persisted state unchanged",
+          "validatedBy": "tests/migrations.sh"
+        }
+      ],
+      "features": [
+        "holdings",
+        "history",
+        "configuration",
+        "monthly-launch-backups",
+        "exact-pre-upgrade-backups",
+        "released-pair-updates",
+        "same-currency-purchase-preview",
+        "baader-purchase-pdf-preview",
+        "atomic-same-currency-purchase-application",
+        "verified-financial-write-recovery",
+        "successful-write-backup-retention",
+        "explicit-purchase-security-creation",
+        "same-currency-sale-preview",
+        "atomic-same-currency-sale-application",
+        "complete-sale-quantity-history-validation",
+        "same-currency-dividend-preview",
+        "atomic-same-currency-dividend-application",
+        "explicit-manual-foreign-currency-transactions",
+        "transaction-only-model69-to70-migration",
+        "atomic-baader-purchase-pdf-application",
+        "duplicate-safe-import-bookkeeping-recovery",
+        "baader-sale-pdf-preview",
+        "atomic-baader-sale-pdf-application",
+        "same-timestamp-pdf-purchase-sale-admission",
+        "baader-dividend-pdf-preview",
+        "atomic-baader-dividend-pdf-application",
+        "mixed-purchase-dividend-pdf-admission",
+        "pp-authoritative-pdf-extraction",
+        "pp-import-actions",
+        "pp-holdings-and-dividend-relevance"
+      ],
+      "layouts": [
+        "Baader synthetic domestic purchase/sale/dividend PDF/text v1 only",
+        "baader-german-eur-purchase-flat-v1",
+        "baader-german-eur-purchase-page1-of1-v1",
+        "baader-german-eur-sale-flat-v1",
+        "baader-german-eur-sale-page1-of1-v1",
+        "baader-german-eur-purchase-sale-page1-of1-v1",
+        "baader-german-eur-dividend-page1-of1-v1",
+        "baader-german-eur-purchase-dividend-page1-of1-v1",
+        "baader-pp-authoritative-complete-page-sequences-v1",
+        "baader-synthetic-eur-usd-purchase-dividend-v1"
+      ],
+      "validationCommands": [
+        "docker build --platform linux/amd64 -t pp-pal:upstream-reuse-final .",
+        "bash tests/all.sh pp-pal:upstream-reuse-final"
+      ],
+      "implementationCommit": "b9f0b3b2a5c35eb1dfa3961bbebc8455a32f46c2",
+      "previousBaselineImage": "sha256:60e16fd798c19638c129a446970a73403d39e9e3790a7ec2342e6be73d96e6ce",
+      "releasedCandidateImage": "sha256:41d3d8e731c04473ef6fd468672762b8caaa736ae2291ac9afdc30f7d9ddb83b",
+      "releasedWrapperRevision": "399a3583ddc804fde79a228cc32766f5606eb2b1",
+      "validationElapsedSeconds": 1945,
+      "validationNotes": "Full cumulative suite exited 0 in 1945 seconds (32 minutes 25 seconds). Four baseline suites and all sixteen mandatory candidate gates passed; successful released qualification executed each gate exactly once. All fifteen previous gates remain. Frozen runtime/help/release-policy/gate/test inputs were verified unchanged. Direct unadapted PP extraction and independent saved-model literals verify financial amounts, currencies, shares, all units/rates, timestamps, notes, links, selected owners/security and complete unrelated-state preservation. Nine invented paired PDF/text fixtures cover complete continuations, footers, multiple costs, zero costs and informational dividend shares, reference-free identity, synthetic EUR/USD purchases/dividends and cancellation rejection. Existing manual/PDF atomic admission, metadata recovery, migration, backups, updater refusal/cache/integrity and interruption checks passed. The holdings attack asserts a real formatter mutation and trusted qualification refuses incorrect output on both attempts despite candidate-controlled passing tests. Documentation/support evidence updated only after qualification.",
+      "releaseValidation": "Exact fixture-scoped development/released pair. PP is authoritative for PDF financial extraction, checks, insertion, holdings and dividend relevance. Standards review and approved-behavior spec review found no blocking defects. Complete representative current owner-layout evidence remains open: private local dividend sample is one physical page marked 1/2 and is rejected unchanged. Synthetic FX coverage does not claim broad current bank-layout support."
+    },
+    {
+      "upstreamRelease": "0.88.0",
+      "upstreamRevision": "8de1fe41d71a2c1b74a6bfbe913f885899aaf123",
+      "sourceArchiveSha256": "ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656",
+      "dependencyReleaseArchiveSha256": "1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2",
+      "jdk": "Temurin 21.0.11+10-LTS",
+      "platform": "linux/amd64",
+      "fixtureVersion": "v1",
+      "image": "sha256:cd085dee8c573723cc6b04ff8828a4125a35065bc4642b9e7a193cf07b00a3e3",
+      "retentionTag": "pp-pal:upstream-reuse-final",
+      "validatedOn": "2026-10-10",
+      "validatedBy": "tests/all.sh",
+      "input": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "output": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "migrations": [],
+      "features": [
+        "holdings",
+        "history",
+        "configuration",
+        "monthly-launch-backups",
+        "exact-pre-upgrade-backups",
+        "released-pair-updates",
+        "same-currency-purchase-preview",
+        "baader-purchase-pdf-preview",
+        "atomic-same-currency-purchase-application",
+        "verified-financial-write-recovery",
+        "successful-write-backup-retention",
+        "explicit-purchase-security-creation",
+        "same-currency-sale-preview",
+        "atomic-same-currency-sale-application",
+        "complete-sale-quantity-history-validation",
+        "same-currency-dividend-preview",
+        "atomic-same-currency-dividend-application",
+        "explicit-manual-foreign-currency-transactions",
+        "transaction-only-model69-to70-migration",
+        "atomic-baader-purchase-pdf-application",
+        "duplicate-safe-import-bookkeeping-recovery",
+        "baader-sale-pdf-preview",
+        "atomic-baader-sale-pdf-application",
+        "same-timestamp-pdf-purchase-sale-admission",
+        "baader-dividend-pdf-preview",
+        "atomic-baader-dividend-pdf-application",
+        "mixed-purchase-dividend-pdf-admission",
+        "pp-authoritative-pdf-extraction",
+        "pp-import-actions",
+        "pp-holdings-and-dividend-relevance"
+      ],
+      "layouts": [
+        "Baader synthetic domestic purchase/sale/dividend PDF/text v1 only",
+        "baader-german-eur-purchase-flat-v1",
+        "baader-german-eur-purchase-page1-of1-v1",
+        "baader-german-eur-sale-flat-v1",
+        "baader-german-eur-sale-page1-of1-v1",
+        "baader-german-eur-purchase-sale-page1-of1-v1",
+        "baader-german-eur-dividend-page1-of1-v1",
+        "baader-german-eur-purchase-dividend-page1-of1-v1",
+        "baader-pp-authoritative-complete-page-sequences-v1",
+        "baader-synthetic-eur-usd-purchase-dividend-v1"
+      ],
+      "validationCommands": [
+        "docker build --platform linux/amd64 -t pp-pal:upstream-reuse-final .",
+        "bash tests/all.sh pp-pal:upstream-reuse-final"
+      ],
+      "implementationCommit": "b9f0b3b2a5c35eb1dfa3961bbebc8455a32f46c2",
+      "previousBaselineImage": "sha256:60e16fd798c19638c129a446970a73403d39e9e3790a7ec2342e6be73d96e6ce",
+      "releasedCandidateImage": "sha256:41d3d8e731c04473ef6fd468672762b8caaa736ae2291ac9afdc30f7d9ddb83b",
+      "releasedWrapperRevision": "399a3583ddc804fde79a228cc32766f5606eb2b1",
+      "validationElapsedSeconds": 1945,
+      "validationNotes": "Full cumulative suite exited 0 in 1945 seconds (32 minutes 25 seconds). Four baseline suites and all sixteen mandatory candidate gates passed; successful released qualification executed each gate exactly once. All fifteen previous gates remain. Frozen runtime/help/release-policy/gate/test inputs were verified unchanged. Direct unadapted PP extraction and independent saved-model literals verify financial amounts, currencies, shares, all units/rates, timestamps, notes, links, selected owners/security and complete unrelated-state preservation. Nine invented paired PDF/text fixtures cover complete continuations, footers, multiple costs, zero costs and informational dividend shares, reference-free identity, synthetic EUR/USD purchases/dividends and cancellation rejection. Existing manual/PDF atomic admission, metadata recovery, migration, backups, updater refusal/cache/integrity and interruption checks passed. The holdings attack asserts a real formatter mutation and trusted qualification refuses incorrect output on both attempts despite candidate-controlled passing tests. Documentation/support evidence updated only after qualification.",
+      "releaseValidation": "Exact fixture-scoped development/released pair. PP is authoritative for PDF financial extraction, checks, insertion, holdings and dividend relevance. Standards review and approved-behavior spec review found no blocking defects. Complete representative current owner-layout evidence remains open: private local dividend sample is one physical page marked 1/2 and is rejected unchanged. Synthetic FX coverage does not claim broad current bank-layout support."
     }
   ]
 }

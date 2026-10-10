@@ -60,8 +60,8 @@ cp "$root/fixtures/v1/pdf-purchase/paged.pdf" 'input directory/paged purchase.pd
 rg -Fq 'BOOKED DEBIT EUR 51.00 (PDF)' paged-preview
 rg -Fq 'DATE 2025-01-03T09:30:00 (PDF date and time)' paged-preview
 rg -Fq 'QUANTITY 2 (PDF)' paged-preview
-rg -Fq 'PRICE EUR 25 (PDF)' paged-preview
-rg -Fq 'GROSS EUR 50.00 (PDF)' paged-preview
+rg -Fq 'PRICE EUR 25 (PP derived from gross / quantity)' paged-preview
+rg -Fq 'GROSS EUR 50.00 (PP derived from booked and costs)' paged-preview
 rg -Fq 'FEES EUR 1.00 (PDF)' paged-preview
 rg -Fq 'TAXES EUR 0.00 (default zero)' paged-preview
 rg -Fq 'SECURITY Synthetic Euro Instrument | 00000000-0000-4000-8000-000000000001 | EUR (existing)' paged-preview
@@ -83,17 +83,17 @@ preview_pdf midnight
 rg -Fq 'DATE 2025-01-03T00:00:00 (PDF date and time)' current-preview
 preview_pdf missing-time --time 00:00:00
 rg -Fq 'DATE 2025-01-06T00:00:00 (PDF date; SUPPLEMENT time)' current-preview
-preview_pdf missing-quantity-price --quantity 2 --price 25
-rg -Fq 'QUANTITY 2 (SUPPLEMENT)' current-preview
-rg -Fq 'PRICE EUR 25 (SUPPLEMENT)' current-preview
-preview_pdf missing-booked --total 51
-rg -Fq 'BOOKED DEBIT EUR 51.00 (SUPPLEMENT)' current-preview
+reject_pdf missing-quantity-price --quantity 2 --price 25
+reject_pdf missing-booked --total 51
 preview_pdf two-purchases
 rg -Fq 'PREVIEW PDF PURCHASE DOCUMENT (2 members)' current-preview
 rg -Fq 'BOOKED DEBIT EUR 51.00 (PDF)' current-preview
 rg -Fq 'BOOKED DEBIT EUR 76.00 (PDF)' current-preview
 rg -Fq 'DATE 2025-01-04T09:30:00 (PDF date and time)' current-preview
-for fixture in missing-fee missing-booked missing-quantity-price contradictory-gross zero-quantity excess-quantity-precision conflicting-identity unsupported-sale unsupported-bank unknown-trailing repeated-fee bad-time unsupported-continuation page-marker-on-wrong-page later-missing-reference later-unsupported-sale later-unknown-line; do reject_pdf "$fixture"; done
+for fixture in missing-booked missing-quantity-price zero-quantity excess-quantity-precision conflicting-identity unsupported-bank bad-time page-marker-on-wrong-page later-missing-reference; do reject_pdf "$fixture"; done
+# PP intentionally ignores these fields/lines, or supports the complete continuation.
+# Its authoritative results are checked against direct PP extraction in upstream-reuse.sh.
+for fixture in missing-fee contradictory-gross unsupported-sale unknown-trailing repeated-fee unsupported-continuation later-unsupported-sale later-unknown-line; do preview_pdf "$fixture"; done
 reject_pdf paged --fees 2
 reject_pdf paged --isin US0000000002
 reject_pdf two-purchases --fees 1
@@ -109,6 +109,6 @@ cmp portfolio_performance.xml.pp-pal.migration.2020.bak migration-before
 [[ $(stat -c %a portfolio_performance.xml) == 600 ]]
 [[ $(find . -name '*.????-??-??.bak' | wc -l) == 1 ]]
 [[ $(find . -name '*.pp-pal.migration.*.bak' | wc -l) == 1 ]]
-echo 'PASS section-scoped times, missing-only supplements, all-member coverage, exact monetary evidence and joint security identity'
+echo 'PASS section-scoped times, missing-only supplements, PP-authoritative amounts, complete page envelopes and joint security identity'
 python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PdfTextOracle.java /fixtures/v1/pdf-purchase
 python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PdfPurchaseOracle.java /fixtures/v1/portfolio.xml /fixtures/v1/pdf-purchase/two-purchases.pdf
