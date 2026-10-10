@@ -207,7 +207,8 @@ proved page starts must match the physical PDF page count. Each member requires
 its own unique broker reference, trade heading and ISIN/WKN section. All
 nonblank lines must match the reviewed grammar, including the security name
 continuation. Other issuers, Smartbroker branding alone, unknown/trailing lines,
-continuations, FX and dividends reject the entire PDF before any preview.
+continuations and FX reject the entire PDF before any preview. The separate
+fixture-tested dividend profile is described below.
 This proves fixture-scoped grammar, not support for every current Baader layout.
 
 Raw German decimal tokens are checked against the exact shared `Amounts` rules
@@ -749,7 +750,7 @@ saved model facts, repeats and changed document identity, partial confirmations,
 uncertain evidence, overrides, invalid later members, late PDF/portfolio/metadata
 changes, protected migrations and post-replacement metadata recovery. It is a
 mandatory candidate gate alongside retained `tests/pdf-purchase.sh` layout tests.
-PDF dividends, FX and unproved layouts remain outside current support.
+FX and unproved layouts remain outside current support. See the dividend profile below.
 
 
 ## PDF sale import
@@ -779,4 +780,53 @@ explicit/fallback times, batches, same-time ordering, rejects, duplicates and
 post-replacement metadata recovery. The updater registers this gate alongside
 all earlier purchase/layout regressions. These invented fixtures establish only
 their exact grammar; real owner statements, other banks, continuations,
-foreign-currency PDFs and dividend PDFs remain unverified.
+foreign-currency PDFs and real owner dividend layouts remain unverified.
+
+
+## PDF dividend import
+
+`import --pdf PATH --cash-account ID_OR_EXACT_NAME` previews the fixture-tested
+German EUR Baader dividend profile. `--apply --desktop-closed` records all new
+members as one protected financial change. Dividend-only documents do not need
+a securities-account selection; mixed purchases still do. Existing securities
+are jointly resolved from the statement ISIN/WKN and any CLI constraints.
+
+The [dividend fixture contract](../fixtures/v1/pdf-dividend/README.md) defines
+physical page coverage and the exact invented profile. Booked credit is
+authoritative; gross equals credit plus fees/taxes and must agree with distribution
+shares times per-share distribution after HALF_UP cent rounding. Upstream
+extracts informational distribution shares on the cash record. This creates no
+securities transaction, changes no holding quantity or holding last updated, and
+works for closed holdings. History follows the existing upstream cash-account
+relevance rules, including ambiguous attribution for shared accounts.
+
+Missing-only financial/date/time supplements are permitted for a single member.
+Present conflicting values, unsupported/unknown/repeated fields, unproved
+continuations or FX reject the complete document. Explicit whole-second times,
+including midnight, are preserved by the synthetic time extension; missing time
+is disclosed as 11:00:00. The extractor's value-date midnight is independently
+checked before assigning that final time.
+
+Cash transaction UUIDs, owner/security identity and complete financial signatures
+are kept in adjacent import evidence. Confirmed dividends require current file
+identity plus agreement with the recorded cash transaction; document encoding
+changes can still confirm a broker reference. Overrides never replay confirmed
+records. Missing/stale metadata, externally edited portfolios and backup restores
+fall back to suspected-duplicate checks. Mixed documents skip confirmed members
+and validate every new member together, including complete sale quantity histories.
+The existing receipt/recovery path reports committed financial success on metadata
+failure and recovers bookkeeping without inserting another dividend.
+
+`tests/pdf-dividend.sh` is a mandatory candidate gate, alongside all retained
+purchase/sale gates. Independent saved-model literals check financial values,
+shares/times/links and complete unrelated model preservation. The released-owner
+updater tests verify mandatory discovery, fixed-image preview/application,
+discovery failure refusal and confirmed repeats with cash-only selection.
+The supplied local owner reference is a CHF fund distribution. It has one
+physical page labeled `Seite 1/2` and no readable broker reference. Pinned upstream
+extraction recognizes the dividend and security definition, but the wrapper
+refuses unproved physical coverage before any financial change. A disposable
+portfolio remained byte-for-byte unchanged. The reference stays local and is
+not a committed fixture. These synthetic fixtures do not qualify that current
+Smartbroker layout; #33 remains open for complete current-layout evidence.
+FX PDF support remains deferred to #34.

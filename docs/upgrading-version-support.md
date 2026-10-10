@@ -48,3 +48,17 @@ commands are recorded in [the support matrix](../runtime/support-matrix.json).
 Qualified sale grammar is fixture-scoped; the retained two-page current-layout
 sample remains unverified, so release qualification does not authorize that layout
 or additional migrations.
+
+
+Dividend PDF qualification retains the same upstream revision/JDK/platform and
+model70 plus protected model69-to-70 combinations. `tests/pdf-dividend.sh` is the
+fifteenth mandatory candidate gate; all fourteen previous gates and assertions
+remain. `bash tests/all.sh pp-pal:issue33-final` passed in 1764 seconds (29 minutes
+24 seconds), including independent baseline checks, all fifteen gates exactly
+once on successful released qualification, selected-copy validation and retained
+updater failure/attack checks. Runtime, help, release policy, gates and executable
+test inputs stayed frozen; only documentation and support evidence changed after
+success. Exact development/released pair identities are in the
+[support matrix](../runtime/support-matrix.json). The qualified dividend profile
+is synthetic German EUR Baader page-1-of-1; the supplied local CHF reference has
+unproved page coverage and no readable broker reference and remains unsupported.

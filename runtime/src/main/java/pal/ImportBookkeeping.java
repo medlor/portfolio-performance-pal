@@ -37,11 +37,29 @@ public final class ImportBookkeeping {
                 + "|" + c.getCurrencyCode() + "|" + c.getAmount() + "|" + c.getShares() + "|" + c.getSecurity().getUUID()
                 + "|" + c.getUnits().count()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
+    private static String signature(PdfTrades.Member member) throws Exception {
+        if (member.trade() != null) return signature(member.trade().entry());
+        return signature(member.cash(),member.cashTransaction());
+    }
+    private static String signature(Account account, AccountTransaction tx) throws Exception {
+        String units = tx.getUnits().map(u -> u.getType() + ":" + u.getAmount() + ":" + u.getForex() + ":" + u.getExchangeRate()).sorted().reduce("", (a,b) -> a + "|" + b);
+        return hash((account.getUUID() + "|" + tx.getSecurity().getUUID() + "|" + tx.getSecurity().getCurrencyCode()
+                + "|" + tx.getType() + "|" + tx.getDateTime() + "|" + tx.getShares() + "|" + tx.getCurrencyCode()
+                + "|" + tx.getAmount() + "|" + units).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
     private static String key(String reference) throws Exception { return "member." + hash(reference.getBytes(java.nio.charset.StandardCharsets.UTF_8)) + "."; }
     private static boolean recorded(Client client, Properties data, String key, String reference, String signature) throws Exception {
         if (signature == null || !reference.equals(data.getProperty(key + "reference")) || !signature.equals(data.getProperty(key + "signature"))
                 || !data.getProperty(key + "document", "").matches("[a-f0-9]{64}")) return false;
         String tradeId = data.getProperty(key + "trade"), cashId = data.getProperty(key + "cash");
+        if ("DIVIDEND".equals(data.getProperty(key + "kind"))) {
+            var matches = client.getAccounts().stream().flatMap(a -> a.getTransactions().stream()
+                    .filter(t -> t.getUUID().equals(cashId)).map(t -> Map.entry(a,t))).toList();
+            if (matches.size() != 1) return false;
+            var owner = matches.getFirst().getKey(); var tx = matches.getFirst().getValue();
+            return tx.getType() == AccountTransaction.Type.DIVIDENDS && tx.getSecurity() != null && tx.getCrossEntry() == null
+                    && ("Vorgangs-Nr.: " + reference).equals(tx.getNote()) && signature.equals(signature(owner,tx));
+        }
         var trades = client.getPortfolios().stream().flatMap(p -> p.getTransactions().stream()).filter(t -> t.getUUID().equals(tradeId)).toList();
         long payments = client.getAccounts().stream().flatMap(a -> a.getTransactions().stream()).filter(t -> t.getUUID().equals(cashId)).count();
         if (trades.size() != 1 || payments != 1 || !(trades.getFirst().getCrossEntry() instanceof BuySellEntry entry)) return false;
@@ -62,6 +80,15 @@ public final class ImportBookkeeping {
                     || (existing.getShares() > 0 && proposed.getShares() > 0
                         && java.math.BigInteger.valueOf(existing.getGrossValueAmount()).multiply(java.math.BigInteger.valueOf(proposed.getShares()))
                             .equals(java.math.BigInteger.valueOf(proposed.getGrossValueAmount()).multiply(java.math.BigInteger.valueOf(existing.getShares())))));
+    }
+    private static boolean resembles(AccountTransaction existing, AccountTransaction proposed) {
+        if (existing.getType() != AccountTransaction.Type.DIVIDENDS || existing.getSecurity() != proposed.getSecurity()) return false;
+        boolean similarDistribution = existing.getShares() > 0 && proposed.getShares() > 0
+                && (existing.getShares() == proposed.getShares()
+                    || java.math.BigInteger.valueOf(existing.getGrossValue().getAmount()).multiply(java.math.BigInteger.valueOf(proposed.getShares()))
+                        .equals(java.math.BigInteger.valueOf(proposed.getGrossValue().getAmount()).multiply(java.math.BigInteger.valueOf(existing.getShares()))));
+        return similarDistribution || existing.getDateTime().toLocalDate().equals(proposed.getDateTime().toLocalDate())
+                || existing.getAmount() == proposed.getAmount() || existing.getGrossValue().getAmount() == proposed.getGrossValue().getAmount();
     }
     public record Decision(List<PdfTrades.Member> additions, String text, boolean uncertain, Update update) {
         public Decision { additions = List.copyOf(additions); }
@@ -86,7 +113,7 @@ public final class ImportBookkeeping {
         evidence.setProperty("format", FORMAT);
         var additions = new ArrayList<PdfTrades.Member>(); var text = new StringBuilder(); boolean uncertain = false;
         for (var member : document.members()) {
-            var entry = member.trade().entry(); String key = key(member.brokerReference()), signature = signature(entry);
+            String key = key(member.brokerReference()), signature = signature(member);
             boolean confirmed = trusted && recorded(client, data, key, member.brokerReference(), data.getProperty(key + "signature"));
             if (confirmed) {
                 if (!signature.equals(data.getProperty(key + "signature"))) throw new IllegalArgumentException("PDF member " + member.index()
@@ -94,23 +121,33 @@ public final class ImportBookkeeping {
                 text.append("CONFIRMED RE-IMPORT member ").append(member.index()).append(" reference ").append(member.brokerReference()).append("; skipped\n");
                 continue;
             }
-            var proposed = entry.getPortfolioTransaction();
+            var proposed = member.transaction();
             if (data.containsKey(key + "reference") || data.stringPropertyNames().stream().anyMatch(k -> k.endsWith(".document") && document.snapshot().sha256().equals(data.getProperty(k)))) {
                 uncertain = true; text.append("SUSPECTED DUPLICATE member ").append(member.index()).append(" inconsistent document/reference evidence\n");
             }
-            for (var owner : client.getPortfolios()) for (var existing : owner.getTransactions()) {
-                if (resembles(existing, proposed) || ("Vorgangs-Nr.: " + member.brokerReference()).equals(existing.getNote())) {
+            if (member.trade() != null) for (var owner : client.getPortfolios()) for (var existing : owner.getTransactions()) {
+                if (resembles(existing, member.trade().entry().getPortfolioTransaction()) || ("Vorgangs-Nr.: " + member.brokerReference()).equals(existing.getNote())) {
                     uncertain = true; text.append("SUSPECTED DUPLICATE member ").append(member.index()).append(" existing transaction ")
                             .append(existing.getUUID()).append(" in securities account ").append(owner.getUUID()).append('\n');
                 }
             }
-            for (var earlier : additions) if (resembles(earlier.trade().entry().getPortfolioTransaction(), proposed)) {
+            if (member.dividend() != null) for (var owner : client.getAccounts()) for (var existing : owner.getTransactions()) {
+                if (resembles(existing, member.cashTransaction()) || ("Vorgangs-Nr.: " + member.brokerReference()).equals(existing.getNote())) {
+                    uncertain = true; text.append("SUSPECTED DUPLICATE member ").append(member.index()).append(" existing transaction ")
+                            .append(existing.getUUID()).append(" in cash account ").append(owner.getUUID()).append('\n');
+                }
+            }
+            for (var earlier : additions) if (member.trade() != null && earlier.trade() != null
+                    ? resembles(earlier.trade().entry().getPortfolioTransaction(), member.trade().entry().getPortfolioTransaction())
+                    : member.dividend() != null && earlier.dividend() != null && resembles(earlier.cashTransaction(), member.cashTransaction())) {
                 uncertain = true; text.append("SUSPECTED DUPLICATE member ").append(member.index()).append(" resembles document member ").append(earlier.index()).append('\n');
             }
             additions.add(member);
             evidence.setProperty(key + "document", document.snapshot().sha256()); evidence.setProperty(key + "reference", member.brokerReference());
-            evidence.setProperty(key + "signature", signature); evidence.setProperty(key + "trade", proposed.getUUID());
-            evidence.setProperty(key + "cash", entry.getAccountTransaction().getUUID());
+            evidence.setProperty(key + "signature", signature); evidence.setProperty(key + "kind", member.type());
+            if (member.trade() != null) evidence.setProperty(key + "trade", proposed.getUUID());
+            else evidence.remove(key + "trade");
+            evidence.setProperty(key + "cash", member.cashTransaction().getUUID());
         }
         if (uncertain) text.append("Document-wide --allow-suspected-duplicates required for application; financial validation still applies\n");
         return new Decision(additions, text.toString(), uncertain, new Update(file, metadataInput, evidence, document.snapshot()));

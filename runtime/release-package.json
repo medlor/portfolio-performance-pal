@@ -26,12 +26,14 @@
     }
   ],
   "layouts": [
-    "Baader synthetic domestic purchase/sale PDF/text v1 only",
+    "Baader synthetic domestic purchase/sale/dividend PDF/text v1 only",
     "baader-german-eur-purchase-flat-v1",
     "baader-german-eur-purchase-page1-of1-v1",
     "baader-german-eur-sale-flat-v1",
     "baader-german-eur-sale-page1-of1-v1",
-    "baader-german-eur-purchase-sale-page1-of1-v1"
+    "baader-german-eur-purchase-sale-page1-of1-v1",
+    "baader-german-eur-dividend-page1-of1-v1",
+    "baader-german-eur-purchase-dividend-page1-of1-v1"
   ],
   "bootstrapProtocol": 1,
   "features": [
@@ -58,6 +60,9 @@
     "duplicate-safe-import-bookkeeping-recovery",
     "baader-sale-pdf-preview",
     "atomic-baader-sale-pdf-application",
-    "same-timestamp-pdf-purchase-sale-admission"
+    "same-timestamp-pdf-purchase-sale-admission",
+    "baader-dividend-pdf-preview",
+    "atomic-baader-dividend-pdf-application",
+    "mixed-purchase-dividend-pdf-admission"
   ]
 }
