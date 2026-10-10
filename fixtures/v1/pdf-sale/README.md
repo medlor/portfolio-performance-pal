@@ -5,7 +5,8 @@ were not copied. Grammar is derived from the pinned
 [Baader extractor](https://github.com/portfolio-performance/portfolio/blob/8de1fe41d71a2c1b74a6bfbe913f885899aaf123/name.abuchen.portfolio/src/name/abuchen/portfolio/datatransfer/pdf/BaaderBankPDFExtractor.java)
 (EPL 1.0). These fixtures establish their exact synthetic German EUR profile,
 not support for real current Smartbroker statements. Other issuers, continuations,
-FX and dividend statement layouts remain unsupported.
+FX remains unsupported. Dividend support is defined separately by the
+[dividend fixture contract](../pdf-dividend/README.md).
 
 The sale heading is `Wertpapierabrechnung: Verkauf`, the booked credit is
 `Zu Gunsten Konto ... Valuta: ... EUR ...`, and authoritative credit equals gross
