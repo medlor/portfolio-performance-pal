@@ -36,3 +36,15 @@ Automate the mechanical procedure while keeping validation rules and expected fi
 `--update` activates a passing candidate automatically; it does not require `--apply`. Reserve `--apply` for recording financial changes. Update-only invocations leave the original portfolio unchanged. The source-built core recipe is proved for upstream 0.88.0; candidates use its reviewed archive-input variant with immutable revisions and verified digests. Unknown adapter changes stop the update.
 
 Use the selected upstream checkout's contributor instructions and persistence/model tests as starting points. Concrete upgrade records must link to pinned revisions and include reproducible validation commands.
+
+Sale PDF qualification uses the same pinned Portfolio Performance 0.88.0 source
+revision `8de1fe41d71a2c1b74a6bfbe913f885899aaf123`, Temurin 21.0.11+10 and
+Linux amd64 runtime. It retains ID-reference model70 roundtrips and protected
+transaction-only model69-to-70 migration. `tests/pdf-sale.sh` is the fourteenth
+mandatory candidate gate; all thirteen previous gates and independent expectations
+remain. The complete final-policy run, `bash tests/all.sh pp-pal:issue32-final`,
+passed in 1667 seconds. Exact development/released image identities and reproduction
+commands are recorded in [the support matrix](../runtime/support-matrix.json).
+Qualified sale grammar is fixture-scoped; the retained two-page current-layout
+sample remains unverified, so release qualification does not authorize that layout
+or additional migrations.
