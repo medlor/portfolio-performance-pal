@@ -13,11 +13,13 @@ import name.abuchen.portfolio.money.Values;
 public final class ObservedBaaderExtractor extends BaaderBankPDFExtractor {
     private final Map<Security, Map<String,String>> identities = new IdentityHashMap<>();
     private boolean explicitTime;
+    private boolean exchangeRatePresent;
     private boolean feesPresent;
     private boolean taxesPresent;
 
     public ObservedBaaderExtractor() { super(new Client()); }
     public Map<String,String> identity(Security security) { return identities.get(security); }
+    public boolean exchangeRatePresent() { return exchangeRatePresent; }
     public boolean explicitTime() { return explicitTime; }
     public boolean feesPresent() { return feesPresent; }
     public boolean taxesPresent() { return taxesPresent; }
@@ -43,6 +45,11 @@ public final class ObservedBaaderExtractor extends BaaderBankPDFExtractor {
         var result = super.asDate(date, time);
         explicitTime = true;
         return result;
+    }
+
+    @Override protected BigDecimal asExchangeRate(String value) {
+        exchangeRatePresent = true;
+        return super.asExchangeRate(value);
     }
 
     @Override protected long asShares(String value) {
