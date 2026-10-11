@@ -19,6 +19,12 @@ import threading
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+if not os.environ.get('PP_PAL_TEST_BUDGET'):
+    os.execv(sys.executable, [sys.executable, str(ROOT/'tests/run.py'), '--',
+                             sys.executable, str(pathlib.Path(__file__).resolve()), *sys.argv[1:]])
+sys.path.insert(0, str(ROOT / 'tools'))
+from test_jobs import parallel_cases
+
 IMAGE = sys.argv[1] if len(sys.argv) > 1 else os.environ.get('PP_PAL_IMAGE', 'pp-pal:0.88.0')
 
 class ReleaseServer(http.server.ThreadingHTTPServer):
@@ -220,11 +226,15 @@ with released_work() as temporary, server() as api:
         classes = work / 'baseline-oracle-classes'
         subprocess.run([sys.executable, str(ROOT/'tests/oracle.py'), '--compile', IMAGE, str(classes)], check=True)
         baseline_env['PP_PAL_TEST_CLASSES'] = str(classes)
-        for gate in ('runtime', 'holdings', 'history', 'backups'):
+        def baseline_gate(gate):
+            environment = dict(baseline_env, PP_PAL_STATE_DIR=str(work / ('baseline-state-' + gate)))
             started = time.monotonic()
             print('BASELINE CHECK START ' + gate, flush=True)
-            subprocess.run(['bash', str(ROOT/'tests'/f'{gate}.sh')], env=baseline_env, check=True)
-            print(f'BASELINE CHECK END {gate} elapsed={time.monotonic()-started:.2f}s', flush=True)
+            try:
+                subprocess.run(['bash', str(ROOT/'tests'/f'{gate}.sh')], env=environment, check=True)
+            finally:
+                print(f'BASELINE CHECK END {gate} elapsed={time.monotonic()-started:.2f}s', flush=True)
+        parallel_cases(baseline_gate, ('runtime', 'holdings', 'history', 'backups'))
     revision = released_snapshot(work, api, mutate=marker)
     upstream_release(api)
     result = run(work, api, '--update', '--file', str(selected))
@@ -680,6 +690,16 @@ with released_work() as temporary, server() as api:
     check((work / 'state/active.json').read_bytes() == before, 'Unsupported host bootstrap change activated')
     check(selected.read_bytes() == original, 'Host bootstrap rejection changed portfolio')
     print('PASS changed host bootstrap is rejected explicitly while retaining the released engine pair')
+
+    def changed_scheduler(package):
+        target = package / 'tools/test_jobs.py'
+        target.write_text(target.read_text() + '\n# changed released scheduling helper\n')
+    released_snapshot(work, api, tag='v0.3.1', mutate=changed_scheduler)
+    result = run(work, api, '--update', '--file', str(selected))
+    check(result.returncode == 3 and 'trusted-bootstrap maintenance' in result.stderr, result.stderr)
+    check((work / 'state/active.json').read_bytes() == before, 'Unsupported scheduling helper activated')
+    check(selected.read_bytes() == original, 'Scheduling helper rejection changed portfolio')
+    print('PASS changed host scheduling helper is rejected while retaining the released engine pair')
 
     retained_id = subprocess.check_output(['docker', 'image', 'inspect', active['image'], '--format', '{{.Id}}'], text=True).strip()
     check(retained_id == active['image'], 'Earlier active immutable image vanished after newer builds')

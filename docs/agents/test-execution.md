@@ -69,8 +69,23 @@ monitoring, inspect gate summaries and targeted failure excerpts. Run the full
 cumulative suite before committing execution changes, report elapsed time, and
 compare the gate registry and existing assertion coverage to verify that no
 tests were removed.
-Qualification runs the first cheap gate alone, then bounded pairs with two
-workers. Each gate owns its state, update lock, qualification socket, and an
-identical private release copy (qualification attacks mutate its contents);
-trusted classes are shared readonly. Keep this isolation when adding parallel
-work, and stop scheduling later gates after a failed batch.
+Qualification runs holdings alone, then a bounded rolling queue. Each gate owns
+its state, update lock, qualification socket, and an identical private release
+copy (qualification attacks mutate its contents); trusted classes are shared
+readonly. Baseline gates also own separate state directories. Drain active work
+after a failure and stop admitting later gates or cases.
+
+All shell test entry points and direct updater/oracle invocations use
+`tests/run.py`. Preserve its inherited Docker boundary: one shared budget covers
+all nested modules, cases, oracles, and validation containers. Build jobs take
+the entire budget. Modules acquire slots only for expensive child operations;
+holding a slot while waiting for children would deadlock the suite.
+
+Use `PP_PAL_TEST_JOBS=1` for serial execution or request a larger maximum with
+that variable. The runner clamps the request against CPU and available memory,
+applies per-container resource limits, and retains a host-memory reserve. Read
+`docs/test-suite-performance.md` before tuning resource limits or benchmarking.
+Independent cases may use `tools/test_jobs.py`; give each case private mutable
+files and preserve preview/apply/oracle dependencies within the case. Include
+new harness dependencies in the trusted validation bundle and enforce bootstrap
+identity for host scheduling helpers.

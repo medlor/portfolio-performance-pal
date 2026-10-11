@@ -2,9 +2,9 @@
 """Host-only release/download/cache orchestration. Java owns financial semantics."""
 import fcntl
 import contextlib
-import concurrent.futures
 import datetime
 import hashlib
+import importlib.util
 import json
 import os
 import pathlib
@@ -22,6 +22,11 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+
+# Released/trusted trees are immutable qualification inputs. Importing the
+# scheduling helper must not add bytecode files and invalidate their digests.
+sys.dont_write_bytecode = True
+from test_jobs import parallel_cases
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 WRAPPER = 'medlor/portfolio-performance-pal'
@@ -166,7 +171,7 @@ def trusted_bundle(state):
             registry = json.loads((ROOT / 'runtime/candidate-gates.json').read_text())
             for name in ('fixtures', 'runtime/src/test/java'):
                 shutil.copytree(ROOT / name, temporary / name)
-            for name in [*registry['checks'], 'runtime/candidate-gates.json', 'runtime/release-package.json', 'tests/oracle.py']:
+            for name in [*registry['checks'], 'runtime/candidate-gates.json', 'runtime/release-package.json', 'tests/oracle.py', 'tests/run.py', 'tools/test_jobs.py']:
                 destination = temporary / name
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(ROOT / name, destination)
@@ -285,10 +290,10 @@ def extract_wrapper(archive, directory, trusted_root):
                     target.chmod(0o755 if name in ('pp-pal', 'tools/run-container') else 0o644)
     except (tarfile.TarError, OSError) as failure:
         raise UpdateError('Cannot unpack released wrapper snapshot') from failure
-    for name in ('pp-pal', 'tools/update.py', 'tools/run-container', 'Dockerfile', 'runtime/release-package.json'):
+    for name in ('pp-pal', 'tools/update.py', 'tools/test_jobs.py', 'tools/run-container', 'Dockerfile', 'runtime/release-package.json'):
         if not (directory / name).is_file():
             raise UpdateError('Released wrapper lacks the required bootstrap package: ' + name)
-    for name in ('pp-pal', 'tools/update.py'):
+    for name in ('pp-pal', 'tools/update.py', 'tools/test_jobs.py'):
         if (directory / name).read_bytes() != (ROOT / name).read_bytes():
             raise UpdateError('Released host bootstrap/validator changed; manual trusted-bootstrap maintenance required')
     policy = json.loads((directory / 'runtime/release-package.json').read_text())
@@ -379,10 +384,19 @@ def qualifying_validator(temporary, qualification):
             thread.join(timeout=2)
 
 def fixed_checks(package, image, registry, trusted_root, qualification):
+    # Import only the independent trusted runner, never a candidate-owned copy.
+    spec = importlib.util.spec_from_file_location('pp_pal_test_runner', trusted_root / 'tests/run.py')
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    with runner.test_environment() as test_environment:
+        return fixture_checks(package, image, registry, trusted_root, qualification, test_environment)
+
+
+def fixture_checks(package, image, registry, trusted_root, qualification, test_environment):
     with tempfile.TemporaryDirectory(prefix='pp-pal-gate-oracles-') as temporary:
         classes = pathlib.Path(temporary) / 'classes'
         execute([sys.executable, str(trusted_root / 'tests/oracle.py'), '--compile',
-                 qualification['baselineImage'], str(classes)])
+                 qualification['baselineImage'], str(classes)], test_environment)
         def gate(check):
             # Each gate owns its state/lock/socket; trusted test classes are mounted readonly.
             with tempfile.TemporaryDirectory(prefix='pp-pal-gate-state-') as gate_directory:
@@ -397,7 +411,7 @@ def fixed_checks(package, image, registry, trusted_root, qualification):
                 if tree_digest(gate_package) != qualification['wrapper']['treeSha256']:
                     raise UpdateError('Candidate gate package differs from qualified release')
                 gate_qualification = dict(qualification, launcher=str(gate_package / 'pp-pal'))
-                environment = launch_environment(image)
+                environment = dict(test_environment, PP_PAL_IMAGE=image)
                 environment.update(PP_PAL_LAUNCHER=str(gate_package / 'pp-pal'),
                                    PP_PAL_BEHAVIOR_LAUNCHER=str(gate_package / 'tools/run-container'),
                                    PP_PAL_TEST_CLASSES=str(classes), PP_PAL_STATE_DIR=gate_directory,
@@ -413,13 +427,10 @@ def fixed_checks(package, image, registry, trusted_root, qualification):
                         print(f'CHECK END {check} elapsed={elapsed:.2f}s', flush=True)
                     return elapsed, check
         checks = registry['checks']
-        # Run the earliest cheap gate alone, then bounded pairs. A failed pair
-        # completes its in-flight work and prevents later expensive gates starting.
+        # Holdings remains the prerequisite; replace fixed pairs with a rolling
+        # queue that drains active gates and stops admission after a failure.
         durations = [gate(checks[0])]
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as workers:
-            for index in range(1, len(checks), 2):
-                batch = [workers.submit(gate, check) for check in checks[index:index + 2]]
-                durations.extend(future.result() for future in batch)
+        durations.extend(parallel_cases(gate, checks[1:]))
         print('CHECK SUMMARY slowest: ' + ', '.join(
             f'{check}={elapsed:.2f}s' for elapsed, check in sorted(durations, reverse=True)[:3]), flush=True)
 

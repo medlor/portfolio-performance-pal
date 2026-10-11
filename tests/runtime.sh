@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
+  exec python3 "$root/tests/run.py" -- bash "$root/tests/runtime.sh" "$@"
+fi
 cd "$(dirname "$0")/.."
 image=${PP_PAL_IMAGE:-pp-pal:0.88.0}
 work=$(mktemp -d)

@@ -13,6 +13,9 @@ bash tests/all.sh
 ./pp-pal history --file '/path/to/portfolio.xml' --type sale --from 2025-01-01 --limit 0
 ```
 
+Tests share a resource budget across modules and cases; set `PP_PAL_TEST_JOBS=1`
+for serial execution. See [test concurrency and resource limits](docs/test-suite-performance.md).
+
 The launcher fixes the selected local image identity for each invocation. A read-only Java container resolves configuration, then a short-lived command container reads the selected portfolio with the host UID/GID. Java reuses upstream persistence, financial models and PDF extraction. Images stay local; no wrapper image is published. [Headless build evidence and limits](docs/headless-runtime.md) and the [support matrix](runtime/support-matrix.json) record the tested upstream 0.88.0, ID-reference XML model 70, Linux amd64 combination.
 
 The default portfolio is `portfolio_performance.xml` in the working directory. Discover `pp-pal.properties` there or select another with `--config`. Its UTF-8 Java Properties keys are `file`, `securities-account`, and `cash-account`; configured relative file paths resolve from the configuration directory, while explicit `--file` paths resolve from the working directory. Account selectors accept a stable ID or exact unique name. Save resolved account IDs explicitly:

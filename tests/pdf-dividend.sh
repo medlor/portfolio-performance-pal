@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
+  exec python3 "$root/tests/run.py" -- bash "$root/tests/pdf-dividend.sh" "$@"
+fi
 if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
-root=$(cd "$(dirname "$0")/.." && pwd)
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -18,8 +21,11 @@ rg -q '^APPLIED PDF DIVIDEND DOCUMENT$' applied
 launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-container}
 export PP_PAL_TEST_ROOT="$root" PP_PAL_DIVIDEND_LAUNCHER="$launcher"
 python3 -u - <<'PY'
+import sys
 import json, os, pathlib, subprocess, tempfile, socket, threading
 ROOT=pathlib.Path(os.environ['PP_PAL_TEST_ROOT']); LAUNCHER=os.environ['PP_PAL_DIVIDEND_LAUNCHER']; IMAGE=os.environ['PP_PAL_IMAGE']
+sys.path.insert(0, str(ROOT/'tools'))
+from test_jobs import parallel_cases
 SOURCE=(ROOT/'fixtures/v1/portfolio.xml').read_bytes()
 FACTS=json.loads((ROOT/'fixtures/v1/pdf-dividend/expected.json').read_text())
 def expect(r,code,text):
@@ -40,7 +46,7 @@ def oracle(w,name,cash_id=None):
     expect(r,0,'PASS saved PDF dividend/mixed batch')
 with tempfile.TemporaryDirectory(prefix='pp-pal-pdf-dividend-') as tmp:
     base=pathlib.Path(tmp)
-    for name in ('basic','missing-gross','two-dividends','mixed'):
+    def check_document(name):
         w=fresh(base,name)
         expect(run(w,name),0,'PREVIEW PDF ')
         assert (w/'portfolio.xml').read_bytes()==SOURCE and not list(w.glob('*.????-??-??.bak')) and not (w/'portfolio.xml.pp-pal-imports.properties').exists()
@@ -50,6 +56,7 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-pdf-dividend-') as tmp:
         for override in (False,True):
             expect(run(w,name,True,override),0,'SKIPPED PDF ')
             assert (w/'portfolio.xml').read_bytes()==saved and (w/'portfolio.xml.pp-pal-imports.properties').read_bytes()==evidence
+    parallel_cases(check_document, ('basic','missing-gross','two-dividends','mixed'))
     for name,time in [('explicit','09:30:00'),('midnight','00:00:00')]:
         w=fresh(base,name)
         expect(run(w,name,True,True,extra=('--time',time)),0,'APPLIED PDF ')

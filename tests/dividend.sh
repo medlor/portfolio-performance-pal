@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
+  exec python3 "$root/tests/run.py" -- bash "$root/tests/dividend.sh" "$@"
+fi
 if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
-root=$(cd "$(dirname "$0")/.." && pwd)
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 export PP_PAL_NOW=2026-10-08T12:00:00Z
 work=$(mktemp -d)

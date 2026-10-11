@@ -22,6 +22,9 @@ def compile_classes(image, destination):
 
 
 if __name__ == '__main__':
+    if not os.environ.get('PP_PAL_TEST_BUDGET'):
+        os.execv(sys.executable, [sys.executable, str(ROOT/'tests/run.py'), '--',
+                                 sys.executable, str(pathlib.Path(__file__).resolve()), *sys.argv[1:]])
     if sys.argv[1] == '--compile':
         compile_classes(sys.argv[2], sys.argv[3])
     else:
