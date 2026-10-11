@@ -163,7 +163,9 @@ public final class PdfTrades {
                     String origin = date.equals(time) ? date + " date and time" : date + " date; " + time + (time.equals("SUPPLEMENT") ? " time" : "");
                     line = line.substring(0,line.indexOf(" (")) + " (" + origin + ")";
                 } else if (line.startsWith("EXCHANGE RATE ")) {
-                    line = line.substring(0,line.indexOf(" (")) + " (PDF; Portfolio Performance conversion)";
+                    line = line.substring(0,line.indexOf(" (")) + " (" + member.origins().get("exchange-rate") + "; Portfolio Performance conversion)";
+                } else if (line.startsWith("FOREIGN GROSS ") && !line.startsWith("FOREIGN GROSS ORIGIN ") && member.origins().containsKey("forex-gross")) {
+                    line += " (" + member.origins().get("forex-gross") + ")";
                 } else {
                     var fields = Map.of("QUANTITY ","quantity","PRICE ","price","GROSS ","gross","FEES ","fees","TAXES ","taxes","BOOKED DEBIT ","total","BOOKED CREDIT ","total");
                     for (var field : fields.entrySet()) if (line.startsWith(field.getKey()) && member.origins().containsKey(field.getValue()))

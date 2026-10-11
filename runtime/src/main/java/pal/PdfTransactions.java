@@ -75,10 +75,22 @@ final class PdfTransactions {
         } else { dividend.setDateTime(timestamp); dividend.setSource(filename); }
         // The model's booked amount stays authoritative. PP calculates domestic
         // gross and unit price from it; ignored printed fields are never reparsed.
+        var forex = tx.getUnit(Transaction.Unit.Type.GROSS_VALUE).orElse(null);
+        String exchangeOrigin = "PDF";
+        if (forex == null && !tx.getCurrencyCode().equals(selected.getCurrencyCode())) {
+            if (extractor.exchangeRatePresent())
+                throw PdfTrades.rejected(index,"PP extracted exchange information without a usable gross unit; supplementation cannot replace it");
+            var exchange = ForeignExchange.from(command, tx.getCurrencyCode(), selected.getCurrencyCode());
+            Long foreign = command.flag("forex-gross") ? Amounts.money(command.value("forex-gross"),"forex-gross") : null;
+            forex = exchange.grossUnit(tx.getGrossValue().getAmount(), foreign);
+            tx.addUnit(forex);
+            exchangeOrigin = "SUPPLEMENT";
+            origins.put("forex-gross",foreign == null ? "derived from booked, costs and supplied rate" : "SUPPLEMENT");
+        }
+        origins.put("exchange-rate",exchangeOrigin);
         assertMoney(command,"total",tx.getAmount(),index);
         assertMoney(command,"gross",tx.getGrossValue().getAmount(),index);
         if (command.flag("quantity") && Amounts.scaled(command.value("quantity"),Values.Share.precision(),"quantity",entry != null) != tx.getShares()) throw conflict(index,"quantity");
-        var forex = tx.getUnit(Transaction.Unit.Type.GROSS_VALUE).orElse(null);
         if (command.flag("forex-gross") && (forex == null || forex.getForex() == null
                 || Amounts.money(command.value("forex-gross"),"forex-gross") != forex.getForex().getAmount())) throw conflict(index,"forex-gross");
         if (command.flag("exchange-rate") && (forex == null || new BigDecimal(command.value("exchange-rate")).compareTo(forex.getExchangeRate()) != 0)) throw conflict(index,"exchange-rate");
@@ -87,7 +99,8 @@ final class PdfTransactions {
         String reference = reference(note);
         origins.put("reference",reference == null ? "DOCUMENT" : "PDF");
         if (reference == null) reference = "sha256:" + documentHash + ":member:" + index;
-        String grossOrigin = forex != null ? "PP foreign gross" : "PP derived from booked and costs";
+        String grossOrigin = exchangeOrigin.equals("SUPPLEMENT") ? "PP derived from booked and costs; supplied conversion"
+                : forex != null ? "PP foreign gross" : "PP derived from booked and costs";
         origins.put("gross",grossOrigin);
         long fees = tx.getUnitSum(Transaction.Unit.Type.FEE).getAmount(), taxes = tx.getUnitSum(Transaction.Unit.Type.TAX).getAmount();
         if (entry != null) {
@@ -96,12 +109,12 @@ final class PdfTransactions {
             var price = BigDecimal.valueOf(quote.getAmount(),Values.Quote.precision());
             if (command.flag("price") && new BigDecimal(command.value("price")).compareTo(price) != 0) throw conflict(index,"price (PP derived)");
             var amounts = new Amounts.Purchase(tx.getShares(),price,tx.getGrossValue().getAmount(),fees,taxes,tx.getAmount(),
-                    "PP derived from gross / quantity",grossOrigin,"PDF",origins.get("fees"),origins.get("taxes"),forex,"PDF");
+                    "PP derived from gross / quantity",grossOrigin,"PDF",origins.get("fees"),origins.get("taxes"),forex,exchangeOrigin);
             return new PdfTrades.Member(index,reference,new Purchase.Plan(entry,amounts,fallback),null,origins);
         }
         if (command.flag("price")) throw PdfTrades.rejected(index,"PP does not extract a dividend unit price; --price cannot supplement it");
         var amounts = new Amounts.Dividend(tx.getGrossValue().getAmount(),fees,taxes,tx.getAmount(),grossOrigin,"PDF",
-                origins.get("fees"),origins.get("taxes"),forex,"PDF");
+                origins.get("fees"),origins.get("taxes"),forex,exchangeOrigin);
         return new PdfTrades.Member(index,reference,null,new Dividend.Plan(cash,dividend,amounts,fallback),origins);
     }
 

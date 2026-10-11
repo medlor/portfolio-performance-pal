@@ -35,7 +35,9 @@
     "baader-german-eur-dividend-page1-of1-v1",
     "baader-german-eur-purchase-dividend-page1-of1-v1",
     "baader-pp-authoritative-complete-page-sequences-v1",
-    "baader-synthetic-eur-usd-purchase-dividend-v1"
+    "baader-synthetic-eur-usd-purchase-dividend-v1",
+    "baader-synthetic-eur-usd-purchase-sale-dividend-v1",
+    "baader-synthetic-mixed-fx-page-sequences-v1"
   ],
   "bootstrapProtocol": 1,
   "features": [
@@ -68,6 +70,9 @@
     "mixed-purchase-dividend-pdf-admission",
     "pp-authoritative-pdf-extraction",
     "pp-import-actions",
-    "pp-holdings-and-dividend-relevance"
+    "pp-holdings-and-dividend-relevance",
+    "baader-foreign-currency-pdf-import",
+    "single-statement-missing-fx-supplement",
+    "atomic-mixed-purchase-sale-dividend-fx-pdf"
   ]
 }
