@@ -63,3 +63,9 @@ Kurswert must reject rather than be treated as missing. Zero/overprecision, repe
 costs, malformed time and conflicting identifiers are hard failures. Existing
 ambiguous-security fixtures test joint identifier resolution and stable-ID choice.
 All previews and rejections preserve portfolio, document and opaque import metadata.
+
+Current-layout evidence was added separately on 2026-10-11 in the
+[current-layout contract](../smartbroker-current/README.md) and mandatory
+`tests/smartbroker-current.sh` gate. These earlier fixture notes retain the scope
+and limitations of their historical validation; they do not describe the new
+complete purchase, sale and CHF-distribution specimens.

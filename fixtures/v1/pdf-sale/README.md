@@ -57,6 +57,12 @@ The retained `samples/Smartbroker_Sell.pdf` was inspected locally through pinned
 PDF conversion during review. It uses a different two-page continuation profile
 and has no readable `Vorgangs-Nr.` member reference. Its private identities and
 financial contents were not copied into these fixtures or validation evidence.
-It remains unsupported: this release does not establish that retained layout's
-current-statement compatibility. A complete anonymized representative specimen
-is still required before claiming support for that layout.
+That retained sample was not qualified by the historical synthetic gate. The
+later complete current specimens are documented separately below; their evidence
+does not establish compatibility for every retained reference sample.
+
+Current-layout evidence was added separately on 2026-10-11 in the
+[current-layout contract](../smartbroker-current/README.md) and mandatory
+`tests/smartbroker-current.sh` gate. These earlier fixture notes retain the scope
+and limitations of their historical validation; they do not describe the new
+complete purchase, sale and CHF-distribution specimens.

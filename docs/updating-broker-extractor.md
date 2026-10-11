@@ -47,11 +47,15 @@ identity/recovery checks when changing extraction. Bind the existing security to
 the disclosed timestamp policy. `tests/upstream-reuse.sh` compares original PP
 extraction with plans and saved outputs; no second bank parser is permitted. All earlier layout gates stay
 mandatory. Synthetic rendered PDFs prove conversion and their exact grammar;
-complete representative current-layout evidence is still required before claiming
-real Smartbroker dividend support. The supplied local CHF reference has one physical page marked `Seite 1/2`; it
-cannot qualify a complete current layout. A missing broker reference alone is no
-longer a rejection: exact document identity handles that case. Pinned extraction recognizes its dividend, but wrapper refusal preserves
-financial bytes; do not treat extraction success as rewrite or layout-coverage proof.
+complete representative current-layout evidence is required before claiming
+real Smartbroker dividend support. The initial local CHF reference was physically
+incomplete and could not qualify a layout. The later complete private specimens
+supply the evidence recorded in the [current-layout contract](../fixtures/v1/smartbroker-current/README.md).
+`tests/smartbroker-current.sh` qualifies the reconstructed anonymized purchase,
+complete sale/CHF-distribution continuations and their mixed-document combination.
+A missing broker reference alone is no longer a rejection: exact document identity
+handles that case. Extraction success alone remains insufficient to establish
+rewrite safety or physical completeness.
 
 
 Foreign-currency/mixed changes must pass `tests/pdf-fx.sh` as well as all retained

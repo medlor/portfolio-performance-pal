@@ -23,3 +23,9 @@ sha256sum *.pdf *.txt > SHA256SUMS
 
 See [the reuse boundary](../../../docs/upstream-reuse.md) for the approved change
 from independently parsing and validating every printed field to PP authority.
+
+Current-layout evidence was added separately on 2026-10-11 in the
+[current-layout contract](../smartbroker-current/README.md) and mandatory
+`tests/smartbroker-current.sh` gate. These earlier fixture notes retain the scope
+and limitations of their historical validation; they do not describe the new
+complete purchase, sale and CHF-distribution specimens.

@@ -5,3 +5,4 @@ portfolio_performance.xml
 runtime/build-inputs/
 __pycache__/
 rollout*.html
+private/*

@@ -1,0 +1,44 @@
+Baader Bank AG
+Smartbroker AG
+Seite 1/2
+Vorgangs-Nr.: CURRENT-DIV-001
+Referenz-Nr.: FIXTURE-003
+Fondsausschüttung
+Ex-Tag: 04.03.2025
+Nominale ISIN: CH0000000003 WKN: TEST03 Ausschüttung
+STK 10 Synthetic Franc Instrument CHF 2,00 p.STK
+Zahlungszeitraum: 01.01.2024 - 31.12.2024
+Zahltag: 05.03.2025
+Umrechnungskurs: EUR/CHF 1,25000
+Bruttobetrag CHF 20,00
+Bruttobetrag EUR 16,00
+Kapitalertragsteuer EUR 1,00 -
+Solidaritätszuschlag EUR 0,05 -
+Quellensteuer EUR 3,00 -
+Zu Gunsten Konto 0000000001 Valuta: 05.03.2025 EUR 11,95
+Dieses Dokument wurde maschinell erstellt und wird nicht unterschrieben.
+smartbrokerplus.de
+Baader Bank AG
+Fondsausschüttung
+Fortsetzung: Seite 2/2
+Darstellung der steuerlichen Berechnungsgrundlagen:
+Merkposten / Steuertöpfe vorher Erhöhung/Reduktion nachher
+Kapitalertragsteuer EUR 0,00 EUR 1,00 EUR 1,00
+Kapitalertragsteuer EUR 1,00 EUR 0,00 - EUR 1,00
+Quellensteuer-Anrechnung
+angerechnete QueSt. allg. Erträge EUR 0,00 EUR 3,00 EUR 3,00
+Bemessungsgrundlagen Steuerpflicht brutto Steuerpflicht netto
+Ausschüttung Aktienfonds vor Teilfreistellung EUR 16,00 EUR 11,95
+Ausschüttung Aktienfonds nach Teilfreistellung EUR 16,00 EUR 11,95
+Bemessungsgrundlage zur Kapitalertragsteuer EUR 16,00 EUR 11,95
+anrechenbare Quellensteuer EUR 3,00 - EUR 3,00 -
+Quellensteuer-Anrechnung EUR 3,00 - EUR 3,00 -
+Steuerbeträge
+Kapitalertragsteuer 25,00 % EUR 1,00 - EUR 1,00 -
+Solidaritätszuschlag 5,00 % EUR 0,05 - EUR 0,05 -
+Kapitalertragsteuer 25,00 % EUR 0,00 EUR 0,00
+Solidaritätszuschlag 5,00 % EUR 0,00 EUR 0,00
+Quellensteuer 15,00 % EUR 3,00 - EUR 3,00 -
+rückforderbarer Steuerbetrag EUR 0,00 - EUR 0,00 -
+Dieses Dokument wurde maschinell erstellt und wird nicht unterschrieben.
+smartbrokerplus.de

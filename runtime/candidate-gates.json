@@ -17,6 +17,7 @@
     "tests/pdf-dividend.sh",
     "tests/upstream-reuse.sh",
     "tests/pdf-fx.sh",
+    "tests/smartbroker-current.sh",
     "tests/sale.sh",
     "tests/dividend.sh"
   ]

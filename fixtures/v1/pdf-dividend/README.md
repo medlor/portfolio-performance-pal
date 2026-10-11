@@ -21,8 +21,9 @@ They do not establish current owner Smartbroker layout support. The supplied loc
 page labeled `Seite 1/2` and no readable broker reference. Pinned upstream extraction
 recognizes a dividend and security definition without extraction errors; the wrapper
 refuses the unproved page coverage and preserves the disposable portfolio bytes.
-This reference cannot qualify the complete German EUR profile. Real current-layout
-verification in #33 remains open; foreign-currency PDF imports belong to #34.
+This reference cannot qualify the complete German EUR profile. At that historical qualification, current-layout
+verification in #33 remained open; the later complete specimens and FX evidence
+are recorded in the current-layout contract below.
 The original reference is kept local and is not a committed fixture.
 
 Each member has a broker reference, ISIN/WKN, STK quantity and per-share
@@ -63,3 +64,9 @@ Pinned runtime: upstream 0.88.0 revision
 `8de1fe41d71a2c1b74a6bfbe913f885899aaf123`, PDFBox 3.0.8, Temurin 21.0.11+10,
 Linux amd64, ID-reference model70 and protected transaction-only model69-to-70.
 Exact image and cumulative evidence are recorded after validation in the support matrix.
+
+Current-layout evidence was added separately on 2026-10-11 in the
+[current-layout contract](../smartbroker-current/README.md) and mandatory
+`tests/smartbroker-current.sh` gate. These earlier fixture notes retain the scope
+and limitations of their historical validation; they do not describe the new
+complete purchase, sale and CHF-distribution specimens.
