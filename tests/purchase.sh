@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
+  exec python3 "$root/tests/run.py" -- bash "$root/tests/purchase.sh" "$@"
+fi
 if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
-root=$(cd "$(dirname "$0")/.." && pwd)
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -85,11 +88,36 @@ reject --quantity 1 --price 10 --security unknown
 reject --quantity 1 --price 10 --security-id 00000000-0000-4000-8000-000000000002
 reject --quantity 1 --price 10 --cash-account missing
 reject --quantity 1 --price 10 --apply
-for fact in '1 1.005 1.01' '1 1.00499999 1.00' '3 0.335 1.01' '3 0.33333333 1.00' '0.00000001 100000000 1.00' '1.23456789 12.34567890 15.24' '12345678.12345678 12.34567890 152415777.91' '92233720368.54775807 0.01 922337203.69' '1 0.00000001 0.00'; do
-  read -r quantity price expected <<< "$fact"
-  purchase --quantity "$quantity" --price "$price" > boundary-preview
-  rg -Fq "GROSS EUR $expected (derived" boundary-preview
-done
+python3 - "$root" "$launcher" "$work" <<'PYCASES'
+import pathlib, subprocess, sys
+root, launcher, work = map(pathlib.Path, sys.argv[1:])
+sys.path.insert(0, str(root/'tools'))
+from test_jobs import parallel_cases
+facts = [
+    ('1', '1.005', '1.01'),
+    ('1', '1.00499999', '1.00'),
+    ('3', '0.335', '1.01'),
+    ('3', '0.33333333', '1.00'),
+    ('0.00000001', '100000000', '1.00'),
+    ('1.23456789', '12.34567890', '15.24'),
+    ('12345678.12345678', '12.34567890', '152415777.91'),
+    ('92233720368.54775807', '0.01', '922337203.69'),
+    ('1', '0.00000001', '0.00'),
+]
+def check_rounding(case):
+    index,(quantity,price,expected) = case
+    directory = work / f'rounding-{index}'
+    directory.mkdir()
+    source = (root/'fixtures/v1/portfolio.xml').read_bytes()
+    (directory/'portfolio.xml').write_bytes(source)
+    result = subprocess.run([str(launcher),'purchase','--file','portfolio.xml',
+        '--security','DE0000000001','--securities-account','Synthetic Securities A',
+        '--cash-account','Synthetic Cash A','--date','2025-03-01',
+        '--quantity',quantity,'--price',price],cwd=directory,text=True,capture_output=True)
+    assert result.returncode == 0 and f'GROSS EUR {expected} (derived' in result.stdout, result.stdout+result.stderr
+    assert (directory/'portfolio.xml').read_bytes() == source
+parallel_cases(check_rounding, enumerate(facts))
+PYCASES
 purchase --quantity 2.500000000 --price 10.000000000 --fees 1.000 --time 00:00:00 > midnight-preview
 rg -Fq 'DATE 2025-03-01T00:00:00 (supplied date and time)' midnight-preview
 purchase --quantity 1 --price 10 --time 12:34:56.123456789 > nanos-preview

@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
+  exec python3 "$root/tests/run.py" -- bash "$root/tests/upstream-reuse.sh" "$@"
+fi
 if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
-root=$(cd "$(dirname "$0")/.." && pwd)
 launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-${PP_PAL_LAUNCHER:-$root/tools/run-container}}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 python3 - "$root" "$work" "$launcher" "$PP_PAL_IMAGE" <<'PY'
 import os,pathlib,subprocess,sys
 ROOT,BASE=map(pathlib.Path,sys.argv[1:3]); LAUNCHER,IMAGE=sys.argv[3:]
+sys.path.insert(0, str(ROOT/'tools'))
+from test_jobs import parallel_cases
 SOURCE=(ROOT/'fixtures/v1/portfolio.xml').read_bytes()
 def expect(r,code,text):
     assert r.returncode==code and text in r.stdout+r.stderr, f'{r.returncode}: {r.stdout}\n{r.stderr}'
@@ -35,7 +40,8 @@ cases=[
  ('pp-extraction/purchase-fx','2025-01-03T09:30:00'),
  ('pp-extraction/dividend-fx','2025-03-01T11:00:00'),
 ]
-for n,(name,date) in enumerate(cases):
+def check_document(case):
+    n,(name,date) = case
     w=BASE/str(n); w.mkdir(); (w/'portfolio.xml').write_bytes(SOURCE); (w/'before.xml').write_bytes(SOURCE)
     pdf=ROOT/'fixtures/v1'/f'{name}.pdf'
     expect(command(w,pdf),0,'PREVIEW PDF ')
@@ -55,6 +61,7 @@ for n,(name,date) in enumerate(cases):
             expect(command(w,changed,'--apply','--desktop-closed'),2,'--allow-suspected-duplicates')
             expect(command(w,pdf,'--time','12:00:00'),2,'confirmed document identity')
             assert (w/'portfolio.xml').read_bytes()==saved and (w/'portfolio.xml.pp-pal-imports.properties').read_bytes()==metadata
+parallel_cases(check_document, enumerate(cases))
 print('PASS direct PP oracle: ignored fields, midnight, footers, complete continuations, summed costs, no-reference identity and FX units survive saved imports/repeats',flush=True)
 w=BASE/'rejects';w.mkdir();(w/'portfolio.xml').write_bytes(SOURCE)
 for name,extra in [

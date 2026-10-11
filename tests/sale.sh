@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
+  exec python3 "$root/tests/run.py" -- bash "$root/tests/sale.sh" "$@"
+fi
 if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
-root=$(cd "$(dirname "$0")/.." && pwd)
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -26,19 +29,21 @@ launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-container}
 python3 - "$root" "$launcher" "$work" <<'PY'
 import os, pathlib, subprocess, sys, xml.etree.ElementTree as ET
 root, launcher, work = map(pathlib.Path, sys.argv[1:])
+sys.path.insert(0, str(root/'tools'))
+from test_jobs import parallel_cases
 source = (root/'fixtures/v1/portfolio.xml').read_bytes()
 base = ['sale','--file','portfolio.xml','--security','DE0000000001','--securities-account','Synthetic Securities A','--cash-account','Synthetic Cash A','--date','2025-03-01','--quantity','2.5','--price','10','--fees','1','--taxes','.5']
-def run(changes=None, apply=False):
+def run(changes=None, apply=False, directory=work):
     values=dict(zip(base[1::2],base[2::2])); values.update(changes or {})
     args=['sale']+[item for key,value in values.items() if value is not None for item in (key,str(value))]
     if apply: args+=['--apply','--desktop-closed']
-    return subprocess.run([str(launcher),*args],text=True,capture_output=True)
+    return subprocess.run([str(launcher),*args],cwd=directory,text=True,capture_output=True)
 def expect(result, status, text):
     assert result.returncode==status and text in result.stdout+result.stderr, result.stdout+result.stderr
 def reset(content=source): (work/'portfolio.xml').write_bytes(content)
-def oracle(quantity, date):
+def oracle(quantity, date, directory=work):
     subprocess.run(['python3',str(root/'tests/oracle.py'),'run','--rm','--network','none','--user',f'{os.getuid()}:{os.getgid()}',
-        '-v',f'{root}/runtime/src/test/java:/tests:ro','-v',f'{work}:/work:ro',
+        '-v',f'{root}/runtime/src/test/java:/tests:ro','-v',f'{directory}:/work:ro',
         '--entrypoint','java',os.environ['PP_PAL_IMAGE'],'-cp','/opt/pp/classes:/opt/pp/lib/*',
         '/tests/pal/SaleAppliedOracle.java','/work/before.xml','/work/portfolio.xml',quantity,date],check=True)
 (work/'before.xml').write_bytes(source)
@@ -79,19 +84,24 @@ tree = ET.fromstring(source.replace(b'2025-02-02T11:00:01',b'2025-01-02T11:00'))
 transactions = tree.find(".//portfolio[@id='7']/transactions")
 transactions[:] = list(reversed(list(transactions)))
 tied = ET.tostring(tree)
-for content,options,quantity,date in [
+def check_applied(case):
+    number,(content,options,quantity,date) = case
+    directory = work / f'applied-{number}'
+    directory.mkdir()
+    (directory/'portfolio.xml').write_bytes(content)
+    (directory/'before.xml').write_bytes(content)
+    expect(run(options, directory=directory),0,'PREVIEW SALE')
+    assert (directory/'portfolio.xml').read_bytes()==content
+    expect(run(options,True,directory),0,'APPLIED SALE')
+    oracle(quantity,date,directory)
+parallel_cases(check_applied, enumerate([
     (source,{},'2.5','2025-03-01T11:00:01'),
     (source,{'--quantity':'6'},'6','2025-03-01T11:00:01'),
     (source,{'--date':'2025-01-03'},'2.5','2025-01-03T11:00:01'),
     (source,{'--date':'2025-01-02','--time':'11:00:00','--quantity':'6'},'6','2025-01-02T11:00:00'),
     (tied,{'--date':'2025-01-02','--time':'11:00:00','--quantity':'6'},'6','2025-01-02T11:00:00'),
     (source,{'--time':'00:00:00'},'2.5','2025-03-01T00:00:00'),
-    (source,{'--time':'12:34:56.123456789'},'2.5','2025-03-01T12:34:56.123456789')]:
-    reset(content); (work/'before.xml').write_bytes(content)
-    expect(run(options),0,'PREVIEW SALE')
-    assert (work/'portfolio.xml').read_bytes()==content
-    expect(run(options,True),0,'APPLIED SALE')
-    oracle(quantity,date)
+    (source,{'--time':'12:34:56.123456789'},'2.5','2025-03-01T12:34:56.123456789')]))
 print('PASS partial/full sale, valid backdating, same-time increases/decreases, explicit/fallback persistence',flush=True)
 reset()
 # The same security in another securities account cannot fund this sale.

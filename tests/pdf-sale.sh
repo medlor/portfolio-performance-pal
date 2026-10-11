@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
+  exec python3 "$root/tests/run.py" -- bash "$root/tests/pdf-sale.sh" "$@"
+fi
 if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
-root=$(cd "$(dirname "$0")/.." && pwd)
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -18,9 +21,12 @@ rg -q '^APPLIED PDF SALE DOCUMENT$' applied
 launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-container}
 export PP_PAL_TEST_ROOT="$root" PP_PAL_SALE_LAUNCHER="$launcher"
 python3 -u - <<'PY'
+import sys
 import json, os, pathlib, shutil, socket, subprocess, tempfile, threading
 ROOT=pathlib.Path(os.environ['PP_PAL_TEST_ROOT'])
 LAUNCHER=os.environ['PP_PAL_SALE_LAUNCHER']; IMAGE=os.environ['PP_PAL_IMAGE']
+sys.path.insert(0, str(ROOT/'tools'))
+from test_jobs import parallel_cases
 SOURCE=(ROOT/'fixtures/v1/portfolio.xml').read_bytes()
 FACTS=json.loads((ROOT/'fixtures/v1/pdf-sale/expected.json').read_text())
 def expect(r,code,text):
@@ -40,7 +46,7 @@ def oracle(w,name):
     expect(r,0,'PASS saved PDF sale batch')
 with tempfile.TemporaryDirectory(prefix='pp-pal-pdf-sale-') as tmp:
     base=pathlib.Path(tmp)
-    for name in ('partial','full','backdated','missing-time','midnight','tie','two-sales','funded-tie'):
+    def check_document(name):
         w=fresh(base,name)
         r=run(w,name); expect(r,0,'PREVIEW PDF ')
         assert (w/'portfolio.xml').read_bytes()==SOURCE
@@ -52,6 +58,7 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-pdf-sale-') as tmp:
         for override in (False,True):
             expect(run(w,name,True,override),0,'SKIPPED PDF ')
             assert (w/'portfolio.xml').read_bytes()==saved and (w/'portfolio.xml.pp-pal-imports.properties').read_bytes()==evidence
+    parallel_cases(check_document, ('partial','full','backdated','missing-time','midnight','tie','two-sales','funded-tie'))
     print('PASS partial/full/backdated sales, explicit/fallback times, same-time increases first, atomic batches and confirmed repeats',flush=True)
     for name in ('later-negative','before-purchase','unsupported-dividend','foreign-currency','later-invalid'):
         w=fresh(base,name)
