@@ -31,8 +31,11 @@ relevance. Purchase, sale and dividend PDF paths now share the same PP adapter.
 An extraction error rejects the entire document, even when CLI values could fill
 the mandatory field. No fake statement text is added to make extraction succeed.
 Fees/taxes can supplement an absent **upstream-extracted** cost; an extracted zero
-is present and cannot be overridden. A CLI date/amount/quantity/rate is a
-consistency assertion against PP's result, not a replacement for ignored content.
+is present and cannot be overridden. A CLI date/amount/quantity is a
+consistency assertion against PP's result. An extracted FX rate/gross is also a
+consistency assertion. If PP produced no conversion and observed no exchange-rate
+assignment, the wrapper can add an explicitly supplied conversion to the extracted
+record using booked amount and costs. This does not reconstruct bank grammar.
 Financial options still require a single statement.
 
 PP calculates domestic gross from booked amount and costs, and derives a trade's

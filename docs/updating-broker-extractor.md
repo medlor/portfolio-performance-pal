@@ -35,7 +35,7 @@ purchase gates. Verify PP transaction types/gross/cost units, explicit/fallback 
 whole-history admission after all new members, confirmed skip before insertion,
 and metadata failure recovery before widening sale layout support. Invented
 purchase/sale mixed members cover atomic ordering. Synthetic PP EUR/USD purchase/dividend
-regressions preserve extracted units; broader representative FX coverage remains #34 work.
+regressions preserve extracted units; the FX gate below adds sales and complete mixed batches.
 
 
 Dividend grammar and independent literals are in the
@@ -52,3 +52,14 @@ real Smartbroker dividend support. The supplied local CHF reference has one phys
 cannot qualify a complete current layout. A missing broker reference alone is no
 longer a rejection: exact document identity handles that case. Pinned extraction recognizes its dividend, but wrapper refusal preserves
 financial bytes; do not treat extraction success as rewrite or layout-coverage proof.
+
+
+Foreign-currency/mixed changes must pass `tests/pdf-fx.sh` as well as all retained
+PDF gates. The [FX fixture contract](../fixtures/v1/pdf-fx/README.md) records the
+invented EUR/USD profiles, cost conversions and independent literal oracle.
+Keep printed-rate direction, foreign costs, authoritative cash totals, same-time
+sale-before-buy page order, invalid later members, uncertainty override and
+post-replacement recovery coverage. The wrapper supplements only absent model
+conversion, never edits statement text or replaces extracted financial units.
+Use the declared source revision/model/image evidence in the support matrix;
+synthetic regression success does not establish complete current owner-layout support.
