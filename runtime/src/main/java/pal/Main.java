@@ -21,7 +21,7 @@ public final class Main {
                 case "purchase" -> line.allow(Set.of("securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "exchange-rate", "forex-gross", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write", "create-security", "name", "currency"));
                 case "sale" -> line.allow(Set.of("securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "exchange-rate", "forex-gross", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write"));
                 case "dividend" -> line.allow(Set.of("cash-account", "security", "security-id", "isin", "wkn", "ticker", "exchange-rate", "forex-gross", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write"));
-                case "import" -> line.allow(Set.of("pdf", "securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write", "allow-suspected-duplicates"));
+                case "import" -> line.allow(Set.of("exchange-rate", "forex-gross", "pdf", "securities-account", "cash-account", "security", "security-id", "isin", "wkn", "ticker", "quantity", "price", "gross", "total", "fees", "taxes", "date", "time", "apply", "desktop-closed", "recover-write", "allow-suspected-duplicates"));
                 case "backup-monthly", "backup-before-update" -> line.allow(Set.of());
                 default -> throw new IllegalArgumentException("Unknown command: " + line.command());
             }

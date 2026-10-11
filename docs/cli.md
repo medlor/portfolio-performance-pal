@@ -639,7 +639,7 @@ fresh preview plan, complete sale quantity validation, saved-model semantic chec
 atomic replacement, exact daily backup and verified recovery. `tests/fx.sh` is a
 mandatory candidate gate: representative owner-launcher preview/apply, broad
 container command cases, pinned-core saved-unit/link checks, full unrelated-state
-preservation, decimal boundaries, and rejection immutability. PDF FX remains pending.
+preservation, decimal boundaries, and rejection immutability. PDF FX uses the separately qualified profiles below.
 
 ## Tested model migrations with financial changes
 
@@ -826,4 +826,43 @@ portfolio remained byte-for-byte unchanged. The reference stays local and is
 not a committed fixture. These synthetic fixtures do not qualify that current
 Smartbroker layout; #33 remains open for complete current-layout evidence.
 The reuse gate preserves PP-extracted EUR/USD units in synthetic purchase/dividend
-fixtures; broader representative FX/mixed-layout qualification remains #34 work.
+fixtures; FX purchase/sale/dividend and mixed batches are covered by the fixture-scoped profile below.
+
+
+## Foreign-currency and mixed PDF import
+
+The [FX fixture contract](../fixtures/v1/pdf-fx/README.md) qualifies synthetic
+Baader EUR/USD purchases, sales and dividends with foreign fee/tax units and
+complete mixed physical-page sequences. The statement booked amount stays
+unchanged. Pinned PP extracts the financial records, including rate inversion:
+a printed EUR/USD 1.25 becomes EUR 0.8 per USD in the model and preview.
+
+For one statement, `--exchange-rate` (cash currency per security currency) and
+`--forex-gross` (security-currency gross) assert consistency with extracted units.
+When PP has produced no conversion and observed no rate assignment, an explicit
+positive rate may complete the missing conversion. The cash gross comes from
+PP's booked amount and costs; foreign gross is supplied or deterministically
+derived with cents rounding and validated by upstream import checks. Preview
+labels the conversion SUPPLEMENT and identifies derived foreign gross. Required
+extraction failures cannot be supplemented and extracted conversion cannot be
+replaced. No live exchange service is queried.
+
+```sh
+pp-pal import --pdf statement.pdf --securities-account ID --cash-account ID \
+  --exchange-rate 0.8 --forex-gross 10
+```
+
+Financial supplements require a single statement. Mixed documents use each
+member's extracted values and disclosed fallback time. All members, duplicate
+decisions and complete affected quantity histories are checked together; buys
+precede sells at equal timestamps even if PDF pages put the sale first. Any
+invalid member or unresolved duplicate uncertainty stops the entire financial
+write. `--allow-suspected-duplicates` covers the whole document and never
+re-imports confirmed members. Metadata failure after replacement returns status
+4, blocks replay and supports `import --recover-write --desktop-closed`.
+
+`tests/pdf-fx.sh` is a mandatory candidate gate with owner-launcher preview/apply,
+container acceptance cases, independent literal saved-model oracles, PDF-to-text
+verification, mixed FX recovery and protected model69-to70 migration. All prior
+gates remain. Qualification covers these invented layouts only; complete current
+owner statements and other currency pairs remain unqualified.

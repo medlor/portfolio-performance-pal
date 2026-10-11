@@ -62,3 +62,24 @@ success. Exact development/released pair identities are in the
 [support matrix](../runtime/support-matrix.json). The qualified dividend profile
 is synthetic German EUR Baader page-1-of-1; the supplied local CHF reference has
 unproved page coverage and no readable broker reference and remains unsupported.
+
+
+Story #34 adds `tests/pdf-fx.sh` as the seventeenth mandatory candidate gate,
+retaining all sixteen previous gates and expectations. The full four-job
+`PP_PAL_TEST_JOBS=4 bash tests/all.sh pp-pal:issue34` run passed in 1,220 seconds
+on 2026-10-11. It qualifies synthetic Baader EUR/USD purchase/sale/dividend and
+complete mixed-page profiles, including transaction-only model69-to70 migration,
+missing-conversion supplementation, atomic refusal, duplicate evidence and
+metadata recovery. The eleven PDF/text pairs and independent saved-model facts
+are described in [the FX fixture contract](../fixtures/v1/pdf-fx/README.md).
+
+Development image:
+`sha256:8d2395390748008c69b5ea9017f36ebef7ebc5127344adaec3647ffeaf3e47a8`.
+Qualified synthetic released image:
+`sha256:4b21a9369c9ac1eb46b6319c5dcb1a616f39609768922fdb125a455f9f31c043`.
+Its isolated wrapper revision is `6a27c4ae13663e9688bdb959563d667f0c5c9a09`,
+with pinned PP `8de1fe41d71a2c1b74a6bfbe913f885899aaf123`, Temurin 21.0.11+10
+and Linux amd64. This is qualification evidence, not a published wrapper release.
+The [support matrix](../runtime/support-matrix.json) records both model entries,
+reproduction commands, archive identities and limitations. Complete current
+owner-layout evidence and additional currency pairs remain unqualified.

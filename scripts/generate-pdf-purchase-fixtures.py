@@ -6,7 +6,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 
 profile = sys.argv[1] if len(sys.argv) > 1 else 'pdf-purchase'
-if profile not in ('pdf-purchase', 'pdf-sale', 'pdf-dividend', 'pp-extraction'): raise SystemExit('Choose pdf-purchase, pdf-sale, pdf-dividend or pp-extraction')
+if profile not in ('pdf-purchase', 'pdf-sale', 'pdf-dividend', 'pp-extraction', 'pdf-fx'): raise SystemExit('Choose pdf-purchase, pdf-sale, pdf-dividend pp-extraction or pdf-fx')
 root = Path(__file__).resolve().parents[1] / 'fixtures/v1' / profile
 for source in sorted(root.glob('*.txt')):
     pdf = canvas.Canvas(str(source.with_suffix('.pdf')), pagesize=A4, invariant=True)

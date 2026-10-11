@@ -107,13 +107,16 @@ PDF purchase/sale/dividend import:
   PP's Baader extractor is authoritative for financial fields and bank layouts.
   No separate bank parser or supplemental statement text is used. Tested synthetic
   profiles include EUR trades/dividends, complete continuations, fund distributions,
-  multiple costs and EUR/USD purchase/dividend units; real owner layouts remain unverified.
+  multiple costs and EUR/USD purchase/sale/dividend units; real owner layouts remain unverified.
   Each complete physical-page sequence must yield one valid supported PP item.
   Failure/skip, unsupported items or missing pages reject the whole document.
   PP derives domestic gross and trade price; fields/unknown lines it ignores are
   not independently validated. Preview identifies PP derivations.
   Required PP quantity/booked/date sections cannot be reconstructed with CLI values.
   Absent extracted fees/taxes and time can be supplied; extracted zero is present.
+  --exchange-rate is cash currency per security currency; --forex-gross is security-currency gross.
+  Missing PP conversion can be supplied for one statement; derivations are disclosed.
+  Extracted conversion cannot be overridden. No live exchange lookup is used.
   Other financial options assert consistency with PP, for a single statement only.
   Dividend --price rejects: PP has no dividend unit-price field.
   Preserve PP explicit time including midnight, otherwise use supplied time or
