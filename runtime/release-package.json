@@ -37,7 +37,11 @@
     "baader-pp-authoritative-complete-page-sequences-v1",
     "baader-synthetic-eur-usd-purchase-dividend-v1",
     "baader-synthetic-eur-usd-purchase-sale-dividend-v1",
-    "baader-synthetic-mixed-fx-page-sequences-v1"
+    "baader-synthetic-mixed-fx-page-sequences-v1",
+    "baader-smartbroker-current-eur-purchase-execution-table-v1",
+    "baader-smartbroker-current-eur-sale-tax-continuation-v1",
+    "baader-smartbroker-current-chf-dividend-tax-continuation-v1",
+    "baader-smartbroker-current-mixed-eur-chf-complete-page-sequences-v1"
   ],
   "bootstrapProtocol": 1,
   "features": [
@@ -73,6 +77,7 @@
     "pp-holdings-and-dividend-relevance",
     "baader-foreign-currency-pdf-import",
     "single-statement-missing-fx-supplement",
-    "atomic-mixed-purchase-sale-dividend-fx-pdf"
+    "atomic-mixed-purchase-sale-dividend-fx-pdf",
+    "verified-current-smartbroker-layouts"
   ]
 }

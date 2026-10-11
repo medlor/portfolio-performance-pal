@@ -81,9 +81,11 @@ and full unrelated-state preservation, nine invented paired PDF/text fixtures,
 complete continuation pages, synthetic EUR/USD trades and dividends, zero costs,
 zero informational dividend shares, reference-free duplicate handling, PP import
 actions, model69 migration, metadata recovery and actual wrong-output rejection
-despite candidate-controlled passing tests. No current owner-layout qualification
-is claimed: the local dividend reference is still physically incomplete (1/2).
+despite candidate-controlled passing tests. This historical run did not qualify
+current owner layouts: its local dividend reference was incomplete (1/2).
 
-Standards review: no blocking documented violation. Spec review: the delegation
-boundary follows the approved PP-authority correction; representative complete
-current-layout evidence remains open.
+Standards review found no blocking documented violation. The spec review accepted
+the approved PP-authority correction. Complete current-layout evidence was added
+subsequently through the [current-layout contract](../fixtures/v1/smartbroker-current/README.md)
+and mandatory `tests/smartbroker-current.sh` gate. The new layouts use the same
+upstream extraction authority, including its intentionally ignored printed fields.

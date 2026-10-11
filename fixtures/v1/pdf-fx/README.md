@@ -54,3 +54,9 @@ Complete qualification: `bash tests/all.sh pp-pal:issue34` (also exercises the
 owner launcher and released immutable pair). Keep all retained domestic and PP
 extraction profiles when upgrading; no independent financial expectations may be
 changed to accommodate a candidate.
+
+Current-layout evidence was added separately on 2026-10-11 in the
+[current-layout contract](../smartbroker-current/README.md) and mandatory
+`tests/smartbroker-current.sh` gate. These earlier fixture notes retain the scope
+and limitations of their historical validation; they do not describe the new
+complete purchase, sale and CHF-distribution specimens.

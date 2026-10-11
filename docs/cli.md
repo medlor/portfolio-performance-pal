@@ -205,7 +205,9 @@ pinned Baader extractor's bank identifiers and grammar, with no second financial
 parser or synthetic supplemental statement text. Existing fixture layouts remain
 regressions; the [PP reuse fixtures](../fixtures/v1/pp-extraction/README.md) also cover
 headers/footers, complete continuations, fund distributions, multiple costs and
-EUR/USD units. These synthetic cases do not establish every current owner layout.
+EUR/USD units. Complete current purchase, sale and CHF distribution specimens
+are documented in the [current-layout contract](../fixtures/v1/smartbroker-current/README.md).
+Support remains limited to the individually validated bank/layout combinations.
 
 Actual physical pages must form complete ordinal/count sequences. Each complete
 statement must produce one valid supported PP purchase, sale or dividend; an
@@ -776,15 +778,17 @@ writer and metadata recovery; failed follow-up work reports financial success an
 `tests/pdf-sale.sh` cover actual PDF conversion, partial/full and backdated sales,
 explicit/fallback times, batches, same-time ordering, rejects, duplicates and
 post-replacement metadata recovery. The updater registers this gate alongside
-all earlier purchase/layout regressions. These invented fixtures establish only
-their tested behavior; real owner layouts remain unverified. Additional
-continuation/cost/FX regressions are in `tests/upstream-reuse.sh`.
+all earlier purchase/layout regressions. The additional current-layout gate
+qualifies a complete two-page EUR sale with an execution table and tax
+continuation. Additional continuation/cost/FX regressions remain in
+`tests/upstream-reuse.sh`; older fixtures retain their original scope.
 
 
 ## PDF dividend import
 
 `import --pdf PATH --cash-account ID_OR_EXACT_NAME` previews the fixture-tested
-German EUR Baader dividend profile. `--apply --desktop-closed` records all new
+German EUR Baader dividend profile and the complete current CHF fund-distribution
+layout paid into EUR cash. `--apply --desktop-closed` records all new
 members as one protected financial change. Dividend-only documents do not need
 a securities-account selection; mixed purchases still do. Existing securities
 are jointly resolved from the statement ISIN/WKN and any CLI constraints.
@@ -818,13 +822,14 @@ purchase/sale gates. Independent saved-model literals check financial values,
 shares/times/links and complete unrelated model preservation. The released-owner
 updater tests verify mandatory discovery, fixed-image preview/application,
 discovery failure refusal and confirmed repeats with cash-only selection.
-The supplied local owner reference is a CHF fund distribution. It has one
-physical page labeled `Seite 1/2` and no readable broker reference. Pinned upstream
-extraction recognizes the dividend and security definition, but the wrapper
-refuses unproved physical coverage before any financial change. A disposable
-portfolio remained byte-for-byte unchanged. The reference stays local and is
-not a committed fixture. These synthetic fixtures do not qualify that current
-Smartbroker layout; #33 remains open for complete current-layout evidence.
+The initial local CHF reference was incomplete and did not qualify a current
+layout. Complete private purchase, two-page sale and two-page CHF distribution
+specimens supplied later were converted and admitted by the existing pinned
+wrapper. Reconstructed anonymized specimens now qualify those layouts through
+`tests/smartbroker-current.sh`, with independently invented financial literals.
+Private originals and the private portfolio are excluded from fixture, release
+and build inputs. This completes the current-layout evidence for #30, #32 and
+#33; the original incomplete-reference refusal remains the correct policy.
 The reuse gate preserves PP-extracted EUR/USD units in synthetic purchase/dividend
 fixtures; FX purchase/sale/dividend and mixed batches are covered by the fixture-scoped profile below.
 
@@ -864,5 +869,28 @@ re-imports confirmed members. Metadata failure after replacement returns status
 `tests/pdf-fx.sh` is a mandatory candidate gate with owner-launcher preview/apply,
 container acceptance cases, independent literal saved-model oracles, PDF-to-text
 verification, mixed FX recovery and protected model69-to70 migration. All prior
-gates remain. Qualification covers these invented layouts only; complete current
-owner statements and other currency pairs remain unqualified.
+gates remain. The current-layout gate adds CHF distributions with EUR cash,
+three first-page taxes, printed EUR/CHF rate inversion and complete tax
+continuations. Its five-page mixed document combines the anonymized current
+purchase, sale and distribution specimens, with document-wide duplicate
+authorization where required. This completes #34 within the tested EUR/USD and
+CHF-distribution scope. Other foreign-currency trade layouts and currency pairs
+remain unqualified; no support is inferred from a security name alone.
+
+
+## Current-layout qualification (2026-10-11)
+
+`PP_PAL_TEST_JOBS=4 bash tests/all.sh pp-pal:issue34` passed in **1279 seconds
+(21 minutes 19 seconds)**. All four baseline suites and eighteen mandatory
+candidate gates passed, each gate once during successful qualification. The
+seventeen earlier gates and assertions remain. The exact released snapshot is
+`6ad95317d76f5aa95760217a088188ba2811f376`; its locally retained image is
+`sha256:c20507cb5e6b9b0aef0f9f3e99b515f92c08c15c43472d195e3fede73c75960a`,
+paired with PP 0.88.0 revision `8de1fe41d71a2c1b74a6bfbe913f885899aaf123`.
+
+The [current-layout contract](../fixtures/v1/smartbroker-current/README.md)
+records sample provenance, anonymization, independent financial literals,
+reproduction commands and tested scope. Standards and spec reviews found no
+remaining blocker. The support matrix records the exact pair, retained migration
+coverage and full-suite results. A production stable wrapper release remains an
+installation prerequisite; qualification does not publish a release or image.
