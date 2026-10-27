@@ -16,6 +16,30 @@ bash tests/all.sh
 Tests share a resource budget across modules and cases; set `PP_PAL_TEST_JOBS=1`
 for serial execution. See [test concurrency and resource limits](docs/test-suite-performance.md).
 
+## Network access
+
+Builds run as your user and fetch three archives. Each archive is verified
+against the SHA-256 pinned in `runtime/release-package.json` and then
+cached by digest. The cache is `${PP_PAL_ARCHIVE_CACHE:-~/.local/state/pp-pal/downloads}`,
+so later builds and tests download nothing. The updater also discovers
+releases over HTTPS. The following addresses must be reachable:
+
+| Purpose | URL |
+|---|---|
+| Temurin 21.0.11+10 JDK | `https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.11%2B10/OpenJDK21U-jdk_x64_linux_hotspot_21.0.11_10.tar.gz` |
+| PP source at the pinned revision | `https://api.github.com/repos/portfolio-performance/portfolio/tarball/<revision>` |
+| PP Linux release (dependency jars) | `https://github.com/portfolio-performance/portfolio/releases/download/<tag>/PortfolioPerformance-<tag>-linux.gtk.x86_64.tar.gz` |
+| PP release discovery (updater) | `https://api.github.com/repos/portfolio-performance/portfolio/releases/latest`, `…/git/ref/tags/…`, `…/git/tags/…` |
+| Wrapper release discovery and tarballs (updater) | `https://api.github.com/repos/medlor/portfolio-performance-pal/releases/latest`, `…/git/…`, `…/tarball/<revision>` |
+| Redirect targets of the GitHub downloads | `codeload.github.com`, `objects.githubusercontent.com`, `release-assets.githubusercontent.com` |
+| Pin lookup by maintainers only | `api.adoptium.net` |
+
+To build offline, put the three files in one directory as
+`jdk.tar.gz`, `upstream-source.tar.gz` and `upstream-release.tar.gz`, and
+run `tools/build-runtime --inputs DIR --output …`. Alternatively, place
+them in the cache directory, each named by its SHA-256. The digests are
+checked either way.
+
 The launcher fixes the selected local image identity for each invocation. A read-only Java container resolves configuration, then a short-lived command container reads the selected portfolio with the host UID/GID. Java reuses upstream persistence, financial models and PDF extraction. Images stay local; no wrapper image is published. [Headless build evidence and limits](docs/headless-runtime.md) and the [support matrix](runtime/support-matrix.json) record the tested upstream 0.88.0, ID-reference XML model 70, Linux amd64 combination.
 
 The default portfolio is `portfolio_performance.xml` in the working directory. Discover `pp-pal.properties` there or select another with `--config`. Its UTF-8 Java Properties keys are `file`, `securities-account`, and `cash-account`; configured relative file paths resolve from the configuration directory, while explicit `--file` paths resolve from the working directory. Account selectors accept a stable ID or exact unique name. Save resolved account IDs explicitly:

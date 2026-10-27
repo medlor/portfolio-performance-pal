@@ -165,13 +165,13 @@ pinned by a test in the task that owns it:
     - CLI: `python3 tools/runtime_dir.py identity PATH` prints the identity
       or exits 3.
 
-- [ ] **Step 1: Pin the Temurin archive.** Get the URL and SHA-256 of
+- [x] **Step 1: Pin the Temurin archive.** Get the URL and SHA-256 of
   `OpenJDK21U-jdk_x64_linux_hotspot_21.0.11_10.tar.gz` from
   `https://api.adoptium.net/v3/assets/release_name/eclipse/jdk-21.0.11%2B10?os=linux&architecture=x64&image_type=jdk`.
   Cross-check the downloaded file's `sha256sum`. Write both values into
   `jdkArchive`.
 
-- [ ] **Step 2: Write the failing test `tests/build-runtime.sh`.** It uses
+- [x] **Step 2: Write the failing test `tests/build-runtime.sh`.** It uses
   the standard `tests/run.py` re-exec header and makes these assertions:
   - (a) A run with `--inputs` holding a corrupted `jdk.tar.gz` exits 3 and
     prints `SHA-256 mismatch`. No `--output` directory exists afterwards,
@@ -190,10 +190,10 @@ pinned by a test in the task that owns it:
   Point (b) uses `PP_PAL_ARCHIVE_CACHE` from the environment when set, so
   CI and dev runs reuse downloads.
 
-- [ ] **Step 3: Run it.** `bash tests/build-runtime.sh` fails with "No such
+- [x] **Step 3: Run it.** `bash tests/build-runtime.sh` fails with "No such
   file `tools/build-runtime`".
 
-- [ ] **Step 4: Implement `tools/build-runtime`.**
+- [x] **Step 4: Implement `tools/build-runtime`.**
   - Use numbered, commented sections that mirror the old Dockerfile line
     for line:
     1. resolve pins,
@@ -214,14 +214,14 @@ pinned by a test in the task that owns it:
     wrapper.
   - Implement `tools/runtime_dir.py`.
 
-- [ ] **Step 5: Run it.** `bash tests/build-runtime.sh` prints `PASS`.
+- [x] **Step 5: Run it.** `bash tests/build-runtime.sh` prints `PASS`.
 
-- [ ] **Step 6: Document network access.** Write the README "Network
+- [x] **Step 6: Document network access.** Write the README "Network
   access" section. Check each listed URL against the URLs that
   `tools/build-runtime`, `release-package.json` and `tools/update.py`
   actually use.
 
-- [ ] **Step 7: Commit.** Message: `Add rootless annotated runtime build`.
+- [x] **Step 7: Commit.** Message: `Add rootless annotated runtime build`.
 
 ### Task 2: Native launch (`tools/engine`, `tools/run-engine`) and Java renames
 

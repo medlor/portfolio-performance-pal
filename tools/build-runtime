@@ -1,0 +1,238 @@
+#!/usr/bin/env bash
+# =============================================================================
+# tools/build-runtime: build a self-contained pp-pal runtime directory.
+#
+# It replaces the former Dockerfile, step for step. Everything runs as the
+# invoking user: there is no root, no sudo and no system package
+# installation. All files are written below --output, its temporary sibling,
+# and the archive cache.
+#
+# Usage:
+#   tools/build-runtime --output DIR [--inputs DIR] [--wrapper-revision REV]
+#
+#   --output DIR   Final runtime directory. It must not exist yet.
+#                  Its basename must equal the runtime identity:
+#                    <upstream tag>-<first 12 chars of wrapper revision>
+#                  or "dev" for --wrapper-revision development (the default).
+#   --inputs DIR   Use already-downloaded archives instead of fetching them:
+#                    upstream-source.tar.gz
+#                    upstream-release.tar.gz
+#                    jdk.tar.gz
+#   --wrapper-revision REV
+#                  Wrapper commit this runtime is built from. It is recorded
+#                  in runtime.json.
+#
+# Downloads are cached by SHA-256 in
+#   ${PP_PAL_ARCHIVE_CACHE:-<state dir>/downloads}
+# See README "Network access" for the URLs fetched.
+#
+# Exit codes: 0 success (the identity is printed as the last line),
+#             2 usage error or existing output,
+#             3 download, checksum or build failure.
+# =============================================================================
+set -euo pipefail
+umask 077
+
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+root=$(dirname "$script_dir")
+
+usage() { echo "ERROR: $*" >&2; echo 'Usage: tools/build-runtime --output DIR [--inputs DIR] [--wrapper-revision REV]' >&2; exit 2; }
+die() { echo "ERROR: $*" >&2; exit 3; }
+step() { echo "== $*" >&2; }
+
+output= inputs= wrapper_revision=development
+while (($#)); do
+  case $1 in
+    --output) (($# > 1)) || usage 'Missing value for --output'; output=$2; shift 2;;
+    --inputs) (($# > 1)) || usage 'Missing value for --inputs'; inputs=$2; shift 2;;
+    --wrapper-revision) (($# > 1)) || usage 'Missing value for --wrapper-revision'; wrapper_revision=$2; shift 2;;
+    *) usage "Unknown argument: $1";;
+  esac
+done
+[[ -n $output ]] || usage 'Select --output'
+output=$(realpath -m -- "$output")
+[[ ! -e $output ]] || usage "Output already exists: $output"
+command -v python3 >/dev/null || die 'Python 3 is required to read the pins'
+
+# -----------------------------------------------------------------------------
+# 1. Resolve the pins.
+#    All versions, URLs and SHA-256 digests come from
+#    runtime/release-package.json. That file is the single reviewed record of
+#    what a runtime is made of, so nothing is pinned here.
+# -----------------------------------------------------------------------------
+pin() { python3 -c 'import json,sys; d=json.load(open(sys.argv[1]))
+for key in sys.argv[2].split("."): d=d[key]
+print(d)' "$root/runtime/release-package.json" "$1"; }
+upstream_tag=$(pin upstream.tag)
+upstream_revision=$(pin upstream.revision)
+source_sha=$(pin upstream.sourceSha256)
+release_sha=$(pin upstream.releaseSha256)
+release_asset=$(pin upstream.releaseAsset)
+jdk_url=$(pin jdkArchive.url)
+jdk_sha=$(pin jdkArchive.sha256)
+xml_model=$(pin output.modelVersion)
+source_url="https://api.github.com/repos/portfolio-performance/portfolio/tarball/$upstream_revision"
+release_url="https://github.com/portfolio-performance/portfolio/releases/download/$upstream_tag/$release_asset"
+
+# The identity names the runtime and is its directory name. Requiring the
+# match keeps "which runtime is this?" answerable from the path alone.
+if [[ $wrapper_revision == development ]]; then identity=dev; else identity="$upstream_tag-${wrapper_revision:0:12}"; fi
+[[ $(basename "$output") == "$identity" ]] || usage "Output directory name must be the runtime identity: $identity"
+
+# Work in a temporary sibling, so an interrupted build never leaves a
+# directory with the final name. The finished tree is renamed into place
+# in step 10.
+parent=$(dirname "$output")
+mkdir -p "$parent"
+build=$(mktemp -d "$parent/.build-XXXXXX")
+cleanup() {
+  if [[ -n ${build:-} && -e $build ]]; then chmod -R u+w "$build" 2>/dev/null || true; rm -rf "$build"; fi
+}
+trap cleanup EXIT
+
+# Test harnesses may route JDK tools through a resource-budget wrapper.
+# Normal builds run the pinned JDK directly.
+tool() { if [[ -n ${PP_PAL_JAVA_WRAPPER:-} ]]; then "$PP_PAL_JAVA_WRAPPER" --build "$@"; else "$@"; fi; }
+
+# -----------------------------------------------------------------------------
+# 2. Fetch or verify the three archives.
+#    Every archive must match its pinned SHA-256 before it is unpacked. The
+#    digest, not the URL, is what fixes the input. The cache is keyed by
+#    digest, so repeated builds and tests download nothing.
+# -----------------------------------------------------------------------------
+state=${PP_PAL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/pp-pal}
+cache=${PP_PAL_ARCHIVE_CACHE:-$state/downloads}
+verify() { # verify FILE SHA256 LABEL
+  local actual
+  actual=$(sha256sum -- "$1" | cut -d' ' -f1)
+  [[ $actual == "$2" ]] || die "SHA-256 mismatch for $3: expected $2, got $actual"
+}
+fetch() { # fetch NAME URL SHA256 -> prints the verified file path
+  local name=$1 url=$2 sha=$3 target
+  if [[ -n $inputs ]]; then
+    target="$inputs/$name"
+    [[ -f $target ]] || die "Missing supplied archive: $target"
+  else
+    mkdir -p "$cache"
+    target="$cache/$sha"
+    if [[ ! -f $target ]]; then
+      step "Download $url"
+      python3 - "$url" "$target.part" <<'PY' || die "Download failed: $url"
+import sys, urllib.request
+request = urllib.request.Request(sys.argv[1], headers={'User-Agent': 'pp-pal-build-runtime'})
+with urllib.request.urlopen(request, timeout=120) as response, open(sys.argv[2], 'wb') as out:
+    while chunk := response.read(1 << 20):
+        out.write(chunk)
+PY
+      verify "$target.part" "$sha" "$name"
+      mv -- "$target.part" "$target"
+    fi
+  fi
+  verify "$target" "$sha" "$name"
+  printf '%s\n' "$target"
+}
+step 'Verify archives'
+jdk_archive=$(fetch jdk.tar.gz "$jdk_url" "$jdk_sha")
+source_archive=$(fetch upstream-source.tar.gz "$source_url" "$source_sha")
+release_archive=$(fetch upstream-release.tar.gz "$release_url" "$release_sha")
+
+# -----------------------------------------------------------------------------
+# 3. Unpack the pinned JDK.
+#    Temurin ships one top-level directory (jdk-21.0.11+10). Stripping it
+#    gives a stable <runtime>/jdk/bin/java path. The host's own java is never
+#    used.
+# -----------------------------------------------------------------------------
+step 'Unpack JDK'
+mkdir "$build/jdk"
+tar -xzf "$jdk_archive" --strip-components=1 -C "$build/jdk" --no-same-owner
+java="$build/jdk/bin/java" javac="$build/jdk/bin/javac"
+"$java" -version 2>&1 | grep -q 'Temurin-21.0.11+10' || die 'Unpacked JDK is not Temurin 21.0.11+10'
+
+# -----------------------------------------------------------------------------
+# 4. Unpack the upstream source and the official Linux release.
+#    The source provides the core and PDFBox3 adapter code we compile. The
+#    release only provides the dependency jars that upstream itself ships.
+# -----------------------------------------------------------------------------
+step 'Unpack Portfolio Performance source and release'
+work="$build/.work"
+mkdir -p "$work/source" "$work/release"
+tar -xzf "$source_archive" --strip-components=1 -C "$work/source" --no-same-owner
+tar -xzf "$release_archive" -C "$work/release" --no-same-owner
+
+# -----------------------------------------------------------------------------
+# 5. Apply the reviewed headless patch.
+#    HeadlessPatch.java checks the original adapter's SHA-256 and applies
+#    exactly runtime/patches/pdfbox-headless.patch. Any other upstream change
+#    stops the build for manual adapter maintenance.
+# -----------------------------------------------------------------------------
+step 'Apply headless patch'
+tool "$java" "$root/runtime/patches/HeadlessPatch.java" "$work/source" >&2 || die 'Headless patch did not apply'
+
+# -----------------------------------------------------------------------------
+# 6. Compile the upstream core, the PDFBox3 adapter and the pal wrapper.
+#    The classpath is the official release's plugin jars, so the dependency
+#    versions are exactly the ones upstream released.
+# -----------------------------------------------------------------------------
+step 'Compile'
+mkdir -p "$build/classes"
+find "$work/source/name.abuchen.portfolio/src" "$work/source/name.abuchen.portfolio/protos" \
+     "$work/source/name.abuchen.portfolio.pdfbox3/src" "$root/runtime/src/main/java" \
+     -name '*.java' > "$work/sources"
+tool "$javac" -encoding UTF-8 --release 21 -cp "$work/release/portfolio/plugins/*" \
+  -d "$build/classes" "@$work/sources" >&2 || die 'Compilation failed'
+
+# -----------------------------------------------------------------------------
+# 7. Copy the core's non-Java resources (messages, extractor data) next to
+#    the classes, plus the pp-pal help text.
+# -----------------------------------------------------------------------------
+step 'Copy resources'
+(cd "$work/source/name.abuchen.portfolio/src" && find . -type f ! -name '*.java' -exec cp --parents '{}' "$build/classes/" \;)
+cp "$root/runtime/help.txt" "$build/classes/help.txt"
+
+# -----------------------------------------------------------------------------
+# 8. Assemble lib/ from the release's plugin jars.
+#    The released core, UI and PDFBox3 adapter jars are removed, so our
+#    rebuilt classes take precedence and no desktop entry point is present.
+#    Eclipse/SWT jars stay for upstream class linkage only.
+# -----------------------------------------------------------------------------
+step 'Assemble libraries'
+mkdir "$build/lib"
+cp "$work/release/portfolio/plugins/"*.jar "$build/lib/"
+rm -f "$build/lib/"name.abuchen.portfolio_*.jar "$build/lib/"name.abuchen.portfolio.ui_*.jar "$build/lib/"name.abuchen.portfolio.pdfbox3_*.jar
+
+# -----------------------------------------------------------------------------
+# 9. Write attribution and runtime.json.
+#    Attribution keeps the upstream license, manifest, exact source archive
+#    and reviewed patches (EPL 1.0 obligations). runtime.json records what
+#    the former image labels recorded.
+# -----------------------------------------------------------------------------
+step 'Write attribution and labels'
+mkdir "$build/attribution"
+cp "$work/source/LICENSE" "$build/attribution/UPSTREAM-LICENSE"
+cp "$work/source/name.abuchen.portfolio/META-INF/MANIFEST.MF" "$build/attribution/UPSTREAM-MANIFEST.MF"
+cp "$source_archive" "$build/attribution/upstream-source.tar.gz"
+cp "$root/runtime/patches/"* "$build/attribution/"
+python3 - "$build/runtime.json" "$identity" "$wrapper_revision" "$upstream_revision" "$upstream_tag" "$xml_model" <<'PY'
+import json, sys
+path, identity, wrapper, upstream, release, model = sys.argv[1:]
+with open(path, 'w') as stream:
+    json.dump({'schema': 1, 'identity': identity, 'wrapperRevision': wrapper,
+               'upstreamRevision': upstream, 'upstreamRelease': release, 'xmlModel': model,
+               'jdk': 'Temurin-21.0.11+10', 'platform': 'linux/amd64'}, stream, indent=2, sort_keys=True)
+    stream.write('\n')
+PY
+
+# -----------------------------------------------------------------------------
+# 10. Seal the runtime and move it into place.
+#     Removing write permission protects the runtime from accidental changes.
+#     Use tools/runtime_dir.py remove_runtime (or chmod -R u+w) to delete it.
+#     The rename is atomic within the parent directory.
+# -----------------------------------------------------------------------------
+step 'Seal runtime'
+chmod -R u+w "$work" && rm -rf "$work"
+chmod -R a-w "$build"
+chmod u+w "$build"   # the rename below needs the top directory writable...
+mv -T -- "$build" "$output"
+chmod a-w "$output"  # ...and it is sealed again afterwards.
+build=
+echo "$identity"
