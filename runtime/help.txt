@@ -3,6 +3,11 @@ Usage: pp-pal COMMAND [OPTIONS]
 Updates:
   --update [--file PATH] [--config PATH]  Validate and activate released pairs locally.
   Requires a stable wrapper bootstrap release; no usable release exists yet.
+  An unsupported Portfolio Performance release stops with UPGRADE REQUIRED and
+  an agent prompt; see UPGRADE.md.
+  --update --local-upgrade CHECKOUT [--file PATH] [--config PATH]
+                                          Qualify and activate a committed agent
+                                          upgrade checkout (UPGRADE.md).
 
 Models:
   Tested ID-reference XML input 69/70; output 70. Preview discloses 69 -> 70.

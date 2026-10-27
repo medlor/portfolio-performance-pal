@@ -249,11 +249,106 @@ def unsupported_upstream():
             check(not any('/portfolio/tarball/' in path or '/assets/' in path for path in api.requests), 'Unsupported upstream downloaded sources')
         print('PASS unsupported upstream stops before backup/build with an exact agent prompt and saved request')
 
+def local_upgrade():
+    """An agent upgrade checkout is validated, activated locally, serves the resumed command, and yields to a later release."""
+    import shlex
+    with tempfile.TemporaryDirectory(prefix='pp-pal-local-upgrade-') as temporary, server() as api:
+        work = pathlib.Path(temporary)
+        selected = work / 'owner portfolio.xml'
+        shutil.copyfile(ROOT / 'fixtures/v1/portfolio.xml', selected)
+        original = selected.read_bytes()
+        released = work / 'released-v0.1.0'
+        released_snapshot(work, api)
+        upstream_release(api)
+        revision = relabel_upstream(api, '0.88.1-fixture')
+        # The standard fixture purchase (PurchaseAppliedOracle expects booked 26.50).
+        purchase = ['purchase', '--file', str(selected), '--security', 'DE0000000001',
+                    '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A',
+                    '--date', '2025-03-01', '--quantity', '2.5', '--price', '10', '--fees', '1', '--taxes', '.5',
+                    '--apply', '--desktop-closed']
+        result = run(work, api, *purchase)
+        check(result.returncode == 3 and 'UPGRADE REQUIRED' in result.stderr, result.stderr)
+        request = json.loads((work / 'state/upgrades/0.88.1-fixture/request.json').read_text())
+        git = ['git', '-c', 'user.name=Upgrade Agent', '-c', 'user.email=agent@example.invalid']
+        def checkout(name, *changes):
+            target = work / name
+            subprocess.run(['git', 'clone', '-q', str(released), str(target)], check=True)
+            policy_path = target / 'runtime/release-package.json'
+            policy = json.loads(policy_path.read_text())
+            policy['upstream'].update(tag='0.88.1-fixture', releaseAsset='PortfolioPerformance-0.88.1-fixture-linux.gtk.x86_64.tar.gz')
+            policy_path.write_text(json.dumps(policy, indent=2) + '\n')
+            for change in changes:
+                change(target)
+            subprocess.run([*git, '-C', str(target), 'commit', '-qam', 'Support Portfolio Performance 0.88.1-fixture'], check=True)
+            return target, subprocess.check_output(['git', '-C', str(target), 'rev-parse', 'HEAD'], text=True).strip()
+        def adapt_holdings(target):
+            gate = target / 'tests/holdings.sh'
+            gate.write_text(gate.read_text() + '# adapted for 0.88.1-fixture\n')
+        def drop_sale_gate(target):
+            gates = target / 'runtime/candidate-gates.json'
+            registry = json.loads(gates.read_text())
+            registry['checks'].remove('tests/sale.sh')
+            gates.write_text(json.dumps(registry, indent=2) + '\n')
+        upgrade = lambda path: run(work, api, '--update', '--local-upgrade', str(path), '--file', str(selected))
+        # (a) A dirty checkout is refused before anything else.
+        dirty, _ = checkout('dirty-checkout', adapt_holdings)
+        (dirty / 'uncommitted.txt').write_text('agent scratch\n')
+        result = upgrade(dirty)
+        check(result.returncode == 2 and 'must be clean and committed' in result.stderr, result.stderr)
+        check(not (work / 'state/active.json').exists(), 'Dirty checkout activated')
+        # (b) Removing a trusted gate is refused before any build.
+        gateless, _ = checkout('gateless-checkout', drop_sale_gate)
+        result = upgrade(gateless)
+        check(result.returncode == 3 and 'removes trusted gate tests/sale.sh' in result.stderr, result.stderr)
+        check(not (work / 'state/runtimes').exists() or not list((work / 'state/runtimes').iterdir()), 'Gate removal started a build')
+        print('PASS local upgrade refuses dirty checkouts and removed gates before building')
+        # (c) A clean checkout with an adapted gate is qualified and activated locally.
+        valid, commit = checkout('checkout', adapt_holdings)
+        result = upgrade(valid)
+        check(result.returncode == 0, result.stderr + result.stdout)
+        changes = result.stdout.split('TRUSTED CHANGES', 1)[1]
+        check('changed tests/holdings.sh' in changes, result.stdout)
+        check(f'ACTIVATED local-upgrade 0.88.1-fixture-{commit[:12]}' in result.stdout, result.stdout)
+        active = json.loads((work / 'state/active.json').read_text())
+        check(active['source'] == 'local-upgrade' and active['identity'] == '0.88.1-fixture-' + commit[:12]
+              and active['wrapper']['revision'] == commit and active['upstream']['tag'] == '0.88.1-fixture'
+              and active['upstream']['revision'] == revision and 'tests/holdings.sh' in active['trustedChanges']['changed'], active)
+        check((work / f'state/trusted-validation.previous-{commit}').is_dir(), 'Previous trusted bundle not retained')
+        check(selected.read_bytes() == original, 'Local upgrade changed the portfolio')
+        print('PASS clean local upgrade qualifies adapted gates, reports trusted changes and activates the local pair')
+        # (d) The saved request resumes exactly and applies with the local pair.
+        result = run(pathlib.Path(request['cwd']), api, *request['argv'])
+        check(result.returncode == 0 and 'APPLIED PURCHASE' in result.stdout
+              and 'ENGINE RUNTIME 0.88.1-fixture-' + commit[:12] in result.stdout, result.stderr + result.stdout)
+        check('UNCHANGED validated local-upgrade pair' in result.stderr, result.stderr)
+        oracle = subprocess.run([sys.executable, str(ROOT / 'tests/oracle.py'), active['runtime'], 'PurchaseAppliedOracle',
+                                 str(ROOT / 'fixtures/v1/portfolio.xml'), str(selected), '1'], text=True, capture_output=True)
+        check(oracle.returncode == 0, oracle.stderr + oracle.stdout)
+        print('PASS resumed request applies unattended on the local upgrade pair ' + active['identity'])
+        # (e) A later stable release that supports the upstream replaces the local pair.
+        def declare_support(package):
+            policy_path = package / 'runtime/release-package.json'
+            policy = json.loads(policy_path.read_text())
+            policy['upstream'].update(tag='0.88.1-fixture', releaseAsset='PortfolioPerformance-0.88.1-fixture-linux.gtk.x86_64.tar.gz')
+            policy_path.write_text(json.dumps(policy, indent=2) + '\n')
+        release_revision = released_snapshot(work, api, tag='v0.2.0', mutate=declare_support)
+        result = run(work, api, '--update', '--file', str(selected))
+        check(result.returncode == 0, result.stderr + result.stdout)
+        replaced = json.loads((work / 'state/active.json').read_text())
+        check(replaced['wrapper']['revision'] == release_revision and replaced.get('source') != 'local-upgrade'
+              and replaced['previous']['source'] == 'local-upgrade', replaced)
+        print('PASS later stable release supporting the upstream replaces the local upgrade pair')
+
+if '--local-upgrade-slice' in sys.argv[2:]:
+    local_upgrade()
+    sys.exit(0)
 if '--unsupported-slice' in sys.argv[2:]:
     unsupported_upstream()
     sys.exit(0)
 if not sys.argv[2:]:
-    unsupported_upstream()  # The cumulative run covers the unsupported-release stop too.
+    # The cumulative run covers the unsupported-release stop and the agent local upgrade too.
+    unsupported_upstream()
+    local_upgrade()
 
 @contextlib.contextmanager
 def released_work():

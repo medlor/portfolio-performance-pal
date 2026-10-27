@@ -175,6 +175,26 @@ def tree_digest(directory):
 TRUSTED_FILES = ('runtime/candidate-gates.json', 'runtime/release-package.json', 'tests/oracle.py', 'tests/run.py',
                  'tools/test_jobs.py', 'tools/engine', 'tools/runtime_dir.py')
 
+def build_trusted_bundle(source, destination):
+    """Copy the independent validation files (gates, fixtures, oracles, harness) from SOURCE."""
+    registry = json.loads((source / 'runtime/candidate-gates.json').read_text())
+    for name in ('fixtures', 'runtime/src/test/java'):
+        shutil.copytree(source / name, destination / name)
+    for name in [*registry['checks'], *TRUSTED_FILES]:
+        target = destination / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(source / name, target)  # keeps the executable bit of tools/engine
+
+def trusted_changes(old_root, new_root):
+    """Relative trusted paths added, changed or removed between two bundles."""
+    def files(root):
+        return {str(path.relative_to(root)): path for path in root.rglob('*') if path.is_file()}
+    old, new = files(old_root), files(new_root)
+    return {'added': sorted(set(new) - set(old)), 'removed': sorted(set(old) - set(new)),
+            'changed': sorted(name for name in set(old) & set(new)
+                              if old[name].read_bytes() != new[name].read_bytes()
+                              or old[name].stat().st_mode != new[name].stat().st_mode)}
+
 def trusted_bundle(state):
     target = state / 'trusted-validation'
     marker = state / 'trusted-validation.json'
@@ -183,13 +203,7 @@ def trusted_bundle(state):
             raise UpdateError('Trusted validation bundle is missing')
         temporary = pathlib.Path(tempfile.mkdtemp(prefix='.trusted-', dir=state))
         try:
-            registry = json.loads((ROOT / 'runtime/candidate-gates.json').read_text())
-            for name in ('fixtures', 'runtime/src/test/java'):
-                shutil.copytree(ROOT / name, temporary / name)
-            for name in [*registry['checks'], *TRUSTED_FILES]:
-                destination = temporary / name
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy(ROOT / name, destination)  # keeps the executable bit of tools/engine
+            build_trusted_bundle(ROOT, temporary)
             digest = tree_digest(temporary)
             os.replace(temporary, target)
             atomic_json(marker, {'schema': 1, 'sha256': digest})
@@ -217,7 +231,8 @@ def active_manifest(state):
             raise ValueError()
         if pathlib.Path(data['runtime']).parent != state / 'runtimes' or runtime_identity(pathlib.Path(data['runtime'])) != data['identity']:
             raise UpdateError('Activated runtime is missing or changed; active pair cannot be dispatched')
-        if package.parent != state / 'wrappers' or package.name != data['wrapper']['revision'] or not (package / 'pp-pal').is_file():
+        expected = ('local-' if data.get('source') == 'local-upgrade' else '') + data['wrapper']['revision']
+        if package.parent != state / 'wrappers' or package.name != expected or not (package / 'pp-pal').is_file():
             raise ValueError()
         if tree_digest(package) != data['wrapper']['treeSha256']:
             raise UpdateError('Activated wrapper content changed; active pair cannot be dispatched')
@@ -293,6 +308,12 @@ def download(state, url, expected=None):
 
 EXECUTABLES = ('pp-pal', 'tools/run-engine', 'tools/engine', 'tools/build-runtime')
 
+def check_policy(policy, trusted_root):
+    """A released candidate may only claim the support policy of the trusted bundle."""
+    trusted = json.loads((trusted_root / 'runtime/release-package.json').read_text())
+    if any(policy.get(key) != trusted.get(key) for key in ('input', 'output', 'migrations', 'jdk', 'jdkArchive', 'layouts', 'features')):
+        raise UpdateError('Unknown support or migration policy; maintenance required')
+
 def extract_wrapper(archive, directory, trusted_root):
     directory.mkdir()
     allowed = ('runtime/', 'tools/', 'pp-pal', 'UPGRADE.md')
@@ -325,11 +346,8 @@ def extract_wrapper(archive, directory, trusted_root):
         if (directory / name).read_bytes() != (ROOT / name).read_bytes():
             raise UpdateError('Released host bootstrap/validator changed; manual trusted-bootstrap maintenance required')
     policy = json.loads((directory / 'runtime/release-package.json').read_text())
-    trusted = json.loads((trusted_root / 'runtime/release-package.json').read_text())
     if policy.get('schema') != 1 or policy.get('buildRecipe') != 2 or policy.get('bootstrapProtocol') != 2 or policy.get('platform') != 'linux/amd64':
         raise UpdateError('Unknown released wrapper build recipe/platform; maintenance required')
-    if any(policy.get(key) != trusted.get(key) for key in ('input', 'output', 'migrations', 'jdk', 'jdkArchive', 'layouts', 'features')):
-        raise UpdateError('Unknown support or migration policy; maintenance required')
     return policy
 
 def trusted_suite(root):
@@ -590,8 +608,10 @@ def perform_update(arguments, original_argv=None):
         registry = trusted_suite(trusted_root)
         asset_url, official_dependency_hash = upstream_asset(upstream)
         if qualification is not None:
+            # A local upgrade is qualified against the stable wrapper release seen when it started.
+            released = qualification.get('releasedWrapper', qualification['wrapper'])
             if (qualification['runtime'] != str(baseline_runtime) or qualification['trustedSuiteSha256'] != suite_hash
-                    or qualification['wrapper']['revision'] != wrapper['revision'] or qualification['wrapper']['tag'] != wrapper['tag']
+                    or released['revision'] != wrapper['revision'] or released['tag'] != wrapper['tag']
                     or qualification['upstream']['revision'] != upstream['revision'] or qualification['upstream']['tag'] != upstream['tag']
                     or qualification['upstream']['dependencyArchiveSha256'] != official_dependency_hash
                     or qualification['wrapper']['treeSha256'] != tree_digest(ROOT)):
@@ -600,7 +620,7 @@ def perform_update(arguments, original_argv=None):
                 path = pathlib.Path(archive['path'])
                 if path.is_symlink() or hash_bytes(path.read_bytes()) != archive['sha256']:
                     raise UpdateError('Candidate qualification source/dependency cache changed')
-            verify_candidate_runtime(baseline_runtime, wrapper, upstream, qualification['support'])
+            verify_candidate_runtime(baseline_runtime, qualification['wrapper'], upstream, qualification['support'])
             validate_selected(state, original, baseline_runtime, baseline_runtime)
             unchanged(file, original, identity)
             print('QUALIFIED exact fixed-check released pair; reused ' + qualification['identity'])
@@ -638,6 +658,7 @@ def perform_update(arguments, original_argv=None):
                 print('UNCHANGED validated local-upgrade pair; reused ' + active['identity'])
                 return active
             raise upgrade_required(state, upstream, original_argv)
+        check_policy(policy, trusted_root)
         unchanged(file, original, identity)
         execute([launcher, 'backup-before-update', *selected_args], environment)
         print('BUILD released wrapper ' + wrapper['tag'] + ' and upstream ' + upstream['tag'], flush=True)
@@ -680,6 +701,132 @@ def perform_update(arguments, original_argv=None):
         print('ACTIVATED ' + wrapper['revision'] + ' / ' + upstream['revision'] + ' / ' + runtime_id)
         return manifest
 
+def perform_local_upgrade(checkout, selected_args):
+    """Qualify and activate an agent upgrade checkout (UPGRADE.md, ADR 0006)."""
+    checkout = pathlib.Path(checkout).expanduser().absolute()
+    try:
+        status = subprocess.run(['git', '-C', str(checkout), 'status', '--porcelain'], text=True, capture_output=True)
+        commit = subprocess.run(['git', '-C', str(checkout), 'rev-parse', 'HEAD'], text=True, capture_output=True).stdout.strip()
+    except OSError as failure:
+        raise InputError('Local upgrade checkout must be a git checkout: ' + str(failure)) from failure
+    if status.returncode or status.stdout.strip() or not SHA.fullmatch(commit):
+        raise InputError('Local upgrade checkout must be clean and committed: ' + str(checkout))
+    state = state_directory()
+    descriptor = os.open(state / 'update.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, 'r+') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as failure:
+            raise UpdateError('Another wrapper update is active') from failure
+        trusted_root, suite_hash = trusted_bundle(state)
+        active = active_manifest(state)
+        baseline_runtime = pathlib.Path(active['runtime']) if active else default_runtime(state)
+        runtime_identity(baseline_runtime)
+        launcher = str(pathlib.Path(active['launcher']).parent / 'tools/run-engine') if active else str(ROOT / 'tools/run-engine')
+        environment = launch_environment(baseline_runtime)
+        environment['PP_PAL_RESOLVE_ONLY'] = '1'
+        file = pathlib.Path(execute([launcher, 'backup-monthly', *selected_args], environment, input_errors=True))
+        original, identity = snapshot(file)
+        environment.pop('PP_PAL_RESOLVE_ONLY')
+        execute([launcher, 'backup-monthly', *selected_args], environment)
+        wrapper = release(WRAPPER, 'wrapper')
+        upstream = release(UPSTREAM, 'Portfolio Performance')
+        asset_url, official_dependency_hash = upstream_asset(upstream)
+        archive = subprocess.run(['git', '-C', str(checkout), 'archive', '--format=tar.gz', '--prefix=upgrade/', commit], capture_output=True)
+        if archive.returncode:
+            raise UpdateError('Cannot archive local upgrade checkout: ' + archive.stderr.decode(errors='replace')[-2000:])
+        with tempfile.TemporaryDirectory(prefix='local-upgrade-', dir=state) as temporary:
+            work = pathlib.Path(temporary)
+            (work / 'upgrade.tar.gz').write_bytes(archive.stdout)
+            # Same allowlist and bootstrap-identity rule as a released wrapper; its
+            # support policy may change (that is the point of the upgrade).
+            staged = work / 'package'
+            policy = extract_wrapper(work / 'upgrade.tar.gz', staged, trusted_root)
+            declared = policy.get('upstream', {})
+            if declared.get('tag') != upstream['tag'] or declared.get('revision') != upstream['revision']:
+                raise UpdateError('Local upgrade does not target the latest upstream release ' + upstream['tag'])
+            if declared.get('releaseSha256') != official_dependency_hash:
+                raise UpdateError('Local upgrade dependency digest does not match the official release asset')
+            new_bundle = work / 'trusted'
+            new_bundle.mkdir()
+            build_trusted_bundle(checkout, new_bundle)
+            old_gates = trusted_suite(trusted_root)['checks']
+            registry = trusted_suite(new_bundle)
+            for gate in old_gates:
+                if gate not in registry['checks']:
+                    raise UpdateError('Local upgrade removes trusted gate ' + gate)
+            changes = trusted_changes(trusted_root, new_bundle)
+            new_hash = tree_digest(new_bundle)
+            unchanged(file, original, identity)
+            execute([launcher, 'backup-before-update', *selected_args], environment)
+            print('BUILD local upgrade ' + commit + ' for upstream ' + upstream['tag'], flush=True)
+            wrappers = state / 'wrappers'
+            wrappers.mkdir(exist_ok=True)
+            package = wrappers / ('local-' + commit)
+            if package.exists():
+                shutil.rmtree(package)
+            shutil.copytree(staged, package)
+            source_archive, source_hash = download(state, api_base() + '/repos/' + UPSTREAM + '/tarball/' + upstream['revision'], declared.get('sourceSha256'))
+            dependency_archive, dependency_hash = download(state, asset_url, official_dependency_hash)
+            jdk_archive, jdk_hash = download(state, policy['jdkArchive']['url'], policy['jdkArchive']['sha256'])
+            inputs = work / 'inputs'
+            inputs.mkdir()
+            for source, name in ((source_archive, 'upstream-source.tar.gz'), (dependency_archive, 'upstream-release.tar.gz'), (jdk_archive, 'jdk.tar.gz')):
+                shutil.copyfile(source, inputs / name)
+            runtime = build_runtime(package, inputs, commit, state,
+                                    {'sourceSha256': source_hash, 'releaseSha256': dependency_hash, 'jdkSha256': jdk_hash})
+            runtime_id = runtime_identity(runtime)
+            local_wrapper = {'tag': 'local-' + commit[:12], 'revision': commit, 'treeSha256': tree_digest(package)}
+            java_version = verify_candidate_runtime(runtime, local_wrapper, upstream, policy)
+            qualification = {'schema': 1, 'source': 'local-upgrade', 'launcher': str(package / 'pp-pal'), 'runtime': str(runtime),
+                'identity': runtime_id, 'baselineRuntime': str(baseline_runtime), 'wrapper': local_wrapper,
+                'releasedWrapper': {'tag': wrapper['tag'], 'revision': wrapper['revision']},
+                'upstream': {'tag': upstream['tag'], 'revision': upstream['revision'], 'dependencyArchiveSha256': dependency_hash},
+                'trustedSuiteSha256': new_hash, 'support': policy,
+                'archives': [{'path': str(path), 'sha256': digest} for path, digest in
+                    ((source_archive, source_hash), (dependency_archive, dependency_hash), (jdk_archive, jdk_hash))]}
+            # The owner's portfolio is checked by the PREVIOUS trusted oracle on the
+            # PREVIOUS runtime, independently of the agent's adapted tests.
+            validate_selected(state, original, baseline_runtime, runtime)
+            unchanged(file, original, identity)
+            fixed_checks(package, runtime, registry, new_bundle, qualification)
+            unchanged(file, original, identity)
+            # Activation: retain the previous bundle, install the new one, then switch the manifest.
+            retained = state / ('trusted-validation.previous-' + commit)
+            if retained.exists():
+                shutil.rmtree(retained)
+            os.replace(trusted_root, retained)
+            shutil.copytree(new_bundle, state / 'trusted-validation')
+            atomic_json(state / 'trusted-validation.json', {'schema': 1, 'sha256': new_hash})
+        cache_key = hash_bytes(json.dumps({'local': commit, 'upstream': upstream['revision'], 'trustedSuite': new_hash}, sort_keys=True).encode())
+        manifest = {'schema': 1, 'source': 'local-upgrade', 'validatedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'wrapper': local_wrapper, 'releasedWrapper': qualification['releasedWrapper'],
+            'upstream': {'tag': upstream['tag'], 'revision': upstream['revision'], 'sourceArchiveSha256': source_hash, 'dependencyArchiveSha256': dependency_hash},
+            'runtime': str(runtime), 'identity': runtime_id, 'baselineRuntime': str(baseline_runtime), 'launcher': str(package / 'pp-pal'),
+            'cacheKey': cache_key, 'trustedSuiteSha256': new_hash, 'trustedChanges': changes, 'support': policy,
+            'checks': registry['checks'] + ['selected-portfolio-cross-engine-semantic-roundtrip', 'selected-portfolio-original-stale-check'],
+            'dependencies': {'host': ['Linux', 'Bash', 'Python 3.10+', 'coreutils', 'tar', 'git'], 'build': policy['jdk'], 'jdkArchiveSha256': jdk_hash,
+                             'actualJavaVersion': java_version, 'actualPlatform': 'linux/amd64', 'actualHost': platform.platform()},
+            'previous': active}
+        reports = state / 'reports'
+        reports.mkdir(exist_ok=True)
+        atomic_json(reports / (cache_key + '.json'), manifest)
+        if active:
+            atomic_json(state / 'previous.json', active)
+        atomic_json(state / 'active.json', manifest)
+        print('TRUSTED CHANGES')
+        for kind in ('added', 'changed', 'removed'):
+            for name in changes[kind]:
+                print(kind + ' ' + name)
+        print('ACTIVATED local-upgrade ' + runtime_id)
+        return manifest
+
+def local_upgrade_arguments(arguments):
+    """--update --local-upgrade PATH [--file F] [--config C] -> (PATH, selection)."""
+    if arguments[:2] != ['--update', '--local-upgrade'] or len(arguments) < 3 or not arguments[2] or arguments[2].startswith('--'):
+        raise InputError('Usage: pp-pal --update --local-upgrade CHECKOUT [--file PATH] [--config PATH]')
+    return arguments[2], selection(['--update', *arguments[3:]])
+
 def prepare_processing(arguments):
     """Automatic update boundary for every preview/import, before any financial plan."""
     options = ['--update']
@@ -717,6 +864,8 @@ def main():
         raise UpdateError('Only the tested Linux amd64 host platform is supported')
     if sys.argv[1:2] == ['--dispatch']:
         dispatch(sys.argv[2:])
+    elif sys.argv[2:3] == ['--local-upgrade']:
+        perform_local_upgrade(*local_upgrade_arguments(sys.argv[1:]))
     else:
         perform_update(sys.argv[1:])
 

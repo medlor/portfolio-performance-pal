@@ -638,7 +638,7 @@ Two special cases:
   - CLI: `main()` routes `--update --local-upgrade PATH [--file F] [--config C]`
     to this function.
 
-- [ ] **Step 1: Write the failing tests.** These continue from the Task 6
+- [x] **Step 1: Write the failing tests.** These continue from the Task 6
   state:
   - (a) A dirty checkout exits 2 with
     `must be clean and committed`. `active.json` is unchanged.
@@ -662,15 +662,15 @@ Two special cases:
     `0.88.1-fixture` support, the next `holdings` run qualifies it and
     activates it. Its `previous` is the local-upgrade manifest.
 
-- [ ] **Step 2: Run it.** `bash tests/updater.sh "$R" --local-upgrade-slice`
+- [x] **Step 2: Run it.** `bash tests/updater.sh "$R" --local-upgrade-slice`
   fails, because the option is unknown.
 
-- [ ] **Step 3: Implement** the interfaces above.
+- [x] **Step 3: Implement** the interfaces above.
 
-- [ ] **Step 4: Run it.** `bash tests/updater.sh "$R" --local-upgrade-slice`
+- [x] **Step 4: Run it.** `bash tests/updater.sh "$R" --local-upgrade-slice`
   prints `PASS local upgrade`.
 
-- [ ] **Step 5: Commit.** Message: `Activate validated agent local upgrades`.
+- [x] **Step 5: Commit.** Message: `Activate validated agent local upgrades`.
 
 ### Task 8: `UPGRADE.md`, ADRs, docs and Docker removal
 
