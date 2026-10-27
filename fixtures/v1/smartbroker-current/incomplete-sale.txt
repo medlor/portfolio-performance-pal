@@ -1,0 +1,23 @@
+Baader Bank AG
+Smartbroker AG
+Seite 1/2
+Vorgangs-Nr.: CURRENT-SELL-001
+Referenz-Nr.: FIXTURE-002
+Wertpapierabrechnung: Verkauf
+Auftragsdatum: 02.03.2025 Ausführungsplatz: GETTEX - MM Munich
+Auftragszeit: 09:29:00:00
+Nominale ISIN: DE0000000001 WKN: TEST01 Kurs
+STK 2    Synthetic Euro Instrument EUR 30,00
+Registered Shares 1C EUR o.N.
+Auftraggeber: Depotinhaber
+Art der Auftragserteilung: Orderroutingssystem
+Kurswert EUR 60,00
+Zu Gunsten Konto 0000000001 Valuta: 04.03.2025 EUR 60,00
+Die Wertpapiere buchen wir zu Lasten Ihres Depots.
+Details zur Ausführung: Handels- Handels-
+Nominale Kurs Ausführungsplatz datum uhrzeit
+STK   2    EUR 30,00 GETTEX - MM Munich 02.03.2025 09:30:01:000
+Verwahrart: Wertpapierrechnung Zeitzone der Handelsuhrzeit: MEZ/MESZ
+Lagerland: Luxemburg
+Dieses Dokument wurde maschinell erstellt und wird nicht unterschrieben.
+smartbrokerplus.de

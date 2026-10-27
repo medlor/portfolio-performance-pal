@@ -1,0 +1,2 @@
+# The blank physical page contributes a literal final newline to converted text.
+page-marker-on-wrong-page.txt whitespace=-blank-at-eof

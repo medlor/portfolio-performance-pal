@@ -1,0 +1,427 @@
+<client id="1">
+  <version>70</version>
+  <baseCurrency>EUR</baseCurrency>
+  <securities>
+    <security id="2">
+      <uuid>00000000-0000-4000-8000-000000000001</uuid>
+      <name>Synthetic Euro Instrument</name>
+      <currencyCode>EUR</currencyCode>
+      <note>Invented public fixture</note>
+      <isin>DE0000000001</isin>
+      <wkn>TEST01</wkn>
+      <prices/>
+      <isRetired>false</isRetired>
+      <updatedAt>2025-02-10T12:00:00Z</updatedAt>
+    </security>
+    <security id="3">
+      <uuid>00000000-0000-4000-8000-000000000002</uuid>
+      <name>Synthetic Dollar Instrument</name>
+      <currencyCode>USD</currencyCode>
+      <isin>US0000000002</isin>
+      <prices/>
+      <isRetired>false</isRetired>
+      <updatedAt>2025-02-10T12:00:00Z</updatedAt>
+    </security>
+    <security id="4">
+      <uuid>00000000-0000-4000-8000-000000000099</uuid>
+      <name>Synthetic Euro Instrument</name>
+      <currencyCode>EUR</currencyCode>
+      <isin>DE0000000001</isin>
+      <wkn>TEST01</wkn>
+      <prices/>
+      <isRetired>false</isRetired>
+      <updatedAt>2026-10-07T15:57:43.648109479Z</updatedAt>
+    </security>
+  </securities>
+  <watchlists/>
+  <accounts>
+    <account id="5">
+      <uuid>00000000-0000-4000-8000-000000000003</uuid>
+      <name>Synthetic Cash A</name>
+      <currencyCode>EUR</currencyCode>
+      <isRetired>false</isRetired>
+      <transactions>
+        <account-transaction id="6">
+          <uuid>00000000-0000-4000-8000-000000000004</uuid>
+          <date>2025-01-02T11:00</date>
+          <currencyCode>EUR</currencyCode>
+          <amount>10200</amount>
+          <security reference="2"/>
+          <crossEntry class="buysell" id="7">
+            <portfolio id="8">
+              <uuid>00000000-0000-4000-8000-000000000005</uuid>
+              <name>Synthetic Securities A</name>
+              <isRetired>false</isRetired>
+              <referenceAccount reference="5"/>
+              <transactions>
+                <portfolio-transaction id="9">
+                  <uuid>00000000-0000-4000-8000-000000000006</uuid>
+                  <date>2025-01-02T11:00</date>
+                  <currencyCode>EUR</currencyCode>
+                  <amount>10200</amount>
+                  <security reference="2"/>
+                  <crossEntry class="buysell" reference="7"/>
+                  <shares>1000000000</shares>
+                  <units>
+                    <unit type="FEE">
+                      <amount currency="EUR" amount="100"/>
+                    </unit>
+                    <unit type="TAX">
+                      <amount currency="EUR" amount="100"/>
+                    </unit>
+                  </units>
+                  <updatedAt>2025-02-10T12:00:00Z</updatedAt>
+                  <type>BUY</type>
+                </portfolio-transaction>
+                <portfolio-transaction id="10">
+                  <uuid>00000000-0000-4000-8000-000000000007</uuid>
+                  <date>2025-02-02T11:00:01</date>
+                  <currencyCode>EUR</currencyCode>
+                  <amount>4600</amount>
+                  <security reference="2"/>
+                  <crossEntry class="buysell" id="11">
+                    <portfolio reference="8"/>
+                    <portfolioTransaction reference="10"/>
+                    <account reference="5"/>
+                    <accountTransaction id="12">
+                      <uuid>00000000-0000-4000-8000-000000000008</uuid>
+                      <date>2025-02-02T11:00:01</date>
+                      <currencyCode>EUR</currencyCode>
+                      <amount>4600</amount>
+                      <security reference="2"/>
+                      <crossEntry class="buysell" reference="11"/>
+                      <shares>0</shares>
+                      <updatedAt>2025-02-10T12:00:00Z</updatedAt>
+                      <type>SELL</type>
+                    </accountTransaction>
+                  </crossEntry>
+                  <shares>400000000</shares>
+                  <units>
+                    <unit type="FEE">
+                      <amount currency="EUR" amount="100"/>
+                    </unit>
+                    <unit type="TAX">
+                      <amount currency="EUR" amount="100"/>
+                    </unit>
+                  </units>
+                  <updatedAt>2025-02-10T12:00:00Z</updatedAt>
+                  <type>SELL</type>
+                </portfolio-transaction>
+              </transactions>
+              <updatedAt>2025-02-10T12:00:00Z</updatedAt>
+            </portfolio>
+            <portfolioTransaction reference="9"/>
+            <account reference="5"/>
+            <accountTransaction reference="6"/>
+          </crossEntry>
+          <shares>0</shares>
+          <updatedAt>2025-02-10T12:00:00Z</updatedAt>
+          <type>BUY</type>
+        </account-transaction>
+        <account-transaction reference="12"/>
+        <account-transaction id="13">
+          <uuid>00000000-0000-4000-8000-000000000009</uuid>
+          <date>2025-02-10T11:00</date>
+          <currencyCode>EUR</currencyCode>
+          <amount>850</amount>
+          <security reference="2"/>
+          <shares>600000000</shares>
+          <units>
+            <unit type="FEE">
+              <amount currency="EUR" amount="50"/>
+            </unit>
+            <unit type="TAX">
+              <amount currency="EUR" amount="100"/>
+            </unit>
+          </units>
+          <updatedAt>2025-02-10T12:00:00Z</updatedAt>
+          <type>DIVIDENDS</type>
+        </account-transaction>
+      </transactions>
+    </account>
+    <account id="14">
+      <uuid>00000000-0000-4000-8000-000000000010</uuid>
+      <name>Synthetic Cash B</name>
+      <currencyCode>EUR</currencyCode>
+      <isRetired>false</isRetired>
+      <transactions>
+        <account-transaction id="15">
+          <uuid>00000000-0000-4000-8000-000000000011</uuid>
+          <date>2025-01-03T09:30</date>
+          <currencyCode>EUR</currencyCode>
+          <amount>5100</amount>
+          <security reference="3"/>
+          <crossEntry class="buysell" id="16">
+            <portfolio id="17">
+              <uuid>00000000-0000-4000-8000-000000000012</uuid>
+              <name>Synthetic Securities B</name>
+              <isRetired>false</isRetired>
+              <referenceAccount reference="14"/>
+              <transactions>
+                <portfolio-transaction id="18">
+                  <uuid>00000000-0000-4000-8000-000000000013</uuid>
+                  <date>2025-01-03T09:30</date>
+                  <currencyCode>EUR</currencyCode>
+                  <amount>5100</amount>
+                  <security reference="3"/>
+                  <crossEntry class="buysell" reference="16"/>
+                  <shares>200000000</shares>
+                  <units>
+                    <unit type="FEE">
+                      <amount currency="EUR" amount="100"/>
+                    </unit>
+                    <unit type="GROSS_VALUE">
+                      <amount currency="EUR" amount="5000"/>
+                      <forex currency="USD" amount="6000"/>
+                      <exchangeRate>0.8333333333</exchangeRate>
+                    </unit>
+                  </units>
+                  <updatedAt>2025-02-10T12:00:00Z</updatedAt>
+                  <type>BUY</type>
+                </portfolio-transaction>
+                <portfolio-transaction id="19">
+                  <uuid>00000000-0000-4000-8000-000000000014</uuid>
+                  <date>2025-02-03T09:30:01</date>
+                  <currencyCode>EUR</currencyCode>
+                  <amount>5700</amount>
+                  <security reference="3"/>
+                  <crossEntry class="buysell" id="20">
+                    <portfolio reference="17"/>
+                    <portfolioTransaction reference="19"/>
+                    <account reference="14"/>
+                    <accountTransaction id="21">
+                      <uuid>00000000-0000-4000-8000-000000000015</uuid>
+                      <date>2025-02-03T09:30:01</date>
+                      <currencyCode>EUR</currencyCode>
+                      <amount>5700</amount>
+                      <security reference="3"/>
+                      <crossEntry class="buysell" reference="20"/>
+                      <shares>0</shares>
+                      <updatedAt>2025-02-10T12:00:00Z</updatedAt>
+                      <type>SELL</type>
+                    </accountTransaction>
+                  </crossEntry>
+                  <shares>200000000</shares>
+                  <units>
+                    <unit type="FEE">
+                      <amount currency="EUR" amount="100"/>
+                    </unit>
+                    <unit type="TAX">
+                      <amount currency="EUR" amount="200"/>
+                    </unit>
+                    <unit type="GROSS_VALUE">
+                      <amount currency="EUR" amount="6000"/>
+                      <forex currency="USD" amount="7200"/>
+                      <exchangeRate>0.8333333333</exchangeRate>
+                    </unit>
+                  </units>
+                  <updatedAt>2025-02-10T12:00:00Z</updatedAt>
+                  <type>SELL</type>
+                </portfolio-transaction>
+              </transactions>
+              <updatedAt>2025-02-10T12:00:00Z</updatedAt>
+            </portfolio>
+            <portfolioTransaction reference="18"/>
+            <account reference="14"/>
+            <accountTransaction reference="15"/>
+          </crossEntry>
+          <shares>0</shares>
+          <updatedAt>2025-02-10T12:00:00Z</updatedAt>
+          <type>BUY</type>
+        </account-transaction>
+        <account-transaction reference="21"/>
+      </transactions>
+    </account>
+  </accounts>
+  <portfolios>
+    <portfolio reference="8"/>
+    <portfolio reference="17"/>
+  </portfolios>
+  <plans/>
+  <taxonomies>
+    <taxonomy>
+      <id>00000000-0000-4000-8000-000000000016</id>
+      <name>Synthetic Classification</name>
+      <root id="22">
+        <id>fixture-root</id>
+        <name>All synthetic assets</name>
+        <color>#8aa7ce</color>
+        <children/>
+        <assignments>
+          <assignment>
+            <investmentVehicle class="security" reference="2"/>
+            <weight>10000</weight>
+            <rank>0</rank>
+          </assignment>
+          <assignment>
+            <investmentVehicle class="security" reference="3"/>
+            <weight>10000</weight>
+            <rank>0</rank>
+          </assignment>
+        </assignments>
+        <weight>10000</weight>
+        <rank>0</rank>
+      </root>
+    </taxonomy>
+  </taxonomies>
+  <dashboards/>
+  <properties>
+    <entry>
+      <string>fixture.setting</string>
+      <string>preserve-me</string>
+    </entry>
+  </properties>
+  <settings>
+    <bookmarks>
+      <bookmark>
+        <label>finance.yahoo.com</label>
+        <pattern>https://finance.yahoo.com/quote/{tickerSymbol}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>onvista.de</label>
+        <pattern>https://www.onvista.de/suche.html?SEARCH_VALUE={isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>finanzen.net</label>
+        <pattern>https://www.finanzen.net/suchergebnis.asp?frmAktiensucheTextfeld={isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>ariva.de</label>
+        <pattern>https://www.ariva.de/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>justetf.com  (ETF)</label>
+        <pattern>https://www.justetf.com/etf-profile.html?isin={isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>fondsweb.com</label>
+        <pattern>https://www.fondsweb.com/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>morningstar.de</label>
+        <pattern>https://www.morningstar.de/de/funds/SecuritySearchResults.aspx?type=ALL&amp;search={isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>extraETF.com (ETF)</label>
+        <pattern>https://extraetf.com/etf-profile/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>alleaktien.de (Share)</label>
+        <pattern>https://www.alleaktien.de/data/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>comdirect.de (Share)</label>
+        <pattern>https://www.comdirect.de/inf/aktien/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>comdirect.de (ETF)</label>
+        <pattern>https://www.comdirect.de/inf/etfs/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>divvydiary.com</label>
+        <pattern>https://divvydiary.com/symbols/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>trackingdifferences.com (ETF)</label>
+        <pattern>https://www.trackingdifferences.com/ETF/ISIN/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>tradingview.com</label>
+        <pattern>https://www.tradingview.com/chart/?symbol=XETR:{tickerSymbolPrefix}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>cnbc.com (Share)</label>
+        <pattern>https://www.cnbc.com/quotes/{tickerSymbolPrefix}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>nasdaq.com (Share)</label>
+        <pattern>https://www.nasdaq.com/market-activity/stocks/{tickerSymbolPrefix}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>aktienfinder.net (Share)</label>
+        <pattern>https://aktienfinder.net/aktien-profil/{isin}</pattern>
+      </bookmark>
+      <bookmark>
+        <label>aktien.guide (Share)</label>
+        <pattern>http://aktien.guide/isin/aktien/{isin}</pattern>
+      </bookmark>
+    </bookmarks>
+    <attributeTypes>
+      <attribute-type>
+        <id>logo</id>
+        <name>Logo</name>
+        <columnLabel>Logo</columnLabel>
+        <target>name.abuchen.portfolio.model.Security</target>
+        <type>java.lang.String</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$ImageConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>logo</id>
+        <name>Logo</name>
+        <columnLabel>Logo</columnLabel>
+        <target>name.abuchen.portfolio.model.Account</target>
+        <type>java.lang.String</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$ImageConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>logo</id>
+        <name>Logo</name>
+        <columnLabel>Logo</columnLabel>
+        <target>name.abuchen.portfolio.model.Portfolio</target>
+        <type>java.lang.String</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$ImageConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>logo</id>
+        <name>Logo</name>
+        <columnLabel>Logo</columnLabel>
+        <target>name.abuchen.portfolio.model.InvestmentPlan</target>
+        <type>java.lang.String</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$ImageConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>ter</id>
+        <name>Total Expense Ratio (TER)</name>
+        <columnLabel>TER</columnLabel>
+        <source>ter</source>
+        <target>name.abuchen.portfolio.model.Security</target>
+        <type>java.lang.Double</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$PercentConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>aum</id>
+        <name>Assets under Management</name>
+        <columnLabel>AUM</columnLabel>
+        <target>name.abuchen.portfolio.model.Security</target>
+        <type>java.lang.Long</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$AmountPlainConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>vendor</id>
+        <name>Vendor</name>
+        <columnLabel>Vendor</columnLabel>
+        <source>vendor</source>
+        <target>name.abuchen.portfolio.model.Security</target>
+        <type>java.lang.String</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$StringConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>acquisitionFee</id>
+        <name>Acquisition Fee (percentage)</name>
+        <columnLabel>Acquisition Fee</columnLabel>
+        <target>name.abuchen.portfolio.model.Security</target>
+        <type>java.lang.Double</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$PercentConverter</converterClass>
+      </attribute-type>
+      <attribute-type>
+        <id>managementFee</id>
+        <name>Management Fee (percentage)</name>
+        <columnLabel>Management Fee</columnLabel>
+        <target>name.abuchen.portfolio.model.Security</target>
+        <type>java.lang.Double</type>
+        <converterClass>name.abuchen.portfolio.model.AttributeType$PercentConverter</converterClass>
+      </attribute-type>
+    </attributeTypes>
+    <configurationSets/>
+  </settings>
+</client>

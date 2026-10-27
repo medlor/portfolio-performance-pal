@@ -1,12 +1,12 @@
 # Upgrading Portfolio Performance support
 
-The wrapper reuses upstream Java persistence and models. This does not establish rewrite safety or promise stable exported APIs. No combinations or executable checks are validated yet; establish the following evidence before enabling writes.
+The wrapper reuses upstream Java persistence and models. This does not establish rewrite safety or promise stable exported APIs. Exact validated images and financial capabilities are recorded in `runtime/support-matrix.json`; retain the following evidence requirements when extending support.
 
-Normal commands use a pinned Portfolio Performance version and locally built image. Provide a documented upgrade script through the shell launcher's `--update` option, targeting the latest stable upstream release. Build the candidate locally and activate it only after compatibility checks pass. If building or validation fails, keep the previous working image active and leave the portfolio untouched; report adapter maintenance required when upstream changes prevent an upgrade. The command does not exist yet. The workflow must not publish the wrapper image to an external registry.
+Normal commands use a pinned Portfolio Performance version and locally built image. Provide a documented upgrade script through the shell launcher's `--update` option, targeting the latest stable upstream release. Build the candidate locally and activate it only after compatibility checks pass. If building or validation fails, keep the previous working image active and leave the portfolio untouched; report adapter maintenance required when upstream changes prevent an upgrade. The command is implemented; [local updater and bootstrap packaging](local-updater.md) documents its release prerequisite and gates. The workflow must not publish the wrapper image to an external registry.
 
 Also fetch released wrapper updates through explicit tags resolved to immutable revisions. Build in isolated checkouts without altering the owner's repository or generating code/test fixes. Validate and activate the wrapper/upstream pair together, recording both revisions and retaining the previous pair on failure.
 
-The launcher automatically checks for updates before every preview/import and rebuilds when an upstream or wrapper release changes; `--update` also invokes this workflow explicitly. Failed release checks, builds, or validation stop the requested command while preserving the previous validated image. Updating the wrapper does not migrate the portfolio. A later transaction command may perform a tested migration, explicitly shown in preview and covered by a separate backup of the exact pre-migration state, following [ADR 0003](adr/0003-allow-tested-migrations-with-transactions.md). The owner updates the desktop application independently; the wrapper does not gate writes against a configured desktop release.
+The launcher automatically checks for updates before every preview/import and rebuilds when an upstream or wrapper release changes; `--update` also invokes this workflow explicitly. Failed release checks, builds, or validation stop the requested command while preserving the previous validated image. Updating the wrapper leaves the selected portfolio unchanged. Financial commands support the tested ID-reference XML model 69 -> 70 migration, explicitly shown in preview and covered by a separate backup of the exact operation input, following [ADR 0003](adr/0003-allow-tested-migrations-with-transactions.md). No earlier migration is declared. The owner updates the desktop application independently; the wrapper does not gate writes against a configured desktop release.
 
 Create a portfolio backup before each actual upgrade attempt; unchanged-release checks do not create update backups. Check for a due monthly backup at launch, with no Linux timer. After inactivity, back up the current state on the next launch; do not fabricate missed monthly backups. Retain update, monthly, and pre-migration backups for two years, separately from the existing daily-backup policy. Choose distinct, collision-safe names and tool-ownership markers during implementation.
 
@@ -21,7 +21,7 @@ Create a portfolio backup before each actual upgrade attempt; unchanged-release 
 
 ## Automated update design
 
-Automate the mechanical procedure while keeping validation rules and expected fixture results independent of the candidate release. This is the selected design, not an implemented updater; [ADR 0004](adr/0004-validate-local-updates-before-processing.md) records its trade-off.
+Automate the mechanical procedure while keeping validation rules and expected fixture results independent of the candidate release. The implemented updater follows this procedure; [ADR 0004](adr/0004-validate-local-updates-before-processing.md) records its trade-off.
 
 [Upstream research notes](update-automation-research.md) document release discovery, immutable source resolution, build dependencies, and the headless packaging questions still to prove.
 
@@ -33,6 +33,53 @@ Automate the mechanical procedure while keeping validation rules and expected fi
 5. Activate only a passing candidate through an atomic change to the active manifest selecting the released wrapper implementation and image together, retaining the previous validated pair. Interruptions before activation leave the previous manifest usable. Updating does not modify the portfolio or import bookkeeping.
 6. Start the requested preview/import with the selected image fixed for the invocation. Report update failures and stop the requested operation rather than silently continuing with the older image.
 
-`--update` activates a passing candidate automatically; it does not require `--apply`. Reserve `--apply` for recording financial changes. Update-only invocations leave the original portfolio unchanged. The initial headless build/runtime proof must determine the packaging recipe; it has not been established yet.
+`--update` activates a passing candidate automatically; it does not require `--apply`. Reserve `--apply` for recording financial changes. Update-only invocations leave the original portfolio unchanged. The source-built core recipe is proved for upstream 0.88.0; candidates use its reviewed archive-input variant with immutable revisions and verified digests. Unknown adapter changes stop the update.
 
 Use the selected upstream checkout's contributor instructions and persistence/model tests as starting points. Concrete upgrade records must link to pinned revisions and include reproducible validation commands.
+
+Sale PDF qualification uses the same pinned Portfolio Performance 0.88.0 source
+revision `8de1fe41d71a2c1b74a6bfbe913f885899aaf123`, Temurin 21.0.11+10 and
+Linux amd64 runtime. It retains ID-reference model70 roundtrips and protected
+transaction-only model69-to-70 migration. `tests/pdf-sale.sh` is the fourteenth
+mandatory candidate gate; all thirteen previous gates and independent expectations
+remain. The complete final-policy run, `bash tests/all.sh pp-pal:issue32-final`,
+passed in 1667 seconds. Exact development/released image identities and reproduction
+commands are recorded in [the support matrix](../runtime/support-matrix.json).
+Qualified sale grammar is fixture-scoped; the retained two-page current-layout
+sample remains unverified, so release qualification does not authorize that layout
+or additional migrations.
+
+
+Dividend PDF qualification retains the same upstream revision/JDK/platform and
+model70 plus protected model69-to-70 combinations. `tests/pdf-dividend.sh` is the
+fifteenth mandatory candidate gate; all fourteen previous gates and assertions
+remain. `bash tests/all.sh pp-pal:issue33-final` passed in 1764 seconds (29 minutes
+24 seconds), including independent baseline checks, all fifteen gates exactly
+once on successful released qualification, selected-copy validation and retained
+updater failure/attack checks. Runtime, help, release policy, gates and executable
+test inputs stayed frozen; only documentation and support evidence changed after
+success. Exact development/released pair identities are in the
+[support matrix](../runtime/support-matrix.json). The qualified dividend profile
+is synthetic German EUR Baader page-1-of-1; the supplied local CHF reference has
+unproved page coverage and no readable broker reference and remains unsupported.
+
+
+Story #34 adds `tests/pdf-fx.sh` as the seventeenth mandatory candidate gate,
+retaining all sixteen previous gates and expectations. The full four-job
+`PP_PAL_TEST_JOBS=4 bash tests/all.sh pp-pal:issue34` run passed in 1,220 seconds
+on 2026-10-11. It qualifies synthetic Baader EUR/USD purchase/sale/dividend and
+complete mixed-page profiles, including transaction-only model69-to70 migration,
+missing-conversion supplementation, atomic refusal, duplicate evidence and
+metadata recovery. The eleven PDF/text pairs and independent saved-model facts
+are described in [the FX fixture contract](../fixtures/v1/pdf-fx/README.md).
+
+Development image:
+`sha256:8d2395390748008c69b5ea9017f36ebef7ebc5127344adaec3647ffeaf3e47a8`.
+Qualified synthetic released image:
+`sha256:4b21a9369c9ac1eb46b6319c5dcb1a616f39609768922fdb125a455f9f31c043`.
+Its isolated wrapper revision is `6a27c4ae13663e9688bdb959563d667f0c5c9a09`,
+with pinned PP `8de1fe41d71a2c1b74a6bfbe913f885899aaf123`, Temurin 21.0.11+10
+and Linux amd64. This is qualification evidence, not a published wrapper release.
+The [support matrix](../runtime/support-matrix.json) records both model entries,
+reproduction commands, archive identities and limitations. Complete current
+owner-layout evidence and additional currency pairs remain unqualified.

@@ -1,0 +1,110 @@
+{
+  "partial": [
+    {
+      "shares": "2.5",
+      "gross": 2500,
+      "total": 2350,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T09:30:00",
+      "reference": "SYNTHETIC-PARTIAL"
+    }
+  ],
+  "full": [
+    {
+      "shares": "6",
+      "gross": 6000,
+      "total": 5850,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T09:30:00",
+      "reference": "SYNTHETIC-FULL"
+    }
+  ],
+  "backdated": [
+    {
+      "shares": "2.5",
+      "gross": 2500,
+      "total": 2350,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-01-03T09:30:00",
+      "reference": "SYNTHETIC-BACKDATED"
+    }
+  ],
+  "missing-time": [
+    {
+      "shares": "2.5",
+      "gross": 2500,
+      "total": 2350,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-03T11:00:01",
+      "reference": "SYNTHETIC-MISSING-TIME"
+    }
+  ],
+  "midnight": [
+    {
+      "shares": "2.5",
+      "gross": 2500,
+      "total": 2350,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T00:00:00",
+      "reference": "SYNTHETIC-MIDNIGHT"
+    }
+  ],
+  "tie": [
+    {
+      "shares": "2.5",
+      "gross": 2500,
+      "total": 2350,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-01-02T11:00:00",
+      "reference": "SYNTHETIC-TIE"
+    }
+  ],
+  "funded-tie": [
+    {
+      "shares": "8",
+      "gross": 8000,
+      "total": 7850,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T09:30:00",
+      "reference": "SYNTHETIC-TIE-SELL",
+      "type": "SELL"
+    },
+    {
+      "shares": "2",
+      "gross": 5000,
+      "total": 5100,
+      "fees": 100,
+      "taxes": 0,
+      "date": "2025-03-01T09:30:00",
+      "reference": "SYNTHETIC-TIE-BUY",
+      "type": "BUY"
+    }
+  ],
+  "two-sales": [
+    {
+      "shares": "2.5",
+      "gross": 2500,
+      "total": 2350,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T09:30:00",
+      "reference": "SYNTHETIC-PARTIAL"
+    },
+    {
+      "shares": "3.5",
+      "gross": 3500,
+      "total": 3350,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T09:30:00",
+      "reference": "SYNTHETIC-SECOND"
+    }
+  ]
+}

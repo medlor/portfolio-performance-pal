@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+script=$(readlink -f -- "${BASH_SOURCE[0]}")
+root=$(cd "$(dirname "$script")" && pwd)
+for arg in "$@"; do
+  if [[ $arg == --help ]]; then cat "$root/runtime/help.txt"; exit 0; fi
+done
+if [[ $# == 0 ]]; then cat "$root/runtime/help.txt"; exit 0; fi
+command -v python3 >/dev/null || { echo 'ERROR: Python 3 is required for command dispatch and local updates' >&2; exit 3; }
+if [[ $1 == --update ]]; then exec python3 "$root/tools/update.py" "$@"; fi
+exec python3 "$root/tools/update.py" --dispatch "$@"

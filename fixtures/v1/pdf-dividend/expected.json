@@ -1,0 +1,142 @@
+{
+  "basic": [
+    {
+      "reference": "SYNTHETIC-DIVIDEND",
+      "type": "DIVIDENDS",
+      "shares": "10",
+      "total": 2350,
+      "gross": 2500,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T11:00:00"
+    }
+  ],
+  "explicit": [
+    {
+      "reference": "SYNTHETIC-DIVIDEND",
+      "type": "DIVIDENDS",
+      "shares": "10",
+      "total": 2350,
+      "gross": 2500,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T09:30:00"
+    }
+  ],
+  "midnight": [
+    {
+      "reference": "SYNTHETIC-DIVIDEND",
+      "type": "DIVIDENDS",
+      "shares": "10",
+      "total": 2350,
+      "gross": 2500,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T00:00:00"
+    }
+  ],
+  "missing-gross": [
+    {
+      "reference": "SYNTHETIC-DIVIDEND",
+      "type": "DIVIDENDS",
+      "shares": "10",
+      "total": 2350,
+      "gross": 2500,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T11:00:00"
+    }
+  ],
+  "two-dividends": [
+    {
+      "reference": "SYNTHETIC-DIVIDEND",
+      "type": "DIVIDENDS",
+      "shares": "10",
+      "total": 2350,
+      "gross": 2500,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T11:00:00"
+    },
+    {
+      "reference": "SYNTHETIC-SECOND",
+      "type": "DIVIDENDS",
+      "shares": "8",
+      "total": 1850,
+      "gross": 2000,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-02T11:00:00"
+    }
+  ],
+  "mixed": [
+    {
+      "reference": "SYNTHETIC-0001",
+      "type": "BUY",
+      "shares": "2",
+      "total": 5100,
+      "gross": 5000,
+      "fees": 100,
+      "taxes": 0,
+      "date": "2025-01-06T11:00:00"
+    },
+    {
+      "reference": "SYNTHETIC-DIVIDEND",
+      "type": "DIVIDENDS",
+      "shares": "10",
+      "total": 2350,
+      "gross": 2500,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T11:00:00"
+    }
+  ],
+  "missing-fee": [
+    {
+      "reference": "SYNTHETIC-DIVIDEND",
+      "type": "DIVIDENDS",
+      "shares": "10",
+      "total": 2350,
+      "gross": 2500,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T11:00:00"
+    }
+  ],
+  "missing-tax": [
+    {
+      "reference": "SYNTHETIC-DIVIDEND",
+      "type": "DIVIDENDS",
+      "shares": "10",
+      "total": 2350,
+      "gross": 2500,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T11:00:00"
+    }
+  ],
+  "missing-booked": [
+    {
+      "reference": "SYNTHETIC-DIVIDEND",
+      "type": "DIVIDENDS",
+      "shares": "10",
+      "total": 2350,
+      "gross": 2500,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T11:00:00"
+    }
+  ],
+  "supplement-time": [
+    {
+      "reference": "SYNTHETIC-DIVIDEND",
+      "type": "DIVIDENDS",
+      "shares": "10",
+      "total": 2350,
+      "gross": 2500,
+      "fees": 100,
+      "taxes": 50,
+      "date": "2025-03-01T12:34:56"
+    }
+  ]
+}

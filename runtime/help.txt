@@ -1,0 +1,135 @@
+Usage: pp-pal COMMAND [OPTIONS]
+
+Updates:
+  --update [--file PATH] [--config PATH]  Validate and activate released pairs locally.
+  Requires a stable wrapper bootstrap release; no usable release exists yet.
+
+Models:
+  Tested ID-reference XML input 69/70; output 70. Preview discloses 69 -> 70.
+  Queries, previews and --update leave the selected model unchanged.
+  Financial --apply creates exact separate migration protection when needed.
+
+Commands:
+  holdings   Show recorded quantities by security and securities account.
+  history    Show recorded transactions, including closed holdings and dividends.
+  purchase   Preview or apply a purchase after mandatory release validation.
+  sale       Preview or apply a sale with complete holding-history validation.
+  dividend   Preview or apply a security-associated cash credit with fees/taxes.
+  import     Preview or atomically apply PP-extracted Baader PDF transactions.
+  configure  Save portfolio path and resolved default account IDs explicitly.
+  backup-monthly  Check due launch protection without loading the financial model.
+  backup-before-update  Preserve an exact snapshot before an actual upgrade attempt.
+
+Shared options:
+  --file PATH                 Override selected portfolio (relative to cwd).
+  --config PATH               Select UTF-8 pp-pal.properties configuration.
+  --securities-account ID|NAME  Stable ID or exact unique securities account name.
+  --cash-account ID|NAME      Stable ID or exact unique cash account name.
+  --help                     Show this help without Docker or a portfolio.
+
+Holdings options:
+  --security IDENTIFIER|TEXT  Exact ID/ISIN/WKN/ticker, or name substring.
+  --sort updated|name|quantity  Default updated, descending.
+  --ascending                Reverse the primary sort; stable ties remain ascending.
+  --include-zero             Include closed holdings.
+  --limit NUMBER             Default 15; 0 means unlimited.
+
+History options:
+  --security IDENTIFIER|TEXT  Same exact identifier/name filters as holdings.
+  --type purchase|sale|dividend  Select a recorded transaction type.
+  --from YYYY-MM-DD          Inclusive start date.
+  --to YYYY-MM-DD            Inclusive end date.
+  --sort date                Newest first; --ascending reverses dates only.
+  --limit NUMBER             Default 15; 0 means unlimited.
+  Shared-cash dividends appear once; ambiguous securities attribution is marked.
+
+Purchase options:
+  --security ID|IDENTIFIER|NAME  Exact existing security; no fuzzy names.
+  --security-id UUID          Stable ID; combine identifiers to disambiguate.
+  --create-security          Explicitly create if supplied identifiers match none.
+  --name NAME --currency CODE Required definition with --create-security.
+                             Matching identifiers reuse unchanged existing data.
+  --isin ISIN | --wkn WKN | --ticker TICKER  Exact identifier constraints.
+  --quantity DECIMAL         Positive shares, exact 8-place scale.
+  --price DECIMAL             Positive unit price, exact 8-place scale.
+  --gross DECIMAL             Gross value; or --total DECIMAL booked debit.
+  --fees DECIMAL --taxes DECIMAL  Exact cents; omitted costs default zero.
+  --date YYYY-MM-DD           Required date; --time HH:MM[:SS[.fraction]].
+  Missing time uses 11:00:00. Both accounts are required, explicit or configured.
+  Price/gross/total must determine and agree on the amount. Default is preview.
+  --apply --desktop-closed    Commit a fresh validated purchase with PP closed.
+  --recover-write --desktop-closed  Finish verified pending cleanup only; no inputs.
+  Apply uses a per-portfolio writer lock; Portfolio Performance does not use it.
+  Daily backups are exact original snapshots; committed cleanup failures exit 4.
+  Never repeat an apply reported as committed; recover the pending cleanup.
+
+Sale options:
+  Existing-security selectors, accounts, decimals, dates and write options as above.
+  --total is booked cash credit: gross minus fees and taxes; negative credit rejects.
+  Missing time uses 11:00:01, disclosed in preview; explicit times stay unchanged.
+  The entire selected security/securities-account history must remain nonnegative.
+  At equal timestamps increases precede decreases; persisted account-list order
+  breaks ties within each group, with the new sale after existing decreases.
+  Partial/full sales preserve definitions and history; no FIFO/profit is calculated.
+
+Dividend options:
+  Existing-security selectors and cash-account selection as above; no securities
+  account is required. --gross or --total must determine the cash credit.
+  --total is booked credit; gross = booked + fees + taxes, exact cents.
+  Omitted fees/taxes default zero; contradictory amounts and negative credits reject.
+  --date YYYY-MM-DD is required; --time preserves supplied time, or uses 11:00:00.
+  Default preview shows choices and derivations. --apply --desktop-closed records
+  one cash dividend, including for a closed holding. Quantity and
+  holding last updated stay unchanged; history uses reference-cash/security relevance.
+  Shared cash can make attribution ambiguous; no securities-account link is created.
+  Shared atomic-write, backup and --recover-write rules apply.
+
+Manual foreign-currency options (purchase, sale, dividend):
+  --exchange-rate DECIMAL     Required cash currency per unit of security currency.
+  --forex-gross DECIMAL       Optional gross in security currency, exact cents.
+  --price is in security currency; --gross, --total, --fees, --taxes in cash currency.
+  Supply price, foreign gross, cash gross or booked total to determine the amounts.
+  Rate: positive, at most 10 significant digits and 10 decimal/range places.
+  Quantity x price rounds to foreign cents, then rate conversion to cash cents;
+  both use HALF_UP. Cash-only inputs derive foreign gross with HALF_UP division
+  and must convert back to the same cash cents. Contradictions/overflow reject.
+  Preview discloses currencies, exact rate, origins and rounding; no rates fetched.
+  Same-currency entries reject FX options. Existing apply/backup/update rules apply.
+
+PDF purchase/sale/dividend import:
+  import --pdf PATH          One readable .pdf; preview by default.
+  --apply --desktop-closed   Apply all new members together with daily protection.
+  --allow-suspected-duplicates  Document-wide uncertainty override only.
+  Confirmed re-imports are always skipped after checking current financial records.
+  Preview lists every suspected duplicate; --apply alone cannot authorize them.
+  import --recover-write --desktop-closed  Finish pending metadata/cleanup only.
+  Requires existing securities and a cash account; trades also need a securities account.
+  PP's Baader extractor is authoritative for financial fields and bank layouts.
+  No separate bank parser or supplemental statement text is used. Tested synthetic
+  profiles include EUR trades/dividends, complete continuations, fund distributions,
+  multiple costs and EUR/USD purchase/sale/dividend units; real owner layouts remain unverified.
+  Each complete physical-page sequence must yield one valid supported PP item.
+  Failure/skip, unsupported items or missing pages reject the whole document.
+  PP derives domestic gross and trade price; fields/unknown lines it ignores are
+  not independently validated. Preview identifies PP derivations.
+  Required PP quantity/booked/date sections cannot be reconstructed with CLI values.
+  Absent extracted fees/taxes and time can be supplied; extracted zero is present.
+  --exchange-rate is cash currency per security currency; --forex-gross is security-currency gross.
+  Missing PP conversion can be supplied for one statement; derivations are disclosed.
+  Extracted conversion cannot be overridden. No live exchange lookup is used.
+  Other financial options assert consistency with PP, for a single statement only.
+  Dividend --price rejects: PP has no dividend unit-price field.
+  Preserve PP explicit time including midnight, otherwise use supplied time or
+  fallback 11:00:00 (buy/dividend), 11:00:01 (sale), all disclosed in preview.
+  Informational dividend shares leave quantities/holding timestamps unchanged.
+  Missing broker reference uses exact document hash/member identity; other encodings
+  remain uncertain. Original PP notes are preserved; bookkeeping stays adjacent.
+
+Configuration defaults: pp-pal.properties in cwd; portfolio_performance.xml in cwd.
+Configured file paths resolve relative to the configuration directory.
+Queries preserve portfolio, metadata and configuration. No live prices or profit.
+Launches create a due Berlin monthly backup; each backup-before-update call creates
+another exact backup. That command does not discover, build or activate updates.
+Exit codes: 0 success; 2 input/validation rejected; 3 operational failure;
+4 completed financial change with failed follow-up work.
+Broader representative FX/mixed-document and real owner layout qualification remain pending.

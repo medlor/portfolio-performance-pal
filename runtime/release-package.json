@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "buildRecipe": 1,
+  "platform": "linux/amd64",
+  "jdk": "Temurin 21.0.11+10-LTS",
+  "baseImage": "eclipse-temurin:21.0.11_10-jdk-jammy@sha256:dbfd085220ae632a0830166e443747d1ee89e9038d92e3b48c3e5e9d8292b9a7",
+  "input": {
+    "representation": "XML-ID-references",
+    "modelVersion": 70,
+    "modelVersions": [
+      69,
+      70
+    ]
+  },
+  "output": {
+    "representation": "XML-ID-references",
+    "modelVersion": 70
+  },
+  "migrations": [
+    {
+      "inputModelVersion": 69,
+      "outputModelVersion": 70,
+      "representation": "XML-ID-references",
+      "semantics": "Optional client-filter weight; existing unweighted selections, financial records and unrelated persisted state unchanged",
+      "validatedBy": "tests/migrations.sh"
+    }
+  ],
+  "layouts": [
+    "Baader synthetic domestic purchase/sale/dividend PDF/text v1 only",
+    "baader-german-eur-purchase-flat-v1",
+    "baader-german-eur-purchase-page1-of1-v1",
+    "baader-german-eur-sale-flat-v1",
+    "baader-german-eur-sale-page1-of1-v1",
+    "baader-german-eur-purchase-sale-page1-of1-v1",
+    "baader-german-eur-dividend-page1-of1-v1",
+    "baader-german-eur-purchase-dividend-page1-of1-v1",
+    "baader-pp-authoritative-complete-page-sequences-v1",
+    "baader-synthetic-eur-usd-purchase-dividend-v1",
+    "baader-synthetic-eur-usd-purchase-sale-dividend-v1",
+    "baader-synthetic-mixed-fx-page-sequences-v1",
+    "baader-smartbroker-current-eur-purchase-execution-table-v1",
+    "baader-smartbroker-current-eur-sale-tax-continuation-v1",
+    "baader-smartbroker-current-chf-dividend-tax-continuation-v1",
+    "baader-smartbroker-current-mixed-eur-chf-complete-page-sequences-v1"
+  ],
+  "bootstrapProtocol": 1,
+  "features": [
+    "holdings",
+    "history",
+    "configuration",
+    "monthly-launch-backups",
+    "exact-pre-upgrade-backups",
+    "released-pair-updates",
+    "same-currency-purchase-preview",
+    "baader-purchase-pdf-preview",
+    "atomic-same-currency-purchase-application",
+    "verified-financial-write-recovery",
+    "successful-write-backup-retention",
+    "explicit-purchase-security-creation",
+    "same-currency-sale-preview",
+    "atomic-same-currency-sale-application",
+    "complete-sale-quantity-history-validation",
+    "same-currency-dividend-preview",
+    "atomic-same-currency-dividend-application",
+    "explicit-manual-foreign-currency-transactions",
+    "transaction-only-model69-to70-migration",
+    "atomic-baader-purchase-pdf-application",
+    "duplicate-safe-import-bookkeeping-recovery",
+    "baader-sale-pdf-preview",
+    "atomic-baader-sale-pdf-application",
+    "same-timestamp-pdf-purchase-sale-admission",
+    "baader-dividend-pdf-preview",
+    "atomic-baader-dividend-pdf-application",
+    "mixed-purchase-dividend-pdf-admission",
+    "pp-authoritative-pdf-extraction",
+    "pp-import-actions",
+    "pp-holdings-and-dividend-relevance",
+    "baader-foreign-currency-pdf-import",
+    "single-statement-missing-fx-supplement",
+    "atomic-mixed-purchase-sale-dividend-fx-pdf",
+    "verified-current-smartbroker-layouts"
+  ]
+}
