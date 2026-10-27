@@ -52,7 +52,7 @@ class SchedulingTests(unittest.TestCase):
             root = pathlib.Path(tmp)
             (root/'tools').mkdir()
             (root/'tests').mkdir()
-            for name in ('tools/update.py', 'tools/test_jobs.py', 'tests/run.py'):
+            for name in ('tools/update.py', 'tools/test_jobs.py', 'tools/runtime_dir.py', 'tests/run.py'):
                 shutil.copyfile(ROOT/name, root/name)
             original = sorted(str(path.relative_to(root)) for path in root.rglob('*'))
             code = '''import importlib.util, runpy, sys
@@ -254,10 +254,10 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(self.events(), [])
 
     def test_application_arguments_are_not_jvm_limits(self):
-        result = subprocess.run(self.command('-cp', '/classes', 'Oracle.java', '-Xmx99g', '0.1'),
+        result = subprocess.run(self.command('-cp', str(self.directory / 'classes'), 'Oracle.java', '-Xmx99g', '0.1'),
                                 env=self.environment, text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        result = subprocess.run(self.command('-d', '/classes', 'A.java', '0.1', tool=self.javac),
+        result = subprocess.run(self.command('-d', str(self.directory / 'classes'), 'A.java', '0.1', tool=self.javac),
                                 env=self.environment, text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         javac = [args for kind, args, _ in self.events() if kind == 'start'][-1]

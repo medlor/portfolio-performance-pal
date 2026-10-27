@@ -86,16 +86,8 @@ def unchanged(work, source=SOURCE):
     assert (work/'portfolio.xml.pp-pal.json').read_bytes() == b'opaque migration metadata\n'
 
 
-def host(work, path):
-    # Former container paths: /work is the case directory, /fixtures the fixture tree.
-    for prefix, target in (('/work', str(work)), ('/fixtures', str(ROOT / 'fixtures'))):
-        if path == prefix or path.startswith(prefix + '/'):
-            return target + path[len(prefix):]
-    return path
-
 def oracle(work, name, *args):
-    subprocess.run(['python3', str(ROOT/'tests/oracle.py'), RUNTIME, name,
-                    *(host(work, arg) for arg in args)], check=True)
+    subprocess.run(['python3', str(ROOT/'tests/oracle.py'), RUNTIME, name, *map(str, args)], check=True)
 
 
 def observe(work, action):
@@ -146,11 +138,11 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-migrations-') as temporary:
     assert not list(work.glob('*.????-??-??.bak')) and not list(work.glob('*.migration.*.bak'))
     subprocess.run([str(ROOT/'tools/engine'), 'main', 'roundtrip', str(work/'portfolio.xml'), str(work/'disposable.xml')],
                    env=dict(os.environ, PP_PAL_RUNTIME=RUNTIME), check=True)
-    oracle(work, 'MigrationOracle', '/work/portfolio.xml', '/fixtures/v1/portfolio.xml', '/work/disposable.xml')
-    oracle(work, 'FixtureOracle', '/work/portfolio.xml')
-    oracle(work, 'FixtureOracle', '/work/disposable.xml')
+    oracle(work, 'MigrationOracle', work/'portfolio.xml', ROOT/'fixtures/v1/portfolio.xml', work/'disposable.xml')
+    oracle(work, 'FixtureOracle', work/'portfolio.xml')
+    oracle(work, 'FixtureOracle', work/'disposable.xml')
     # This trusted oracle must also work on the previously supported wrapper runtime.
-    oracle(work, 'SelectedPortfolioOracle', '/work/portfolio.xml', '/work/disposable.xml', '/work')
+    oracle(work, 'SelectedPortfolioOracle', work/'portfolio.xml', work/'disposable.xml', work)
     unchanged(work)
     print('PASS queries, all financial previews and disposable migration preserve original/import state', flush=True)
 
@@ -163,9 +155,9 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-migrations-') as temporary:
         assert (work/'portfolio.xml.2026-10-08.bak').read_bytes() == SOURCE
         assert b'<version>70</version>' in (work/'portfolio.xml').read_bytes()
         if command == 'sale':
-            oracle(work, 'SaleAppliedOracle', '/work/before.xml', '/work/portfolio.xml', '2.5', '2025-03-01T11:00:01')
+            oracle(work, 'SaleAppliedOracle', work/'before.xml', work/'portfolio.xml', '2.5', '2025-03-01T11:00:01')
         else:
-            oracle(work, 'DividendAppliedOracle', '/work/before.xml', '/work/portfolio.xml',
+            oracle(work, 'DividendAppliedOracle', work/'before.xml', work/'portfolio.xml',
                    '00000000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-000000000001',
                    '2025-03-01T11:00:00', '00000000-0000-4000-8000-000000000005')
     print('PASS sale/dividend migrations preserve unrelated state and exact daily/additional snapshots', flush=True)

@@ -37,7 +37,7 @@ releases over HTTPS. The following addresses must be reachable:
 To build offline, put the three files in one directory as
 `jdk.tar.gz`, `upstream-source.tar.gz` and `upstream-release.tar.gz`, and
 run `tools/build-runtime --inputs DIR --output …`. Alternatively, place
-them in the cache directory, each named by its SHA-256. The digests are
+them in the cache directory, each named `<sha256>.tar.gz`. The digests are
 checked either way.
 
 The launcher fixes the selected local image identity for each invocation. A read-only Java container resolves configuration, then a short-lived command container reads the selected portfolio with the host UID/GID. Java reuses upstream persistence, financial models and PDF extraction. Images stay local; no wrapper image is published. [Headless build evidence and limits](docs/headless-runtime.md) and the [support matrix](runtime/support-matrix.json) record the tested upstream 0.88.0, ID-reference XML model 70, Linux amd64 combination.

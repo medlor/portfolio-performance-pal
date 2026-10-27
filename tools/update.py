@@ -27,12 +27,13 @@ import urllib.request
 # scheduling helper must not add bytecode files and invalidate their digests.
 sys.dont_write_bytecode = True
 from test_jobs import parallel_cases
+import runtime_dir
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 WRAPPER = 'medlor/portfolio-performance-pal'
 UPSTREAM = 'portfolio-performance/portfolio'
 SHA = re.compile(r'[a-f0-9]{40}')
-IMAGE = re.compile(r'sha256:[a-f0-9]{64}')
+IDENTITY = re.compile(r'dev|[0-9A-Za-z._-]+-[a-f0-9]{12}')
 DIGEST = re.compile(r'[a-f0-9]{64}')
 
 class UpdateError(Exception):
@@ -141,15 +142,23 @@ def execute(command, environment=None, quiet=False, input_errors=False, stream=F
         raise UpdateError(f'Local check failed ({result.returncode}){detail}')
     return result.stdout.strip()
 
-def image_identity(value):
-    identity = execute(['docker', 'image', 'inspect', value, '--format', '{{.Id}}'])
-    if not IMAGE.fullmatch(identity):
-        raise UpdateError('Docker did not provide an immutable image identity')
-    info = json.loads(execute(['docker', 'image', 'inspect', identity]))[0]
-    if info.get('Os') != 'linux' or info.get('Architecture') != 'amd64':
-        raise UpdateError('Only the fixture-validated Linux amd64 image platform is supported')
-    execute(['docker', 'tag', identity, 'pp-pal:retained-' + identity[7:]])
-    return identity
+def runtimes(state):
+    path = state / 'runtimes'
+    path.mkdir(exist_ok=True)
+    return path
+
+def default_runtime(state):
+    return pathlib.Path(os.environ.get('PP_PAL_RUNTIME', str(state / 'runtimes/dev'))).expanduser().absolute()
+
+def runtime_identity(path):
+    """Validate a runtime directory (see tools/build-runtime) and return its identity."""
+    try:
+        data = runtime_dir.read_runtime(path)
+    except ValueError as failure:
+        raise UpdateError(str(failure)) from failure
+    if not IDENTITY.fullmatch(data['identity']) or data['platform'] != 'linux/amd64':
+        raise UpdateError('Only the fixture-validated Linux amd64 runtime platform is supported')
+    return data['identity']
 
 def tree_digest(directory):
     digest = hashlib.sha256()
@@ -159,6 +168,11 @@ def tree_digest(directory):
         if path.is_file():
             digest.update(str(path.relative_to(directory)).encode() + b'\0' + str(path.stat().st_mode & 0o777).encode() + b'\0' + path.read_bytes())
     return digest.hexdigest()
+
+# Trusted harness files copied with the gates. Gates run JDK tools through the
+# trusted tools/engine against the runtime under test.
+TRUSTED_FILES = ('runtime/candidate-gates.json', 'runtime/release-package.json', 'tests/oracle.py', 'tests/run.py',
+                 'tools/test_jobs.py', 'tools/engine', 'tools/runtime_dir.py')
 
 def trusted_bundle(state):
     target = state / 'trusted-validation'
@@ -171,10 +185,10 @@ def trusted_bundle(state):
             registry = json.loads((ROOT / 'runtime/candidate-gates.json').read_text())
             for name in ('fixtures', 'runtime/src/test/java'):
                 shutil.copytree(ROOT / name, temporary / name)
-            for name in [*registry['checks'], 'runtime/candidate-gates.json', 'runtime/release-package.json', 'tests/oracle.py', 'tests/run.py', 'tools/test_jobs.py']:
+            for name in [*registry['checks'], *TRUSTED_FILES]:
                 destination = temporary / name
                 destination.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(ROOT / name, destination)
+                shutil.copy(ROOT / name, destination)  # keeps the executable bit of tools/engine
             digest = tree_digest(temporary)
             os.replace(temporary, target)
             atomic_json(marker, {'schema': 1, 'sha256': digest})
@@ -198,8 +212,10 @@ def active_manifest(state):
     try:
         data = json.loads(path.read_text())
         package = pathlib.Path(data['launcher']).parent
-        if data['schema'] != 1 or not IMAGE.fullmatch(data['image']) or not SHA.fullmatch(data['wrapper']['revision']):
+        if data['schema'] != 1 or not IDENTITY.fullmatch(data['identity']) or not SHA.fullmatch(data['wrapper']['revision']):
             raise ValueError()
+        if pathlib.Path(data['runtime']).parent != state / 'runtimes' or runtime_identity(pathlib.Path(data['runtime'])) != data['identity']:
+            raise UpdateError('Activated runtime is missing or changed; active pair cannot be dispatched')
         if package.parent != state / 'wrappers' or package.name != data['wrapper']['revision'] or not (package / 'pp-pal').is_file():
             raise ValueError()
         if tree_digest(package) != data['wrapper']['treeSha256']:
@@ -209,7 +225,7 @@ def active_manifest(state):
             raise UpdateError('Activated trusted validation bundle does not match its manifest')
         return data
     except (ValueError, KeyError, TypeError):
-        raise UpdateError('Invalid active wrapper/image manifest')
+        raise UpdateError('Invalid active wrapper/runtime manifest')
 
 def selection(arguments):
     if not arguments or arguments[0] != '--update':
@@ -230,8 +246,8 @@ def selection(arguments):
         index += 2
     return result
 
-def launch_environment(image):
-    environment = dict(os.environ, PP_PAL_IMAGE=image)
+def launch_environment(runtime):
+    environment = dict(os.environ, PP_PAL_RUNTIME=str(runtime))
     # Update protection itself cannot recursively discover/build releases.
     return environment
 
@@ -249,13 +265,22 @@ def unchanged(path, expected, identity):
     if identity != current or hash_bytes(actual) != hash_bytes(expected):
         raise UpdateError('Selected portfolio changed during update; active pair retained')
 
+def archive_cache(state):
+    cache = pathlib.Path(os.environ.get('PP_PAL_ARCHIVE_CACHE', str(state / 'downloads'))).expanduser().absolute()
+    cache.mkdir(parents=True, exist_ok=True)
+    return cache
+
 def download(state, url, expected=None):
+    cache = archive_cache(state)
+    if expected is not None:
+        # Content-addressed cache: a verified archive with the expected digest is reused.
+        cached = cache / (expected + '.tar.gz')
+        if cached.is_file() and not cached.is_symlink() and hash_bytes(cached.read_bytes()) == expected:
+            return cached, expected
     data = fetch(url)
     digest = hash_bytes(data)
     if expected is not None and digest != expected:
         raise UpdateError('Official release archive digest does not match release metadata')
-    cache = state / 'downloads'
-    cache.mkdir(exist_ok=True)
     path = cache / (digest + '.tar.gz')
     if path.exists():
         if path.is_symlink() or hash_bytes(path.read_bytes()) != digest:
@@ -265,9 +290,11 @@ def download(state, url, expected=None):
             stream.write(data)
     return path, digest
 
+EXECUTABLES = ('pp-pal', 'tools/run-engine', 'tools/engine', 'tools/build-runtime')
+
 def extract_wrapper(archive, directory, trusted_root):
     directory.mkdir()
-    allowed = ('runtime/', 'tools/', 'pp-pal', 'Dockerfile', '.dockerignore')
+    allowed = ('runtime/', 'tools/', 'pp-pal', 'UPGRADE.md')
     try:
         with tarfile.open(archive, 'r:gz') as source:
             for member in source.getmembers():
@@ -287,10 +314,10 @@ def extract_wrapper(archive, directory, trusted_root):
                     target.parent.mkdir(parents=True, exist_ok=True)
                     with source.extractfile(member) as stream, target.open('xb') as output:
                         shutil.copyfileobj(stream, output)
-                    target.chmod(0o755 if name in ('pp-pal', 'tools/run-container') else 0o644)
+                    target.chmod(0o755 if name in EXECUTABLES else 0o644)
     except (tarfile.TarError, OSError) as failure:
         raise UpdateError('Cannot unpack released wrapper snapshot') from failure
-    for name in ('pp-pal', 'tools/update.py', 'tools/test_jobs.py', 'tools/run-container', 'Dockerfile', 'runtime/release-package.json'):
+    for name in ('pp-pal', 'tools/update.py', 'tools/test_jobs.py', *EXECUTABLES[1:], 'tools/runtime_dir.py', 'runtime/release-package.json'):
         if not (directory / name).is_file():
             raise UpdateError('Released wrapper lacks the required bootstrap package: ' + name)
     for name in ('pp-pal', 'tools/update.py', 'tools/test_jobs.py'):
@@ -298,9 +325,9 @@ def extract_wrapper(archive, directory, trusted_root):
             raise UpdateError('Released host bootstrap/validator changed; manual trusted-bootstrap maintenance required')
     policy = json.loads((directory / 'runtime/release-package.json').read_text())
     trusted = json.loads((trusted_root / 'runtime/release-package.json').read_text())
-    if policy.get('schema') != 1 or policy.get('buildRecipe') != 1 or policy.get('bootstrapProtocol') != 1 or policy.get('platform') != 'linux/amd64':
+    if policy.get('schema') != 1 or policy.get('buildRecipe') != 2 or policy.get('bootstrapProtocol') != 2 or policy.get('platform') != 'linux/amd64':
         raise UpdateError('Unknown released wrapper build recipe/platform; maintenance required')
-    if any(policy.get(key) != trusted.get(key) for key in ('input', 'output', 'migrations', 'baseImage', 'jdk', 'layouts', 'features')):
+    if any(policy.get(key) != trusted.get(key) for key in ('input', 'output', 'migrations', 'jdk', 'jdkArchive', 'layouts', 'features')):
         raise UpdateError('Unknown support or migration policy; maintenance required')
     return policy
 
@@ -383,20 +410,20 @@ def qualifying_validator(temporary, qualification):
             stop.set()
             thread.join(timeout=2)
 
-def fixed_checks(package, image, registry, trusted_root, qualification):
+def fixed_checks(package, runtime, registry, trusted_root, qualification):
     # Import only the independent trusted runner, never a candidate-owned copy.
     spec = importlib.util.spec_from_file_location('pp_pal_test_runner', trusted_root / 'tests/run.py')
     runner = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(runner)
     with runner.test_environment() as test_environment:
-        return fixture_checks(package, image, registry, trusted_root, qualification, test_environment)
+        return fixture_checks(package, runtime, registry, trusted_root, qualification, test_environment)
 
 
-def fixture_checks(package, image, registry, trusted_root, qualification, test_environment):
+def fixture_checks(package, runtime, registry, trusted_root, qualification, test_environment):
     with tempfile.TemporaryDirectory(prefix='pp-pal-gate-oracles-') as temporary:
         classes = pathlib.Path(temporary) / 'classes'
         execute([sys.executable, str(trusted_root / 'tests/oracle.py'), '--compile',
-                 qualification['baselineImage'], str(classes)], test_environment)
+                 qualification['baselineRuntime'], str(classes)], test_environment)
         def gate(check):
             # Each gate owns its state/lock/socket; trusted test classes are mounted readonly.
             with tempfile.TemporaryDirectory(prefix='pp-pal-gate-state-') as gate_directory:
@@ -411,11 +438,11 @@ def fixture_checks(package, image, registry, trusted_root, qualification, test_e
                 if tree_digest(gate_package) != qualification['wrapper']['treeSha256']:
                     raise UpdateError('Candidate gate package differs from qualified release')
                 gate_qualification = dict(qualification, launcher=str(gate_package / 'pp-pal'))
-                environment = dict(test_environment, PP_PAL_IMAGE=image)
+                environment = dict(test_environment, PP_PAL_RUNTIME=str(runtime))
                 environment.update(PP_PAL_LAUNCHER=str(gate_package / 'pp-pal'),
-                                   PP_PAL_BEHAVIOR_LAUNCHER=str(gate_package / 'tools/run-container'),
+                                   PP_PAL_BEHAVIOR_LAUNCHER=str(gate_package / 'tools/run-engine'),
                                    PP_PAL_TEST_CLASSES=str(classes), PP_PAL_STATE_DIR=gate_directory,
-                                   PP_PAL_GATE_BASELINE_IMAGE=qualification['baselineImage'])
+                                   PP_PAL_GATE_BASELINE_RUNTIME=qualification['baselineRuntime'])
                 with qualifying_validator(gate_directory, gate_qualification) as address:
                     environment['PP_PAL_GATE_SOCKET'] = address
                     started = time.monotonic()
@@ -434,35 +461,37 @@ def fixture_checks(package, image, registry, trusted_root, qualification, test_e
         print('CHECK SUMMARY slowest: ' + ', '.join(
             f'{check}={elapsed:.2f}s' for elapsed, check in sorted(durations, reverse=True)[:3]), flush=True)
 
-def validate_selected(state, original, baseline_image, candidate_image):
+def validate_selected(state, original, baseline_runtime, candidate_runtime):
     # Opaque snapshot bytes stay local. All model/persistence operations are Java.
-    # The candidate cannot mount either trusted canonical artifacts or writable input.
+    # The candidate gets a read-only copy and a fresh output directory; the
+    # original selected file is never passed to it.
+    engine = str(ROOT / 'tools/engine')
     with tempfile.TemporaryDirectory(prefix='selected-validation-', dir=state) as temporary:
         work = pathlib.Path(temporary)
         source, trusted, output = (work / name for name in ('input', 'trusted', 'output'))
         for directory in (source, trusted, output):
             directory.mkdir()
         (source / 'input.xml').write_bytes(original)
-        base = ['docker', 'run', '--rm', '--network', 'none', '--user', f'{os.getuid()}:{os.getgid()}']
-        def run(image, mounts, command, *args):
-            bindings = []
-            for directory, target, mode in mounts:
-                bindings += ['-v', str(directory) + ':' + target + ':' + mode]
-            return execute(base + bindings + [image, command, *args], quiet=True)
-        candidate_mounts = [(source, '/input', 'ro'), (output, '/output', 'rw')]
-        run(candidate_image, candidate_mounts, 'roundtrip', '/input/input.xml', '/output/candidate.xml')
-        candidate = output / 'candidate.xml'
-        if candidate.is_symlink() or not candidate.is_file():
-            raise UpdateError('Candidate did not produce a regular disposable output')
-        if (source / 'input.xml').read_bytes() != original:
-            raise UpdateError('Candidate changed the readonly selected validation input')
-        # A single independent baseline JVM checks both canonical roundtrips and
-        # relationship inspections. The candidate has no access to trusted source/artifacts.
-        oracle = state / 'trusted-validation/runtime/src/test/java/pal/SelectedPortfolioOracle.java'
-        execute(base + ['-v', str(source) + ':/input:ro', '-v', str(output) + ':/output:ro',
-                        '-v', str(trusted) + ':/trusted:rw', '-v', str(oracle) + ':/SelectedPortfolioOracle.java:ro',
-                        '--entrypoint', 'java', baseline_image, '-cp', '/opt/pp/classes:/opt/pp/lib/*',
-                        '/SelectedPortfolioOracle.java', '/input/input.xml', '/output/candidate.xml', '/trusted'], quiet=True)
+        (source / 'input.xml').chmod(0o400)
+        source.chmod(0o500)
+        try:
+            execute([engine, 'main', 'roundtrip', str(source / 'input.xml'), str(output / 'candidate.xml')],
+                    launch_environment(candidate_runtime), quiet=True)
+            candidate = output / 'candidate.xml'
+            if candidate.is_symlink() or not candidate.is_file():
+                raise UpdateError('Candidate did not produce a regular disposable output')
+            if sorted(path.name for path in source.iterdir()) != ['input.xml'] or (source / 'input.xml').read_bytes() != original:
+                raise UpdateError('Candidate changed the readonly selected validation input')
+            # A single independent baseline JVM checks both canonical roundtrips and
+            # relationship inspections, using the trusted oracle source.
+            oracle = state / 'trusted-validation/runtime/src/test/java/pal/SelectedPortfolioOracle.java'
+            environment = launch_environment(baseline_runtime)
+            classpath = execute([engine, 'classpath'], environment)
+            execute([engine, 'java', '-cp', classpath, str(oracle), str(source / 'input.xml'),
+                     str(output / 'candidate.xml'), str(trusted)], environment, quiet=True)
+        finally:
+            source.chmod(0o700)
+            (source / 'input.xml').chmod(0o600)
 
 def upstream_asset(upstream):
     name = 'PortfolioPerformance-' + upstream['tag'] + '-linux.gtk.x86_64.tar.gz'
@@ -475,15 +504,31 @@ def upstream_asset(upstream):
         raise UpdateError('Dependency asset is not from the official upstream release')
     return url, assets[0]['digest'][7:]
 
-def verify_candidate_image(image, wrapper, upstream, policy):
-    info = json.loads(execute(['docker', 'image', 'inspect', image]))[0]
-    labels = info['Config'].get('Labels', {})
-    if labels.get('pal.wrapper.revision') != wrapper['revision'] or labels.get('pal.upstream.revision') != upstream['revision'] or labels.get('pal.xml.model') != str(policy['output']['modelVersion']):
-        raise UpdateError('Candidate image revision/model labels disagree with the pinned pair')
-    result = subprocess.run(['docker', 'run', '--rm', '--network', 'none', '--entrypoint', 'java', image, '-version'], text=True, capture_output=True)
+def verify_candidate_runtime(runtime, wrapper, upstream, policy):
+    runtime_identity(runtime)
+    labels = runtime_dir.read_runtime(runtime)
+    if labels['wrapperRevision'] != wrapper['revision'] or labels['upstreamRevision'] != upstream['revision'] or labels['xmlModel'] != str(policy['output']['modelVersion']):
+        raise UpdateError('Candidate runtime revision/model labels disagree with the pinned pair')
+    result = subprocess.run([str(runtime / 'jdk/bin/java'), '-version'], text=True, capture_output=True)
     if result.returncode or '21.0.11' not in result.stderr or 'Temurin-21.0.11+10' not in result.stderr:
         raise UpdateError('Candidate Java runtime is not the reviewed Temurin 21.0.11+10 dependency')
     return result.stderr.strip()
+
+def build_runtime(package, inputs, wrapper_revision, state, digests):
+    """Build (or reuse an identical) runtime with the released wrapper's own recipe."""
+    upstream_tag = json.loads((package / 'runtime/release-package.json').read_text())['upstream']['tag']
+    target = runtimes(state) / (upstream_tag + '-' + wrapper_revision[:12])
+    if target.exists():
+        try:
+            labels = runtime_dir.read_runtime(target)
+            if labels.get('inputs') == digests and labels['wrapperRevision'] == wrapper_revision:
+                return target
+        except ValueError:
+            pass
+        runtime_dir.remove_runtime(target)
+    execute([str(package / 'tools/build-runtime'), '--inputs', str(inputs), '--output', str(target),
+             '--wrapper-revision', wrapper_revision])
+    return target
 
 def perform_update(arguments):
     selected_args = selection(arguments)
@@ -498,9 +543,10 @@ def perform_update(arguments):
             raise UpdateError('Another wrapper update is active') from failure
         trusted_root, suite_hash = trusted_bundle(state)
         active = active_manifest(state)
-        baseline_image = image_identity(active['image'] if active else os.environ.get('PP_PAL_IMAGE', 'pp-pal:0.88.0'))
-        launcher = str(pathlib.Path(active['launcher']).parent / 'tools/run-container') if active else str(ROOT / 'tools/run-container')
-        environment = launch_environment(baseline_image)
+        baseline_runtime = pathlib.Path(active['runtime']) if active else default_runtime(state)
+        runtime_identity(baseline_runtime)
+        launcher = str(pathlib.Path(active['launcher']).parent / 'tools/run-engine') if active else str(ROOT / 'tools/run-engine')
+        environment = launch_environment(baseline_runtime)
         environment['PP_PAL_RESOLVE_ONLY'] = '1'
         file = pathlib.Path(execute([launcher, 'backup-monthly', *selected_args], environment, input_errors=True))
         original, identity = snapshot(file)
@@ -511,25 +557,25 @@ def perform_update(arguments):
         registry = trusted_suite(trusted_root)
         asset_url, official_dependency_hash = upstream_asset(upstream)
         if qualification is not None:
-            if (qualification['image'] != baseline_image or qualification['trustedSuiteSha256'] != suite_hash
+            if (qualification['runtime'] != str(baseline_runtime) or qualification['trustedSuiteSha256'] != suite_hash
                     or qualification['wrapper']['revision'] != wrapper['revision'] or qualification['wrapper']['tag'] != wrapper['tag']
                     or qualification['upstream']['revision'] != upstream['revision'] or qualification['upstream']['tag'] != upstream['tag']
                     or qualification['upstream']['dependencyArchiveSha256'] != official_dependency_hash
                     or qualification['wrapper']['treeSha256'] != tree_digest(ROOT)):
-                raise UpdateError('Candidate qualification pair/revision/digest/suite/image mismatch')
+                raise UpdateError('Candidate qualification pair/revision/digest/suite/runtime mismatch')
             for archive in qualification['archives']:
                 path = pathlib.Path(archive['path'])
                 if path.is_symlink() or hash_bytes(path.read_bytes()) != archive['sha256']:
                     raise UpdateError('Candidate qualification source/dependency cache changed')
-            verify_candidate_image(baseline_image, wrapper, upstream, qualification['support'])
-            validate_selected(state, original, baseline_image, baseline_image)
+            verify_candidate_runtime(baseline_runtime, wrapper, upstream, qualification['support'])
+            validate_selected(state, original, baseline_runtime, baseline_runtime)
             unchanged(file, original, identity)
-            print('QUALIFIED exact fixed-check released pair; reused ' + baseline_image)
+            print('QUALIFIED exact fixed-check released pair; reused ' + qualification['identity'])
             return qualification
         if active and active['wrapper']['revision'] == wrapper['revision'] and active['upstream']['revision'] == upstream['revision'] and active['upstream']['dependencyArchiveSha256'] == official_dependency_hash and active['wrapper']['tag'] == wrapper['tag'] and active['upstream']['tag'] == upstream['tag'] and active['trustedSuiteSha256'] == suite_hash:
-            validate_selected(state, original, baseline_image, baseline_image)
+            validate_selected(state, original, baseline_runtime, baseline_runtime)
             unchanged(file, original, identity)
-            print('UNCHANGED validated released pair; reused ' + baseline_image)
+            print('UNCHANGED validated released pair; reused ' + active['identity'])
             return active
         unchanged(file, original, identity)
         execute([launcher, 'backup-before-update', *selected_args], environment)
@@ -554,45 +600,41 @@ def perform_update(arguments):
                 if package.exists():
                     shutil.rmtree(package)
                 raise
-        # The Docker context contains only released runtime/code and public upstream archives.
+        # The build inputs contain only public upstream archives; the released
+        # wrapper's own tools/build-runtime builds from its released tree.
+        jdk_archive, jdk_hash = download(state, policy['jdkArchive']['url'], policy['jdkArchive']['sha256'])
         build_root = state / 'builds'
         build_root.mkdir(exist_ok=True)
-        context = pathlib.Path(tempfile.mkdtemp(prefix=wrapper['revision'] + '-', dir=build_root))
-        shutil.copytree(package / 'runtime', context / 'runtime')
-        shutil.copyfile(package / 'Dockerfile', context / 'Dockerfile')
-        (context / '.dockerignore').write_text('*\n!Dockerfile\n!runtime/\n!runtime/**\n')
-        inputs = context / 'runtime/build-inputs'
-        inputs.mkdir()
-        shutil.copyfile(source_archive, inputs / 'upstream-source.tar.gz')
-        shutil.copyfile(dependency_archive, inputs / 'upstream-release.tar.gz')
-        key_data = {'wrapper': wrapper['revision'], 'wrapperArchive': wrapper_hash, 'upstream': upstream['revision'], 'source': source_hash, 'dependencies': dependency_hash, 'recipe': hash_bytes((package / 'Dockerfile').read_bytes()), 'platform': 'linux/amd64', 'trustedSuite': suite_hash, 'wrapperTag': wrapper['tag'], 'upstreamTag': upstream['tag']}
+        inputs = pathlib.Path(tempfile.mkdtemp(prefix=wrapper['revision'] + '-', dir=build_root))
+        for source, name in ((source_archive, 'upstream-source.tar.gz'), (dependency_archive, 'upstream-release.tar.gz'), (jdk_archive, 'jdk.tar.gz')):
+            shutil.copyfile(source, inputs / name)
+        key_data = {'wrapper': wrapper['revision'], 'wrapperArchive': wrapper_hash, 'upstream': upstream['revision'], 'source': source_hash, 'dependencies': dependency_hash, 'jdk': jdk_hash, 'recipe': hash_bytes((package / 'tools/build-runtime').read_bytes()), 'platform': 'linux/amd64', 'trustedSuite': suite_hash, 'wrapperTag': wrapper['tag'], 'upstreamTag': upstream['tag']}
         cache_key = hash_bytes(json.dumps(key_data, sort_keys=True).encode())
-        tag = 'pp-pal:validated-pair-' + cache_key
-        build_args = {'INPUT_SOURCE': 'supplied', 'UPSTREAM_SOURCE_SHA256': source_hash, 'UPSTREAM_RELEASE_SHA256': dependency_hash, 'UPSTREAM_REVISION': upstream['revision'], 'UPSTREAM_RELEASE': upstream['tag'], 'WRAPPER_REVISION': wrapper['revision']}
-        command = ['docker', 'build', '--platform', 'linux/amd64', '-t', tag]
-        for key, value in build_args.items():
-            command += ['--build-arg', key + '=' + value]
-        execute(command + [str(context)])
-        image = image_identity(tag)
-        java_version = verify_candidate_image(image, wrapper, upstream, policy)
-        qualification = {'schema': 1, 'launcher': str(package / 'pp-pal'), 'image': image, 'baselineImage': baseline_image,
+        try:
+            runtime = build_runtime(package, inputs, wrapper['revision'], state,
+                                    {'sourceSha256': source_hash, 'releaseSha256': dependency_hash, 'jdkSha256': jdk_hash})
+        finally:
+            shutil.rmtree(inputs)
+        runtime_id = runtime_identity(runtime)
+        java_version = verify_candidate_runtime(runtime, wrapper, upstream, policy)
+        qualification = {'schema': 1, 'launcher': str(package / 'pp-pal'), 'runtime': str(runtime), 'identity': runtime_id, 'baselineRuntime': str(baseline_runtime),
             'wrapper': {'tag': wrapper['tag'], 'revision': wrapper['revision'], 'treeSha256': tree_digest(package)},
             'upstream': {'tag': upstream['tag'], 'revision': upstream['revision'], 'dependencyArchiveSha256': dependency_hash},
             'trustedSuiteSha256': suite_hash, 'support': policy,
             'archives': [{'path': str(path), 'sha256': digest} for path, digest in
-                ((wrapper_archive, wrapper_hash), (source_archive, source_hash), (dependency_archive, dependency_hash))]}
-        validate_selected(state, original, baseline_image, image)
+                ((wrapper_archive, wrapper_hash), (source_archive, source_hash), (dependency_archive, dependency_hash), (jdk_archive, jdk_hash))]}
+        validate_selected(state, original, baseline_runtime, runtime)
         unchanged(file, original, identity)
-        fixed_checks(package, image, registry, trusted_root, qualification)
+        fixed_checks(package, runtime, registry, trusted_root, qualification)
         unchanged(file, original, identity)
-        manifest = {'schema': 1, 'validatedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'wrapper': {'tag': wrapper['tag'], 'revision': wrapper['revision'], 'sourceArchiveSha256': wrapper_hash, 'treeSha256': tree_digest(package)}, 'upstream': {'tag': upstream['tag'], 'revision': upstream['revision'], 'sourceArchiveSha256': source_hash, 'dependencyArchiveSha256': dependency_hash}, 'image': image, 'retentionTag': 'pp-pal:retained-' + image[7:], 'cacheTag': tag, 'baselineImage': baseline_image, 'baselineRetentionTag': 'pp-pal:retained-' + baseline_image[7:], 'launcher': str(package / 'pp-pal'), 'cacheKey': cache_key, 'trustedSuiteSha256': suite_hash, 'support': policy, 'checks': registry['checks'] + ['selected-portfolio-cross-engine-semantic-roundtrip', 'selected-portfolio-original-stale-check'], 'dependencies': {'host': ['Linux', 'Bash', 'Python 3.10+', 'Docker'], 'build': policy['baseImage'], 'recipeSha256': key_data['recipe'], 'actualJavaVersion': java_version, 'actualPlatform': 'linux/amd64', 'actualHost': platform.platform()}, 'previous': active}
+        manifest = {'schema': 1, 'validatedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'wrapper': {'tag': wrapper['tag'], 'revision': wrapper['revision'], 'sourceArchiveSha256': wrapper_hash, 'treeSha256': tree_digest(package)}, 'upstream': {'tag': upstream['tag'], 'revision': upstream['revision'], 'sourceArchiveSha256': source_hash, 'dependencyArchiveSha256': dependency_hash}, 'runtime': str(runtime), 'identity': runtime_id, 'baselineRuntime': str(baseline_runtime), 'launcher': str(package / 'pp-pal'), 'cacheKey': cache_key, 'trustedSuiteSha256': suite_hash, 'support': policy, 'checks': registry['checks'] + ['selected-portfolio-cross-engine-semantic-roundtrip', 'selected-portfolio-original-stale-check'], 'dependencies': {'host': ['Linux', 'Bash', 'Python 3.10+', 'coreutils', 'tar'], 'build': policy['jdk'], 'jdkArchiveSha256': jdk_hash, 'recipeSha256': key_data['recipe'], 'actualJavaVersion': java_version, 'actualPlatform': 'linux/amd64', 'actualHost': platform.platform()}, 'previous': active}
         reports = state / 'reports'
         reports.mkdir(exist_ok=True)
         atomic_json(reports / (cache_key + '.json'), manifest)
         if active:
             atomic_json(state / 'previous.json', active)
         atomic_json(state / 'active.json', manifest)
-        print('ACTIVATED ' + wrapper['revision'] + ' / ' + upstream['revision'] + ' / ' + image)
+        print('ACTIVATED ' + wrapper['revision'] + ' / ' + upstream['revision'] + ' / ' + runtime_id)
         return manifest
 
 def prepare_processing(arguments):
@@ -616,12 +658,13 @@ def dispatch(arguments):
     if arguments and arguments[0] in ('purchase', 'sale', 'dividend', 'import'):
         active = prepare_processing(arguments)
     if active:
-        engine = pathlib.Path(active['launcher']).parent / 'tools/run-container'
-        image = image_identity(active['image'])
+        engine = pathlib.Path(active['launcher']).parent / 'tools/run-engine'
+        runtime = pathlib.Path(active['runtime'])
     else:
-        engine = ROOT / 'tools/run-container'
-        image = image_identity(os.environ.get('PP_PAL_IMAGE', 'pp-pal:0.88.0'))
-    environment = launch_environment(image)
+        engine = ROOT / 'tools/run-engine'
+        runtime = default_runtime(state)
+    runtime_identity(runtime)
+    environment = launch_environment(runtime)
     environment.pop('PP_PAL_RESOLVE_ONLY', None)
     os.execve(str(engine), [str(engine), *arguments], environment)
 

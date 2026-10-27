@@ -485,7 +485,7 @@ Two special cases:
     `PP_PAL_GATE_BASELINE_RUNTIME`.
   - Every removal of a runtime directory goes through `remove_runtime`.
 
-- [ ] **Step 1: Migrate `tests/updater.py`.**
+- [x] **Step 1: Migrate `tests/updater.py`.**
   - `IMAGE` becomes `RUNTIME`, taken from argv or `PP_PAL_RUNTIME`.
   - `released_snapshot` no longer copies the Dockerfile.
   - The fixture server also serves the JDK archive. It is read from
@@ -502,16 +502,16 @@ Two special cases:
     qualification, `remove_runtime` deletes candidate runtimes without
     `PermissionError`.
 
-- [ ] **Step 2: Run it.** `bash tests/updater.sh "$R" --arguments-only`
+- [x] **Step 2: Run it.** `bash tests/updater.sh "$R" --arguments-only`
   fails on the removed docker calls.
 
-- [ ] **Step 3: Implement** the `tools/update.py` interfaces above.
+- [x] **Step 3: Implement** the `tools/update.py` interfaces above.
 
-- [ ] **Step 4: Run the slices.** Run
+- [x] **Step 4: Run the slices.** Run
   `bash tests/updater.sh "$R" --arguments-only`, then `--apply-slice`,
   then `--pdf-slice`. Each must print its existing success lines.
 
-- [ ] **Step 5: Commit.** Message: `Build and qualify released pairs as
+- [x] **Step 5: Commit.** Message: `Build and qualify released pairs as
   native runtimes`.
 
 ### Task 6: Stop on unsupported upstream releases with an agent prompt

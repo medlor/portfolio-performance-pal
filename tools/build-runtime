@@ -23,7 +23,7 @@
 #                  in runtime.json.
 #
 # Downloads are cached by SHA-256 in
-#   ${PP_PAL_ARCHIVE_CACHE:-<state dir>/downloads}
+#   ${PP_PAL_ARCHIVE_CACHE:-<state dir>/downloads}/<sha256>.tar.gz
 # See README "Network access" for the URLs fetched.
 #
 # Exit codes: 0 success (the identity is printed as the last line),
@@ -114,7 +114,7 @@ fetch() { # fetch NAME URL SHA256 -> prints the verified file path
     [[ -f $target ]] || die "Missing supplied archive: $target"
   else
     mkdir -p "$cache"
-    target="$cache/$sha"
+    target="$cache/$sha.tar.gz"
     if [[ ! -f $target ]]; then
       step "Download $url"
       python3 - "$url" "$target.part" <<'PY' || die "Download failed: $url"
@@ -212,13 +212,17 @@ cp "$work/source/LICENSE" "$build/attribution/UPSTREAM-LICENSE"
 cp "$work/source/name.abuchen.portfolio/META-INF/MANIFEST.MF" "$build/attribution/UPSTREAM-MANIFEST.MF"
 cp "$source_archive" "$build/attribution/upstream-source.tar.gz"
 cp "$root/runtime/patches/"* "$build/attribution/"
-python3 - "$build/runtime.json" "$identity" "$wrapper_revision" "$upstream_revision" "$upstream_tag" "$xml_model" <<'PY'
+python3 - "$build/runtime.json" "$identity" "$wrapper_revision" "$upstream_revision" "$upstream_tag" "$xml_model" \
+  "$source_sha" "$release_sha" "$jdk_sha" <<'PY'
 import json, sys
-path, identity, wrapper, upstream, release, model = sys.argv[1:]
+path, identity, wrapper, upstream, release, model, source, dependencies, jdk = sys.argv[1:]
 with open(path, 'w') as stream:
+    # The input digests let the updater reuse a runtime only for identical inputs.
     json.dump({'schema': 1, 'identity': identity, 'wrapperRevision': wrapper,
                'upstreamRevision': upstream, 'upstreamRelease': release, 'xmlModel': model,
-               'jdk': 'Temurin-21.0.11+10', 'platform': 'linux/amd64'}, stream, indent=2, sort_keys=True)
+               'jdk': 'Temurin-21.0.11+10', 'platform': 'linux/amd64',
+               'inputs': {'sourceSha256': source, 'releaseSha256': dependencies, 'jdkSha256': jdk}},
+              stream, indent=2, sort_keys=True)
     stream.write('\n')
 PY
 

@@ -40,18 +40,17 @@ import datetime, fcntl, hashlib, os, pathlib, shutil, signal, socket, struct, su
 ROOT = pathlib.Path(os.environ["PP_PAL_TEST_ROOT"])
 RUNTIME = sys.argv[1]
 NOW = '2026-10-07T12:00:00Z'
-BUY = ['purchase', '--file', '/work/portfolio.xml', '--security', 'DE0000000001', '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A', '--date', '2025-03-01', '--quantity', '2.5', '--price', '10', '--fees', '1', '--taxes', '.5', '--apply', '--desktop-closed']
+BUY = ['purchase', '--file', 'portfolio.xml', '--security', 'DE0000000001', '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A', '--date', '2025-03-01', '--quantity', '2.5', '--price', '10', '--fees', '1', '--taxes', '.5', '--apply', '--desktop-closed']
 SOURCE = (ROOT / 'fixtures/v1/portfolio.xml').read_bytes()
 
 def check(value, message):
     if not value: raise AssertionError(message)
 
 def run(work, args=BUY, now=NOW, observer=False):
-    # Direct engine invocation; /work in the shared argument lists is the case directory.
+    # Direct engine invocation in the case directory; argument paths are relative to it.
     environment = dict(os.environ, PP_PAL_RUNTIME=RUNTIME, PP_PAL_NOW=now)
     environment.pop('PP_PAL_WRITE_OBSERVER', None)
     if observer: environment['PP_PAL_WRITE_OBSERVER'] = str(work / 'observer.sock')
-    args = [str(work) + arg[5:] if arg == '/work' or arg.startswith('/work/') else arg for arg in args]
     return subprocess.run([str(ROOT / 'tools/engine'), 'main', *args], cwd=work, env=environment, text=True, capture_output=True)
 
 def fixture(base, name):
@@ -138,7 +137,7 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-write-boundaries-') as temporary
     check('portfolio.xml.2026-10-07.bak.kind' not in (work/'portfolio.xml.pp-pal-backups.properties').read_text(), 'foreign backup adopted'); oracle(work)
     expect(run(work), 0, 'APPLIED PURCHASE'); check(daily.read_bytes()==sentinel, 'second daily overwritten'); oracle(work, 2)
     work=fixture(base,'required-index-failure')
-    expect(run(work,['backup-monthly','--file','/work/portfolio.xml']),0,'')
+    expect(run(work,['backup-monthly','--file','portfolio.xml']),0,'')
     (work/'portfolio.xml.pp-pal-backups.properties').chmod(0o400)
     expect(run(work),3,'index is not writable'); unchanged(work)
     check(not (work/'portfolio.xml.2026-10-07.bak').exists(),'required protection failure created daily')
@@ -166,7 +165,7 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-write-boundaries-') as temporary
         if name != 'post-receipt-permission': check((work/'portfolio.xml.2024-10-01.bak').exists(), 'failed cleanup pruned')
         work.chmod(0o700); (work/'portfolio.xml.pp-pal-backups.properties').chmod(0o600); (work/'portfolio.xml.pp-pal-write.properties').chmod(0o600)
         expect(run(work), 4, 'Previous financial replacement already succeeded'); check((work/'portfolio.xml').read_bytes()==output, 'pending repeat inserted')
-        expect(run(work, ['purchase','--file','/work/portfolio.xml','--recover-write','--desktop-closed']), 0, 'no financial records inserted')
+        expect(run(work, ['purchase','--file','portfolio.xml','--recover-write','--desktop-closed']), 0, 'no financial records inserted')
         check((work/'portfolio.xml').read_bytes()==output and not (work/'portfolio.xml.2024-10-01.bak').exists(), 'recovery changed financial state or failed cleanup')
     print('PASS postreplacement failures report committed exit4, block replay, and verified recovery only finishes cleanup', flush=True)
 
@@ -179,7 +178,7 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-write-boundaries-') as temporary
         if phase=='before-final-check': unchanged(work); text='NO FINANCIAL CHANGE'
         else: oracle(work); text='no financial records inserted'; expect(run(work),4,'Previous financial replacement already succeeded')
         output=(work/'portfolio.xml').read_bytes()
-        expect(run(work,['purchase','--file','/work/portfolio.xml','--recover-write','--desktop-closed']),0,text)
+        expect(run(work,['purchase','--file','portfolio.xml','--recover-write','--desktop-closed']),0,text)
         check((work/'portfolio.xml').read_bytes()==output, 'interruption recovery replayed')
     print('PASS deterministic process interruption before/after rename resolves exact input/output without replay', flush=True)
 
