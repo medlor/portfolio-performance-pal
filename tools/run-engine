@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Owner command launcher: resolve the selected portfolio, then run the command,
+# both as plain user processes on the selected runtime (tools/engine).
+set -euo pipefail
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+for arg in "$@"; do
+  if [[ $arg == --help ]]; then cat "$root/runtime/help.txt"; exit 0; fi
+done
+if [[ $# == 0 ]]; then cat "$root/runtime/help.txt"; exit 0; fi
+fail() { echo "ERROR: $*" >&2; exit 2; }
+engine="$root/tools/engine"
+# Validate the runtime once up front so a missing runtime is reported as such.
+python3 "$root/tools/runtime_dir.py" identity "${PP_PAL_RUNTIME:-${PP_PAL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/pp-pal}/runtimes/dev}" > /dev/null || exit 3
+cwd=$(pwd -P)
+config="$cwd/pp-pal.properties"
+args=("$@")
+pdf=
+for ((i=0; i<${#args[@]}; i++)); do
+  if [[ ${args[i]} == --config ]]; then
+    ((i+1 < ${#args[@]})) || fail 'Missing value for --config'
+    config=$(realpath -m -- "${args[i+1]}")
+  fi
+  if [[ ${args[i]} == --pdf ]]; then
+    ((i+1 < ${#args[@]})) || fail 'Missing value for --pdf'
+    [[ -z $pdf ]] || fail 'Select exactly one --pdf'
+    pdf=$(realpath -e -- "${args[i+1]}") || fail 'PDF does not exist'
+    [[ -f $pdf && -r $pdf && $pdf != *$'\n'* ]] || fail 'PDF must be a readable regular file without a newline in its path'
+    args[i+1]=$pdf
+  fi
+  [[ ${args[i]} != --resolve-file && ${args[i]} != --resolved-file && ${args[i]} != --resolved-config ]] || fail 'Reserved launcher option'
+done
+config=$(realpath -m -- "$config")
+config_parent=$(dirname "$config")
+[[ -d $config_parent ]] || fail "Configuration directory does not exist: $config_parent"
+status() {
+  case $1 in 0|2|3|4) exit "$1";; *) echo "ERROR: Engine command failed (status $1)" >&2; exit 3;; esac
+}
+if file=$("$engine" main "${args[@]}" --resolved-config "$config" --resolve-file); then :; else status "$?"; fi
+[[ $file != *$'\n'* ]] || fail 'Portfolio path cannot contain newline'
+file=$(realpath -e -- "$file") || fail "Portfolio does not exist: $file"
+[[ -f $file && -r $file ]] || fail "Portfolio is not a readable regular file: $file"
+if [[ ${PP_PAL_RESOLVE_ONLY:-} == 1 ]]; then printf '%s\n' "$file"; exit 0; fi
+if "$engine" main "${args[@]}" --resolved-config "$config" --resolved-file "$file"; then exit 0; else status "$?"; fi

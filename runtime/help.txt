@@ -25,7 +25,7 @@ Shared options:
   --config PATH               Select UTF-8 pp-pal.properties configuration.
   --securities-account ID|NAME  Stable ID or exact unique securities account name.
   --cash-account ID|NAME      Stable ID or exact unique cash account name.
-  --help                     Show this help without Docker or a portfolio.
+  --help                     Show this help without a runtime or a portfolio.
 
 Holdings options:
   --security IDENTIFIER|TEXT  Exact ID/ISIN/WKN/ticker, or name substring.

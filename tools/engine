@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Run a JDK tool from a pp-pal runtime directory (see tools/build-runtime).
+#
+#   tools/engine main ARGS...    pal.Main with the runtime classpath (headless)
+#   tools/engine java ARGS...    the runtime's java
+#   tools/engine javac ARGS...   the runtime's javac
+#   tools/engine classpath       print the runtime classpath
+#
+# PP_PAL_RUNTIME selects the runtime directory. The default is the dev runtime
+# in the state directory. The host's java is never used.
+set -euo pipefail
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+state=${PP_PAL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/pp-pal}
+runtime=${PP_PAL_RUNTIME:-$state/runtimes/dev}
+(($#)) || { echo 'Usage: tools/engine (main|java|javac|classpath) ARGS...' >&2; exit 2; }
+mode=$1
+shift
+case $mode in main|java|javac|classpath) ;; *) echo "ERROR: Unknown engine mode: $mode" >&2; exit 2;; esac
+identity=$(python3 "$here/runtime_dir.py" identity "$runtime") || exit 3
+runtime=$(realpath -- "$runtime")
+classpath="$runtime/classes:$runtime/lib/*"
+if [[ $mode == classpath ]]; then printf '%s\n' "$classpath"; exit 0; fi
+# Match the former container environment: UTF-8 C locale, UTC default time
+# zone, no display. pal.Main sees only the variables it reads plus the
+# test-budget plumbing; other host variables cannot change its behaviour.
+export LANG=C.UTF-8 TZ=UTC PP_PAL_ENGINE_RUNTIME=$identity
+unset DISPLAY LC_ALL
+if [[ $mode == main ]]; then
+  for variable in $(compgen -e); do
+    case $variable in
+      PATH|HOME|LANG|TZ|PP_PAL_NOW|PP_PAL_WRITE_OBSERVER|PP_PAL_ENGINE_RUNTIME|PP_PAL_JAVA_WRAPPER|PP_PAL_TEST_BUDGET|PP_PAL_TEST_SUITE|PP_PAL_TEST_WORKERS) ;;
+      *) unset "$variable";;
+    esac
+  done
+fi
+case $mode in
+  main) command=("$runtime/jdk/bin/java" -Djava.awt.headless=true -cp "$classpath" pal.Main "$@");;
+  java) command=("$runtime/jdk/bin/java" "$@");;
+  javac) command=("$runtime/jdk/bin/javac" "$@");;
+esac
+# Test harnesses route JDK processes through their resource budget.
+if [[ -n ${PP_PAL_JAVA_WRAPPER:-} ]]; then exec "$PP_PAL_JAVA_WRAPPER" "${command[@]}"; fi
+exec "${command[@]}"

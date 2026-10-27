@@ -260,7 +260,7 @@ pinned by a test in the task that owns it:
   - `pp-pal` is unchanged, apart from the comments and the Python dispatch
     path.
 
-- [ ] **Step 1: Migrate `tests/runtime.sh`.**
+- [x] **Step 1: Migrate `tests/runtime.sh`.**
   - Replace `run()` with `"$root/tools/engine" main "$@"`.
   - Use host paths instead of `/fixtures` and `/work`.
   - The script takes `RUNTIME`: `export PP_PAL_RUNTIME=$1`.
@@ -270,7 +270,7 @@ pinned by a test in the task that owns it:
     roundtrip `cmp`, the pdf diff and the unsupported model/xpath
     rejections.
 
-- [ ] **Step 2: Write the new test `tests/launch.sh`.** With a dev runtime,
+- [x] **Step 2: Write the new test `tests/launch.sh`.** With a dev runtime,
   it makes these assertions:
   - (a) `PATH="$fake:$PATH"`, where `$fake/java` is a script that exits
     99. `tools/run-engine holdings --file "$work/a:b c/portfolio.xml"`
@@ -286,19 +286,19 @@ pinned by a test in the task that owns it:
   - (f) `--help` exits 0 when `PP_PAL_RUNTIME` points at a missing
     directory.
 
-- [ ] **Step 3: Run both.** `bash tests/runtime.sh "$R"` and
+- [x] **Step 3: Run both.** `bash tests/runtime.sh "$R"` and
   `bash tests/launch.sh "$R"` fail, because `tools/engine` is missing.
 
-- [ ] **Step 4: Implement.**
+- [x] **Step 4: Implement.**
   - Write `tools/engine` and `tools/run-engine`.
   - Rename the variables in the three Java files. The receipt property
     `engine` keeps its name and now holds the identity.
   - Rebuild the dev runtime, because the Java code changed.
 
-- [ ] **Step 5: Run both.** `bash tests/runtime.sh "$R"` and
+- [x] **Step 5: Run both.** `bash tests/runtime.sh "$R"` and
   `bash tests/launch.sh "$R"` print `PASS`.
 
-- [ ] **Step 6: Commit.** Message: `Launch commands natively from a runtime
+- [x] **Step 6: Commit.** Message: `Launch commands natively from a runtime
   directory`.
 
 ### Task 3: Native test budget and oracle interface
