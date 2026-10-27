@@ -48,8 +48,9 @@ agent. The agent follows `UPGRADE.md` and does the following:
   migration pass. Assertions that observed Docker-specific mechanics (bind
   modes, `docker` traces, image labels) are replaced by assertions on the
   native equivalent, never just deleted.
-- Letting an agent change already-approved fixtures or expectations, and then
-  activate the result unattended.
+- Agent adaptations of existing tests or expectations that are not listed
+  in the activation report and the PR, or that remove a gate or weaken a
+  financial assertion.
 - Any operation that uses root, `sudo` or system package installation.
 
 ## Constraints
@@ -74,7 +75,7 @@ agent. The agent follows `UPGRADE.md` and does the following:
 
 | | Approach | Trade-off |
 |---|---|---|
-| **A (chosen)** | pp-pal downloads and pins its own Temurin JDK into the runtime directory. The engine identity is the runtime directory's tree digest. | One extra cached download (about 190 MB). It keeps one execution path and the exact JDK pin that the support matrix relies on. |
+| **A (chosen)** | pp-pal downloads and pins its own Temurin JDK into the runtime directory. The engine identity is a readable runtime name. | One extra cached download (about 190 MB). It keeps one execution path and the exact JDK pin that the support matrix relies on. |
 | B | Require a host Java 21 on PATH. | Least code. But the owner must install it, the exact pin is lost, and OS updates can change the engine. |
 | C | A plus an optional rootless `bubblewrap` sandbox. | Recovers most of the isolation, but reintroduces two execution paths. It helps only where `bwrap` exists. |
 
@@ -96,20 +97,21 @@ The owner picked A.
                     jdk, platform (replaces Docker image labels)
 ```
 
-- **Identity:** `sha256:<tree digest>`, computed over the whole directory with
-  the existing `tree_digest` rules. This keeps the `IMAGE` regex and the
-  manifest shapes.
+- **Identity (lightweight, owner's choice):** a readable name,
+  `<upstream tag>-<first 12 chars of wrapper revision>`, for example
+  `0.88.0-5f94699a1b2c`. A local development build is called `dev`. The name
+  is written to `runtime.json` and is also the directory name. Nothing is
+  hashed at launch.
 - **Read-only:** after the build, the directory is made read-only
   (`chmod -R a-w`).
-- **Verification:** the identity is recomputed whenever a runtime is selected.
-  A mismatch refuses to run, which replaces `docker image inspect`.
-- **Location:** runtimes live in `$STATE/runtimes/<identity-hex>/`.
-- **Naming:** `pp-pal:validated-pair-*` and `pp-pal:retained-*` tags are
-  replaced as follows:
-  - `cacheTag` becomes a cache-key symlink-free index file,
-    `$STATE/runtimes/by-key/<cache-key>`, which contains the identity.
-  - Retention means the active and previous runtime directories are never
-    deleted.
+- **Verification:** the launcher checks that the identity in `runtime.json`
+  matches the directory name and the active manifest. The downloaded input
+  archives stay SHA-256 checked, because that is what pins the inputs.
+- **Location:** runtimes live in `$STATE/runtimes/<identity>/`.
+- **Caching and retention:** `pp-pal:validated-pair-*` and
+  `pp-pal:retained-*` tags disappear. The runtime name already identifies
+  the wrapper and upstream pair, so a runtime whose directory exists is
+  reused. The active and previous runtime directories are never deleted.
 - **Naming, user-visible:** `ENGINE IMAGE`, `PP_PAL_ENGINE_IMAGE` and
   `PP_PAL_IMAGE` are renamed to `ENGINE RUNTIME`, `PP_PAL_ENGINE_RUNTIME`
   and `PP_PAL_RUNTIME`. `PP_PAL_RUNTIME` holds a runtime directory path.
@@ -253,7 +255,10 @@ It is written for an agent and is readable by a human. It covers these steps:
    following `docs/upgrading-version-support.md`. The headless patch must
    still apply exactly, or the upgrade stops for adapter maintenance.
 4. **Fixtures:** add fixtures and gates for new behaviour (for example a new
-   model version or migration). Never edit existing fixtures or expectations.
+   model version or migration). Adapt existing tests, fixtures or
+   expectations only where the new upstream genuinely changes them, and
+   explain each adaptation in the PR. Never delete a gate or weaken a
+   financial assertion to make it pass.
 5. **Suite:** run the focused checks, then `bash tests/all.sh`. Record the
    evidence in the support matrix and docs.
 6. **Commit and PR:** commit, push, and open a PR against `main` with the
@@ -263,25 +268,38 @@ It is written for an agent and is readable by a human. It covers these steps:
 8. **Resume:** re-run the original command from `request.json` exactly,
    including `--apply --desktop-closed` when present, and report the outcome.
 9. **Stop conditions:** these stop the upgrade and are reported to the owner:
-   - any existing trusted file would need to change,
    - the patch fails,
-   - a gate fails,
-   - the owner's GitHub permission is missing.
+   - a gate still fails,
+   - a gate would have to be removed,
+   - the selected-copy validation fails.
 
-   Nothing is activated in these cases.
+   Nothing is activated in these cases. A missing GitHub push or PR
+   permission does not block activation. The agent reports it and leaves
+   the branch local.
 
 ### `--update --local-upgrade CHECKOUT` (ADR 0006)
 
 1. Require a clean git checkout at a commit, and snapshot its tree into
    `$STATE/wrappers/local-<commit>`.
-2. **Trusted-bundle rule, append-only:** every file in the existing trusted
-   validation bundle must be byte-identical in the checkout. New gates,
-   fixtures and oracles may be added.
+2. **Trusted-bundle rule (owner's choice):** in unattended mode the agent may
+   add *and adapt* gates, fixtures, oracles and expectations, for example
+   for a model 70 to 71 bump. The checkout's validation files become the
+   new trusted bundle. These safeguards apply:
+   - The activation report lists every trusted file that was changed or
+     removed compared with the previous bundle. The PR body repeats this
+     list, so the owner reviews exactly those changes.
+   - Removing a gate from `candidate-gates.json` is refused. Adapted gates
+     must still run.
+   - The selected-copy cross-engine validation still runs with the
+     *previous* trusted oracle on the *previous* runtime. The owner's real
+     portfolio is therefore checked independently of the agent's adapted
+     tests.
 3. Build the runtime from the snapshot with the cached, verified archives.
 4. Run all old and new gates, plus the selected-copy validation, using the
    same qualification machinery as a release.
-5. On success, extend the trusted bundle with the new files and record its
-   new digest. Then activate atomically with `source: local-upgrade`, the
+5. On success, replace the trusted bundle with the checkout's validation
+   files, and keep the previous bundle next to the previous pair. Then
+   activate atomically with `source: local-upgrade`, the
    commit, and the upstream tag and revision. The previous pair is retained.
 6. **Later releases:** normal release discovery continues on every
    operation. A stable wrapper release that supports the same or newer
@@ -296,13 +314,24 @@ It is written for an agent and is readable by a human. It covers these steps:
 - Internal helper structure in `update.py` and `run.py`.
 - Wording of docs, provided they stay consistent with the glossary.
 
+## Decisions
+
+The owner decided the following:
+- Docker is removed entirely.
+- Approach A.
+- The build runs rootless, through an annotated build script.
+- An unsupported upstream release stops the operation with an agent prompt.
+- The locally tested pair is used before the PR is approved.
+- The original command is re-run unattended, including `--apply`.
+- The owner approves the PR.
+- The runtime identity is lightweight.
+- The agent may adapt existing tests unattended (ADR 0006).
+
 ## Calls I made (owner to check)
 
 1. The launcher is renamed to `tools/run-engine` (from `tools/run-container`),
    and image naming changes to "runtime".
-2. The engine identity keeps the `sha256:` form, as a tree digest.
-3. A local upgrade may only *add* trusted files, so changed expectations
-   block unattended activation.
-4. The upgrade work area defaults to `$STATE/upgrades/<tag>/checkout`.
-5. Bootstrap protocol moves to 2. No migration is needed, since no release
+2. The upgrade work area defaults to `$STATE/upgrades/<tag>/checkout`.
+3. Bootstrap protocol moves to 2. No migration is needed, since no release
    exists yet.
+4. A missing GitHub permission does not block local activation.
