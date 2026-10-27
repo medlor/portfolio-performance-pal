@@ -6,3 +6,6 @@ runtime/build-inputs/
 __pycache__/
 rollout*.html
 private/*
+
+.agents/
+.claude/
