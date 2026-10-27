@@ -68,6 +68,19 @@ Read it first; this plan argues from it.
 - `UPGRADE REQUIRED` exits with status **3**.
 - Platform is Linux x86_64 only.
 
+## Pausing and resuming
+
+The owner may stop the work at any point. Work stays resumable as follows:
+- Each finished step is ticked (`- [x]`) in this file. The tick is
+  committed together with that step's code.
+- Each task ends with its own commit.
+- **To resume:** read this plan, find the first unticked step, and
+  check `git status` and `git log --oneline main..` on
+  `feature/native-runtime`. Uncommitted changes belong to the first
+  unticked step: finish it or discard it, then continue.
+- A dev runtime under `$STATE/runtimes/dev` is a cache. If Java sources
+  changed, rebuild it (after `remove_runtime`, once that exists).
+
 ## Review focus
 
 These are the failure modes most likely to bite the owner. Each one is
