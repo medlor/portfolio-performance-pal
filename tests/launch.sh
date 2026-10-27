@@ -53,6 +53,14 @@ expect_status 0 'purchase preview' launch purchase --file "$work/a:b c/portfolio
 rg -qx "ENGINE RUNTIME $identity" "$work/out" || { cat "$work/out" >&2; fail 'preview lacks ENGINE RUNTIME identity'; }
 ! rg -q 'ENGINE IMAGE' "$work/out" || fail 'preview still prints ENGINE IMAGE'
 
+# (g) A copied runtime cannot map its class-data-sharing archive; it must still
+# run, with no JVM sharing warnings in the command's output.
+mkdir "$work/copied"
+cp -r "$runtime" "$work/copied/$identity"
+expect_status 0 'copied runtime' env PP_PAL_RUNTIME="$work/copied/$identity" PP_PAL_STATE_DIR="$work/state" \
+  PP_PAL_NOW=2026-10-07T12:00:00Z "$root/tools/run-engine" holdings --file "$work/a:b c/portfolio.xml"
+! rg -qi 'warning|shared archive|cds' "$work/err" || { cat "$work/err" >&2; fail 'copied runtime printed JVM sharing warnings'; }
+
 # (f) Help needs neither a runtime nor a portfolio.
 expect_status 0 'help without runtime' env PP_PAL_RUNTIME="$work/missing" "$root/tools/run-engine" --help
 cmp -s "$root/runtime/help.txt" "$work/out" || fail 'help output differs'

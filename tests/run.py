@@ -77,8 +77,11 @@ class Budget:
         self.suite = uuid.uuid4().hex
         self.socket_path = str(directory / 'budget.sock')
         self.memory_mib = positive('PP_PAL_TEST_MEMORY_MIB', 1024)
-        self.cpus = min(positive('PP_PAL_TEST_CPUS', 2), max(1, math.floor(cpu_count() / 2)))
-        requested = positive('PP_PAL_TEST_JOBS', 2)
+        # Default: half of the effective logical CPUs (affinity and cgroup quota
+        # applied), one processor per JVM. Short JVM runs gain nothing from more.
+        half = max(1, math.floor(cpu_count() / 2))
+        self.cpus = min(positive('PP_PAL_TEST_CPUS', 1), half)
+        requested = positive('PP_PAL_TEST_JOBS', half)
         total, available = memory()
         self.reserve = max(GIB, total // 4)
         memory_jobs = (available - self.reserve) // (self.memory_mib * MIB)

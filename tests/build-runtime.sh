@@ -45,7 +45,34 @@ assert data['upstreamRevision'] == '8de1fe41d71a2c1b74a6bfbe913f885899aaf123' an
 assert data['jdk'] == 'Temurin-21.0.11+10' and data['platform'] == 'linux/amd64', data
 PY
 "$work/dev/jdk/bin/java" -version 2>&1 | grep -q 'Temurin-21.0.11+10' || fail 'runtime JDK is not Temurin 21.0.11+10'
-cmp runtime/help.txt "$work/dev/classes/help.txt" || fail 'help.txt differs'
+unzip -p "$work/dev/classes.jar" help.txt | cmp - runtime/help.txt || fail 'help.txt differs in classes.jar'
+[[ ! -e $work/dev/classes ]] || fail 'classes directory left next to classes.jar'
+# Deterministic classpath: never filesystem order. Older versions of a duplicated
+# artifact come last (PDFBox 1.8 must never shadow PDFBox 3), every jar exactly once.
+python3 - "$work/dev" <<'PY' || fail 'classpath order'
+import pathlib, sys
+root = pathlib.Path(sys.argv[1])
+entries = (root / 'classpath').read_text().split()
+assert entries[0] == 'classes.jar', entries[:3]
+jars = sorted('lib/' + path.name for path in (root / 'lib').glob('*.jar'))
+assert sorted(entries[1:]) == jars and len(set(entries)) == len(entries), 'classpath must list every lib jar once'
+legacy = ['lib/org.apache.pdfbox_1.8.17.jar', 'lib/org.apache.pdfbox.fontbox_1.8.17.jar']
+assert entries[-2:] == legacy, entries[-3:]
+assert all(entries.index(old) > entries.index('lib/org.apache.pdfbox.io_3.0.8.jar') for old in legacy)
+import zipfile
+manifest = zipfile.ZipFile(root / 'classes.jar').read('META-INF/MANIFEST.MF').decode().replace('\r\n ', '').replace('\n ', '')
+class_path = next(line for line in manifest.splitlines() if line.startswith('Class-Path: '))[len('Class-Path: '):].split()
+assert class_path == entries[1:], 'classes.jar manifest Class-Path differs from the fixed order'
+PY
+# The class-data-sharing archive is built for the final location and used silently.
+[[ -s $work/dev/app.jsa ]] || fail 'missing AppCDS archive'
+PP_PAL_RUNTIME="$work/dev" tools/engine main --help > /dev/null
+cp "$root/fixtures/v1/portfolio.xml" "$work/cds.xml"
+# -Xshare:on refuses to start unless the archive maps for exactly this classpath.
+"$work/dev/jdk/bin/java" -Xshare:on -XX:SharedArchiveFile="$work/dev/app.jsa" -Djava.awt.headless=true \
+  -cp "$(PP_PAL_RUNTIME="$work/dev" tools/engine classpath)" pal.Main inspect "$work/cds.xml" > "$work/cds.out" 2>&1 \
+  || { head -20 "$work/cds.out" >&2; fail 'AppCDS archive does not map for the engine classpath'; }
+rg -q 'SharedArchiveFile' tools/engine || fail 'engine does not use the AppCDS archive'
 ! compgen -G "$work/dev/lib/name.abuchen.portfolio_*.jar" > /dev/null || fail 'core release jar left in lib'
 ! compgen -G "$work/dev/lib/name.abuchen.portfolio.ui_*.jar" > /dev/null || fail 'ui release jar left in lib'
 [[ -f $work/dev/attribution/UPSTREAM-LICENSE ]] || fail 'attribution missing'

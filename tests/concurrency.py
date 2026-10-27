@@ -273,6 +273,20 @@ class BudgetTests(unittest.TestCase):
                 finally:
                     budget.close()
 
+    def test_default_budget_uses_half_the_logical_cpus_one_per_job(self):
+        # Without overrides: half of the effective logical CPUs (cgroup quota and
+        # affinity already applied by cpu_count), one processor per JVM.
+        for cpus, jobs in ((16, 8), (4, 2), (2, 1), (1, 1)):
+            with tempfile.TemporaryDirectory() as tmp, patch.object(runner, 'cpu_count', return_value=cpus):
+                environment = {key: value for key, value in os.environ.items()
+                               if key not in ('PP_PAL_TEST_JOBS', 'PP_PAL_TEST_CPUS')}
+                with patch.dict(os.environ, environment, clear=True):
+                    budget = runner.Budget(pathlib.Path(tmp))
+                    try:
+                        self.assertEqual((budget.limit, budget.cpus), (jobs, 1), f'{cpus} CPUs')
+                    finally:
+                        budget.close()
+
     def test_low_memory_refuses_startup(self):
         with tempfile.TemporaryDirectory() as tmp:
             with patch.object(runner, 'memory', return_value=(16*runner.GIB, 4*runner.GIB)):

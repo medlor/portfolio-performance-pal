@@ -9,6 +9,7 @@ if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 # Updater runs the distinct baseline checks and every registered candidate gate.
 started=$SECONDS
 python3 tests/concurrency.py
+python3 tests/update_units.py
 bash tests/build-runtime.sh
 bash tests/launch.sh "${PP_PAL_RUNTIME:-${XDG_STATE_HOME:-$HOME/.local/state}/pp-pal/runtimes/dev}"
 bash tests/updater.sh

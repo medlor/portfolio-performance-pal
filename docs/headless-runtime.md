@@ -27,7 +27,12 @@ SHA-256 checked against `runtime/release-package.json` before unpacking. Depende
 versions are fixed by the checked release's plugin jars. Core and PDFBox3 adapter
 release jars are removed from the runtime classpath so rebuilt classes take
 precedence. The desktop application jar is also removed. Eclipse/SWT dependency
-jars remain available for upstream class linkage; no desktop entry point is run.
+jars remain available for upstream class linkage; no desktop entry point is run. The
+release ships PDFBox 1.8 and 3.0 side by side. A `lib/*` wildcard would let
+filesystem order decide which one wins, so `classes.jar`'s manifest `Class-Path`
+fixes the order: jars sorted by name, with older versions of a duplicated
+artifact last. The same order is used for compilation. Each runtime also
+carries an AppCDS archive (`app.jsa`) that only speeds up start-up.
 Commands run as the invoking user with an unset display, `LANG=C.UTF-8`, `TZ=UTC`
 and a pruned environment; Java runs with `-Djava.awt.headless=true`.
 

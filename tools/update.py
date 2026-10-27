@@ -538,13 +538,16 @@ def build_runtime(package, inputs, wrapper_revision, state, digests):
     upstream_tag = json.loads((package / 'runtime/release-package.json').read_text())['upstream']['tag']
     target = runtimes(state) / (upstream_tag + '-' + wrapper_revision[:12])
     if target.exists():
+        # The identity fixes the wrapper revision and therefore every pinned input.
+        # Different recorded inputs mean corruption or tampering; the directory may
+        # be the active runtime, so never delete it here.
         try:
             labels = runtime_dir.read_runtime(target)
-            if labels.get('inputs') == digests and labels['wrapperRevision'] == wrapper_revision:
-                return target
-        except ValueError:
-            pass
-        runtime_dir.remove_runtime(target)
+        except ValueError as failure:
+            raise UpdateError('Runtime ' + target.name + ' exists but is incomplete; remove it manually after checking it is not active') from failure
+        if labels.get('inputs') == digests and labels['wrapperRevision'] == wrapper_revision:
+            return target
+        raise UpdateError('Runtime ' + target.name + ' exists with different inputs; refusing to replace it')
     execute([str(package / 'tools/build-runtime'), '--inputs', str(inputs), '--output', str(target),
              '--wrapper-revision', wrapper_revision])
     return target

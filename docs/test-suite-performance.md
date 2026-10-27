@@ -11,23 +11,26 @@ started by the owner launcher creates the same shared budget if one is not inher
 
 ```sh
 R=~/.local/state/pp-pal/runtimes/dev
-bash tests/all.sh "$R"                       # conservative default: two jobs
+bash tests/all.sh "$R"                       # default: half the logical CPUs, one per job
 PP_PAL_TEST_JOBS=1 bash tests/all.sh "$R"    # serial modules and cases
 PP_PAL_TEST_JOBS=3 bash tests/all.sh "$R"    # request at most three jobs
 ```
 
-The requested maximum is clamped to available memory after reserving at least
-1 GiB or 25% of effective RAM, whichever is larger, and half the effective CPU
-capacity. Linux cgroup v2 ancestor limits and CPU affinity participate in those
-calculations. Admission pauses under host memory pressure and fails after 120
+By default the budget runs as many jobs as half the effective logical CPUs,
+with one processor per JVM. On an unrestricted 16-thread machine that is 8
+jobs; inside a 4-CPU cgroup quota it is 2. "Effective" means CPU affinity and
+cgroup v2 quotas (including ancestors) are applied, because starting more JVMs
+than a quota allows only gets them throttled. Any requested maximum is clamped
+to that CPU limit and to available memory, after reserving at least 1 GiB or 25%
+of effective RAM, whichever is larger. Admission pauses under host memory pressure and fails after 120
 seconds if resources remain unavailable. Each active job's full memory share
 is reserved conservatively before another job starts.
 
 | Variable | Default | Meaning |
 |---|---:|---|
-| `PP_PAL_TEST_JOBS` | 2 | Shared maximum expensive jobs across modules and cases |
+| `PP_PAL_TEST_JOBS` | half the effective logical CPUs | Shared maximum expensive jobs across modules and cases |
 | `PP_PAL_TEST_MEMORY_MIB` | 1024 | Memory share per test JVM; the heap is capped at 75% of it (`-Xmx`) |
-| `PP_PAL_TEST_CPUS` | 2 | Processors per test JVM (`-XX:ActiveProcessorCount`), reduced on small hosts |
+| `PP_PAL_TEST_CPUS` | 1 | Processors per test JVM (`-XX:ActiveProcessorCount`); measured: more gives no gain for these short runs |
 
 Limits are JVM flags, not kernel ceilings. Rootless processes have no per-job
 cgroup, so native memory outside the heap is not hard-capped and there is no
@@ -53,6 +56,17 @@ Updater scenarios that intentionally modify shared release/state remain serial.
 exclusive builds, resource caps, parent cgroup limits, low-memory refusal,
 serial mode, killed-worker cleanup, and shutdown with a stub JDK tool instead of real JVMs.
 The cumulative suite includes these checks before the financial gates.
+
+## JVM start-up
+
+Most of a command's half second is class loading from the roughly one
+thousand upstream jars. Each runtime therefore ships `classes.jar`, whose
+manifest `Class-Path` lists every jar in a fixed order, and an AppCDS archive
+`app.jsa` trained at build time (`tools/build-runtime` step 11). Measured on
+2026-10-27 under load: holdings dropped from about 730 to 545 ms, and PDF
+conversion from about 800 to 530 ms. `-XX:+UseSerialGC`, `-XX:TieredStopAtLevel=1`
+and larger `-XX:ActiveProcessorCount` values gave no gain. Pruning jars by
+static analysis broke PDF conversion and is not used.
 
 ## Shared-budget benchmark (2026-10-11, historical Docker runtime)
 

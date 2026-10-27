@@ -18,7 +18,11 @@ shift
 case $mode in main|java|javac|classpath) ;; *) echo "ERROR: Unknown engine mode: $mode" >&2; exit 2;; esac
 identity=$(python3 "$here/runtime_dir.py" identity "$runtime") || exit 3
 runtime=$(realpath -- "$runtime")
-classpath="$runtime/classes:$runtime/lib/*"
+# classes.jar's manifest Class-Path lists every lib jar in the runtime's fixed
+# order (never a `lib/*` wildcard, whose filesystem order would decide between
+# the bundled PDFBox 1.8 and 3.0 jars).
+[[ -f $runtime/classes.jar ]] || { echo "ERROR: Runtime lacks classes.jar; rebuild it with tools/build-runtime: $runtime" >&2; exit 3; }
+classpath=$runtime/classes.jar
 if [[ $mode == classpath ]]; then printf '%s\n' "$classpath"; exit 0; fi
 # Match the former container environment: UTF-8 C locale, UTC default time
 # zone, no display. pal.Main sees only the variables it reads plus the
@@ -34,7 +38,12 @@ if [[ $mode == main ]]; then
   done
 fi
 case $mode in
-  main) command=("$runtime/jdk/bin/java" -Djava.awt.headless=true -cp "$classpath" pal.Main "$@");;
+  main)
+    # The class-data-sharing archive only speeds up start-up. A copied runtime
+    # cannot map it; the JVM then quietly loads classes normally.
+    sharing=()
+    [[ -f $runtime/app.jsa ]] && sharing=(-XX:SharedArchiveFile="$runtime/app.jsa" -Xshare:auto -Xlog:cds=off -Xlog:cds+dynamic=off)
+    command=("$runtime/jdk/bin/java" "${sharing[@]}" -Djava.awt.headless=true -cp "$classpath" pal.Main "$@");;
   java) command=("$runtime/jdk/bin/java" "$@");;
   javac) command=("$runtime/jdk/bin/javac" "$@");;
 esac

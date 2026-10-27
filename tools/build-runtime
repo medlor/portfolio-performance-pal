@@ -86,9 +86,39 @@ parent=$(dirname "$output")
 mkdir -p "$parent"
 build=$(mktemp -d "$parent/.build-XXXXXX")
 cleanup() {
-  if [[ -n ${build:-} && -e $build ]]; then chmod -R u+w "$build" 2>/dev/null || true; rm -rf "$build"; fi
+  local path
+  for path in "${build:-}" "${train:-}"; do
+    if [[ -n $path && -e $path ]]; then chmod -R u+w "$path" 2>/dev/null || true; rm -rf "$path"; fi
+  done
 }
 trap cleanup EXIT
+
+# Deterministic jar order. Java expands a `dir/*` classpath in filesystem
+# directory order, which differs between machines. The release ships PDFBox 1.8
+# and 3.0 side by side, and PDFBox 1.8's jar also contains classes of the
+# separate 3.0 `pdfbox.io` artifact. So: every jar sorted by name, except that
+# older versions of an artifact shipped in several versions go to the very end.
+# Legacy classes can then never shadow current ones.
+ordered_jars() { # ordered_jars DIR -> jar file names, one per line
+  python3 - "$1" <<'PY'
+import collections, pathlib, re, sys
+def split(name):
+    match = re.fullmatch(r'(.+?)_(\d[^_]*)\.jar', name)
+    return (match[1], match[2]) if match else (name[:-4], '')
+def newer_first(release):
+    return [(0, -int(part)) if part.isdigit() else (1, part) for part in re.split(r'[.-]', release) if part]
+names = [path.name for path in pathlib.Path(sys.argv[1]).glob('*.jar')]
+versions = collections.defaultdict(list)
+for name in names:
+    artifact, release = split(name)
+    versions[artifact].append(release)
+newest = {artifact: min(releases, key=newer_first) for artifact, releases in versions.items()}
+def key(name):
+    artifact, release = split(name)
+    return release != newest[artifact], artifact, newer_first(release), name
+print('\n'.join(sorted(names, key=key)))
+PY
+}
 
 # Test harnesses may route JDK tools through a resource-budget wrapper.
 # Normal builds run the pinned JDK directly.
@@ -178,7 +208,14 @@ mkdir -p "$build/classes"
 find "$work/source/name.abuchen.portfolio/src" "$work/source/name.abuchen.portfolio/protos" \
      "$work/source/name.abuchen.portfolio.pdfbox3/src" "$root/runtime/src/main/java" \
      -name '*.java' > "$work/sources"
-tool "$javac" -encoding UTF-8 --release 21 -cp "$work/release/portfolio/plugins/*" \
+plugins="$work/release/portfolio/plugins"
+# About a thousand jar paths exceed the kernel's per-argument limit, so the
+# classpath goes into a javac argument file (quoted: paths may contain spaces).
+ordered_jars "$plugins" | python3 -c 'import sys; root = sys.argv[1]
+paths = [root + "/" + line.strip() for line in sys.stdin if line.strip()]
+quote = lambda text: chr(34) + text.replace(chr(92), chr(92) * 2).replace(chr(34), chr(92) + chr(34)) + chr(34)
+print("-cp", quote(":".join(paths)))' "$plugins" > "$work/javac.args"
+tool "$javac" -encoding UTF-8 --release 21 "@$work/javac.args" \
   -d "$build/classes" "@$work/sources" >&2 || die 'Compilation failed'
 
 # -----------------------------------------------------------------------------
@@ -199,7 +236,25 @@ step 'Assemble libraries'
 mkdir "$build/lib"
 cp "$work/release/portfolio/plugins/"*.jar "$build/lib/"
 rm -f "$build/lib/"name.abuchen.portfolio_*.jar "$build/lib/"name.abuchen.portfolio.ui_*.jar "$build/lib/"name.abuchen.portfolio.pdfbox3_*.jar
-
+# The runtime classpath, relative to the runtime directory, in the fixed order.
+{ echo classes.jar; ordered_jars "$build/lib" | sed 's|^|lib/|'; } > "$build/classpath"
+# Pack the compiled classes into one jar whose manifest Class-Path carries the
+# fixed jar order, relative to the jar. The command line then needs only
+# `-cp <runtime>/classes.jar`, which stays far below the kernel's argument
+# limit, and a copied runtime still resolves its own jars. Class-data sharing
+# (step 11) also cannot archive classes loaded from a directory.
+python3 - "$build/classpath" "$work/MANIFEST.MF" <<'PY'
+import sys
+entries = open(sys.argv[1]).read().split()[1:]
+line = 'Class-Path: ' + ' '.join(entries)
+# Manifest lines are at most 72 bytes; continuation lines start with one space.
+chunks = [line[:72]] + [' ' + line[index:index + 71] for index in range(72, len(line), 71)]
+with open(sys.argv[2], 'w') as stream:
+    stream.write('Manifest-Version: 1.0\r\n' + ''.join(chunk + '\r\n' for chunk in chunks) + '\r\n')
+PY
+tool "$build/jdk/bin/jar" --create --file "$build/classes.jar" --manifest "$work/MANIFEST.MF" -C "$build/classes" . >&2 \
+  || die 'Packing classes failed'
+chmod -R u+w "$build/classes" && rm -rf "$build/classes"
 # -----------------------------------------------------------------------------
 # 9. Write attribution and runtime.json.
 #    Attribution keeps the upstream license, manifest, exact source archive
@@ -227,16 +282,79 @@ with open(path, 'w') as stream:
 PY
 
 # -----------------------------------------------------------------------------
-# 10. Seal the runtime and move it into place.
-#     Removing write permission protects the runtime from accidental changes.
-#     Use tools/runtime_dir.py remove_runtime (or chmod -R u+w) to delete it.
-#     The rename is atomic within the parent directory.
+# 10. Move the runtime into place.
+#     The rename is atomic within the parent directory. From here on, a failure
+#     removes the half-finished output again (see the cleanup trap).
+# -----------------------------------------------------------------------------
+step 'Move runtime into place'
+chmod -R u+w "$work" && rm -rf "$work"
+mv -T -- "$build" "$output"
+build=$output
+
+# -----------------------------------------------------------------------------
+# 11. Build the class-data-sharing (AppCDS) archive.
+#     Each pp-pal command is a short JVM run that spends most of its time
+#     loading classes from about a thousand jars. The archive pre-parses the
+#     classes that typical commands load. It is created at the final path,
+#     because the JVM only maps it for exactly this classpath. Start-up gets
+#     faster; behaviour does not change. If the runtime is ever copied
+#     elsewhere, the JVM silently ignores the archive.
+# -----------------------------------------------------------------------------
+step 'Build class-data-sharing archive'
+runtime_cp=$output/classes.jar
+train=$(mktemp -d "$parent/.cds-XXXXXX")
+cp "$root/runtime/cds-training/portfolio.xml" "$train/portfolio.xml"
+cp "$root/runtime/cds-training/statement.pdf" "$train/statement.pdf"
+resolved=(--resolved-config "$train/pp-pal.properties" --resolved-file "$train/portfolio.xml")
+accounts=(--securities-account 'Synthetic Securities A' --cash-account 'Synthetic Cash A')
+trainings=(
+  "holdings --file $train/portfolio.xml"
+  "history --file $train/portfolio.xml"
+  "purchase --file $train/portfolio.xml --security DE0000000001 --date 2025-03-01 --quantity 1 --price 10"
+  "import --file $train/portfolio.xml --pdf $train/statement.pdf"
+)
+index=0
+for training in "${trainings[@]}"; do
+  read -r -a command <<< "$training"
+  extra=("${resolved[@]}")
+  [[ ${command[0]} == holdings || ${command[0]} == history ]] || extra=("${accounts[@]}" "${resolved[@]}")
+  (cd "$train" && LANG=C.UTF-8 TZ=UTC tool "$output/jdk/bin/java" -XX:DumpLoadedClassList="$train/$index.classes" \
+     -Djava.awt.headless=true -cp "$runtime_cp" pal.Main "${command[@]}" "${extra[@]}") > "$train/$index.log" 2>&1 \
+     || { tail -20 "$train/$index.log" >&2; die "AppCDS training command failed: ${command[0]}"; }
+  index=$((index + 1))
+done
+(cd "$train" && LANG=C.UTF-8 TZ=UTC tool "$output/jdk/bin/java" -XX:DumpLoadedClassList="$train/$index.classes" \
+   -Djava.awt.headless=true -cp "$runtime_cp" pal.Main roundtrip "$train/portfolio.xml" "$train/out.xml") > "$train/$index.log" 2>&1 \
+   || { tail -20 "$train/$index.log" >&2; die 'AppCDS training command failed: roundtrip'; }
+# Merge the per-command lists: each class name once, first-seen order. The
+# `id:` and `@lambda-proxy` entries refer to one run only, so they are dropped.
+python3 - "$train" <<'PY'
+import pathlib, sys
+train = pathlib.Path(sys.argv[1])
+seen, names = set(), []
+for listing in sorted(train.glob('*.classes'), key=lambda path: int(path.stem)):
+    for line in listing.read_text().splitlines():
+        if not line or line[0] in '#@':
+            continue
+        name = line.split()[0]
+        if name not in seen:
+            seen.add(name)
+            names.append(name)
+(train / 'all.list').write_text('\n'.join(names) + '\n')
+PY
+tool "$output/jdk/bin/java" -Xshare:dump -XX:SharedClassListFile="$train/all.list" \
+  -XX:SharedArchiveFile="$output/app.jsa.part" -cp "$runtime_cp" > "$train/dump.log" 2>&1 \
+  || { tail -20 "$train/dump.log" >&2; die 'AppCDS archive dump failed'; }
+mv -- "$output/app.jsa.part" "$output/app.jsa"
+chmod -R u+w "$train" && rm -rf "$train"
+train=
+
+# -----------------------------------------------------------------------------
+# 12. Seal the runtime.
+#     Removing write permission protects it from accidental changes. Use
+#     tools/runtime_dir.py remove_runtime (or chmod -R u+w) to delete it.
 # -----------------------------------------------------------------------------
 step 'Seal runtime'
-chmod -R u+w "$work" && rm -rf "$work"
-chmod -R a-w "$build"
-chmod u+w "$build"   # the rename below needs the top directory writable...
-mv -T -- "$build" "$output"
-chmod a-w "$output"  # ...and it is sealed again afterwards.
+chmod -R a-w "$output"
 build=
 echo "$identity"
