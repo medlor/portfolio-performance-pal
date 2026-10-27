@@ -42,15 +42,15 @@ override, daily protection, document-wide suspected-duplicate refusal/override, 
 gates remain mandatory. Earlier synthetic EUR/USD and monetary/recovery/migration
 regressions remain in their existing suites.
 
-Regenerate using the pinned local image and existing test scheduling boundary:
+Regenerate using a pinned runtime directory (originally rendered with image
+`pp-pal:issue34` on the former Docker runtime):
 
 ```sh
-python3 tests/oracle.py run --rm --network none --user "$(id -u):$(id -g)" \
-  -v "$PWD/fixtures/v1/smartbroker-current:/fixtures:rw" \
-  -v "$PWD/scripts:/scripts:ro" --entrypoint java pp-pal:issue34 \
-  -cp '/opt/pp/classes:/opt/pp/lib/*' /scripts/RenderCurrentLayouts.java /fixtures
+R=~/.local/state/pp-pal/runtimes/dev
+PP_PAL_RUNTIME="$R" tools/engine java -cp "$(PP_PAL_RUNTIME="$R" tools/engine classpath)" \
+  scripts/RenderCurrentLayouts.java "$PWD/fixtures/v1/smartbroker-current"
 (cd fixtures/v1/smartbroker-current && sha256sum *.pdf *.txt > SHA256SUMS)
-PP_PAL_LAUNCHER="$PWD/tools/run-container" bash tests/smartbroker-current.sh pp-pal:issue34
+PP_PAL_LAUNCHER="$PWD/tools/run-engine" bash tests/smartbroker-current.sh "$R"
 ```
 
 This evidence covers these complete Baader/Smartbroker layouts only. It does not

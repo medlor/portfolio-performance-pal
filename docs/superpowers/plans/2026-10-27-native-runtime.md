@@ -715,15 +715,15 @@ It must also state these rules:
 It must tell the agent to read `docs/upgrading-version-support.md` and
 `docs/updating-broker-extractor.md` before adapting code.
 
-- [ ] **Step 1: Write the docs, ADRs and `UPGRADE.md`.** Delete the Docker
+- [x] **Step 1: Write the docs, ADRs and `UPGRADE.md`.** Delete the Docker
   files.
 
-- [ ] **Step 2: Check for leftovers.** `rg -n -i 'docker' --glob '!docs/superpowers/**' --glob '!docs/adr/**' --glob '!runtime/support-matrix.json'`
+- [x] **Step 2: Check for leftovers.** `rg -n -i 'docker' --glob '!docs/superpowers/**' --glob '!docs/adr/**' --glob '!runtime/support-matrix.json'`
   returns only historical-evidence prose in `docs/headless-runtime.md` and
   `docs/upgrading-version-support.md`, each marked as historical.
   `rg -n 'run-container|PP_PAL_IMAGE|ENGINE IMAGE'` returns nothing.
 
-- [ ] **Step 3: Run the full suite** and report its elapsed time:
+- [x] **Step 3: Run the full suite** and report its elapsed time:
   `PP_PAL_TEST_JOBS=4 bash tests/all.sh "$STATE/runtimes/dev"`. It must
   print `SUITE PASS`. Compare the gate registry with `main`: it must be
   identical, and the assertion inventory from Task 4 Step 4 must still

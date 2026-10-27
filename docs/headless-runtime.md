@@ -1,5 +1,9 @@
 # Pinned headless core proof
 
+> Evidence sections below that cite `sha256:` image identities and `docker` commands
+> record runs on the former Docker runtime. They are kept as history; the current
+> runtime is described in this introduction and in [ADR 0005](adr/0005-native-runtime.md).
+
 The initial Java boundary compiles Portfolio Performance core directly from
 [revision 8de1fe41d71a2c1b74a6bfbe913f885899aaf123](https://github.com/portfolio-performance/portfolio/tree/8de1fe41d71a2c1b74a6bfbe913f885899aaf123),
 release **0.88.0**, with `javac --release 21`. Maven, Tycho, an Eclipse application,
@@ -7,34 +11,38 @@ and a display server are unnecessary for the exercised paths. Financial models,
 cross entries, XML persistence, PDF-to-text conversion and Baader extraction are
 upstream Java code. No financial model or serializer is recreated in Python.
 
-Build and validate on Linux amd64:
+Build and validate on Linux amd64, rootless and without Docker:
 
 ```sh
-docker build --platform linux/amd64 -t pp-pal:0.88.0 .
-bash tests/runtime.sh
-docker image inspect pp-pal:0.88.0 --format '{{.Id}}'
+tools/build-runtime --output ~/.local/state/pp-pal/runtimes/dev
+bash tests/runtime.sh ~/.local/state/pp-pal/runtimes/dev
+python3 tools/runtime_dir.py identity ~/.local/state/pp-pal/runtimes/dev
 ```
 
-The Docker context admits only `Dockerfile` and `runtime/`; portfolios, reference
-samples, fixtures, configuration and metadata are excluded. The source archive
-and upstream release dependency archive are SHA-256 checked by Docker. Dependency
+`tools/build-runtime` is annotated step by step ([ADR 0005](adr/0005-native-runtime.md)).
+It reads only `runtime/` from the wrapper tree; portfolios, reference samples,
+fixtures, configuration and metadata are never inputs. The upstream source
+archive, the upstream release dependency archive and the Temurin JDK archive are
+SHA-256 checked against `runtime/release-package.json` before unpacking. Dependency
 versions are fixed by the checked release's plugin jars. Core and PDFBox3 adapter
 release jars are removed from the runtime classpath so rebuilt classes take
 precedence. The desktop application jar is also removed. Eclipse/SWT dependency
 jars remain available for upstream class linkage; no desktop entry point is run.
-The fixture tests use `--network none`, an explicit numeric host UID/GID and an
-unset display; Java runs with `-Djava.awt.headless=true`.
+Commands run as the invoking user with an unset display, `LANG=C.UTF-8`, `TZ=UTC`
+and a pruned environment; Java runs with `-Djava.awt.headless=true`.
 
-The base is Temurin **21.0.11+10-LTS**, Ubuntu Jammy, pinned by image digest in the
-Dockerfile. `docker build` uses the system Docker daemon and needs access to
-GitHub and the base registry on first build. Only a local image is built; nothing
-is uploaded to a registry. A rebuild can have a different image identity; validate
-that identity before activation. Build reproducibility here means checked source,
-dependencies and commands, not identical build timestamps or attestations.
+The JDK is Temurin **21.0.11+10-LTS** for Linux x64. It is unpacked from the pinned
+archive into `<runtime>/jdk`; a host Java is never used. The first build needs the
+network access listed in the README; archives are then cached by digest. The
+result is a read-only runtime directory named by its identity, and nothing is
+uploaded. `runtime.json` records the wrapper and upstream revisions, the XML
+model, the JDK, the platform and the input digests. Build reproducibility here
+means checked source, dependencies and commands, not identical build timestamps
+or attestations.
 
 The wrapper provides `pal.Core.load(Path)`, `save(Client, Path)`,
 `inspect(Client)` and `semanticState(Client)` for downstream modules. The current
-container commands `inspect`, `roundtrip`, `prove`, and `pdf` are developer proof
+engine commands (`tools/engine main inspect|roundtrip|prove|pdf`) are developer proof
 commands; `roundtrip` and `prove` write their explicitly selected disposable
 output. Use these proof commands only with disposable output files.
 The owner-facing launcher provides `holdings`/`history`, explicit `configure`, and

@@ -47,10 +47,10 @@ sha256sum *.pdf *.txt > SHA256SUMS
 Focused check from the repository root:
 
 ```sh
-PP_PAL_LAUNCHER="$PWD/tools/run-container" bash tests/pdf-fx.sh pp-pal:issue34
+PP_PAL_LAUNCHER="$PWD/tools/run-engine" bash tests/pdf-fx.sh ~/.local/state/pp-pal/runtimes/dev
 ```
 
-Complete qualification: `bash tests/all.sh pp-pal:issue34` (also exercises the
+Complete qualification: `bash tests/all.sh ~/.local/state/pp-pal/runtimes/dev` (also exercises the
 owner launcher and released immutable pair). Keep all retained domestic and PP
 extraction profiles when upgrading; no independent financial expectations may be
 changed to accommodate a candidate.
