@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/fx.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 launcher=${2:-${PP_PAL_LAUNCHER:-$root/pp-pal}}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -25,12 +25,9 @@ cp portfolio.xml before.xml
   --apply --desktop-closed > applied
 rg -q '^APPLIED PURCHASE$' applied
 cmp before.xml portfolio.xml.????-??-??.bak
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" \
-  -v "$root/runtime/src/test/java:/tests:ro" -v "$work:/work:ro" \
-  --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' \
-  /tests/pal/ForeignExchangeOracle.java /work/before.xml /work/portfolio.xml \
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" ForeignExchangeOracle "$work"/before.xml "$work"/portfolio.xml \
   purchase 2150 2000 2500 100 50 .8 2025-03-01T11:00:00 200000000
-launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-container}
+launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-engine}
 python3 - "$root" "$launcher" "$work" <<'PY'
 import os, pathlib, subprocess, sys
 root, launcher, work = map(pathlib.Path, sys.argv[1:])
@@ -53,11 +50,8 @@ def reset(content):
     (work/'portfolio.xml').write_bytes(content); (work/'before.xml').write_bytes(content)
 def oracle(command, booked, gross, foreign, fee=100, tax=50, rate='.8', quantity=200000000,
            date='2025-03-02T11:00:00'):
-    subprocess.run(['python3',str(root/'tests/oracle.py'),'run','--rm','--network','none',
-        '--user',f'{os.getuid()}:{os.getgid()}', '-v',f'{root}/runtime/src/test/java:/tests:ro',
-        '-v',f'{work}:/work:ro','--entrypoint','java',os.environ['PP_PAL_IMAGE'],
-        '-cp','/opt/pp/classes:/opt/pp/lib/*','/tests/pal/ForeignExchangeOracle.java',
-        '/work/before.xml','/work/portfolio.xml',command,*map(str,(booked,gross,foreign,fee,tax,rate,date,quantity))],check=True)
+    subprocess.run(['python3',str(root/'tests/oracle.py'),os.environ['PP_PAL_RUNTIME'],'ForeignExchangeOracle',
+        f'{work}/before.xml',f'{work}/portfolio.xml',command,*map(str,(booked,gross,foreign,fee,tax,rate,date,quantity))],check=True)
 # The original USD holding is closed; the purchase above funds this full sale.
 reset(purchased)
 expect(run('sale'),0,'BOOKED CREDIT EUR 18.50')

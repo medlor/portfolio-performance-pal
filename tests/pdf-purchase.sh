@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/pdf-purchase.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -20,33 +20,39 @@ mkdir "$work/input directory"
 cp "$root/fixtures/v1/baader-buy.pdf" "$work/input directory/purchase statement.pdf"
 cd "$work"
 mkdir trace-bin
-export PP_PAL_REAL_DOCKER=$(command -v docker) PP_PAL_DOCKER_TRACE="$work/docker-trace.jsonl"
-cat > trace-bin/docker <<'PY'
+# Trace every JDK process the launcher starts, then continue through the test budget.
+export PP_PAL_JAVA_TRACE="$work/java-trace.jsonl" PP_PAL_TRACE_NEXT=${PP_PAL_JAVA_WRAPPER:-}
+cat > trace-bin/java-trace <<'PY'
 #!/usr/bin/env python3
 import json, os, sys
-with open(os.environ['PP_PAL_DOCKER_TRACE'],'a') as stream:
+with open(os.environ['PP_PAL_JAVA_TRACE'],'a') as stream:
     stream.write(json.dumps(sys.argv[1:])+'\n')
-os.execv(os.environ['PP_PAL_REAL_DOCKER'],['docker',*sys.argv[1:]])
+following = os.environ.get('PP_PAL_TRACE_NEXT')
+command = [following, *sys.argv[1:]] if following else sys.argv[1:]
+os.execv(command[0], command)
 PY
-chmod +x trace-bin/docker
-export PATH="$work/trace-bin:$PATH"
+chmod +x trace-bin/java-trace
+export PP_PAL_JAVA_WRAPPER="$work/trace-bin/java-trace"
 "$launcher" import --pdf 'input directory/purchase statement.pdf' --securities-account 'Synthetic Securities A' --cash-account 'Synthetic Cash A' > preview
 rg -q '^PREVIEW PDF PURCHASE DOCUMENT' preview
 rg -Fq 'BOOKED DEBIT EUR 51.00 (PDF)' preview
 cmp portfolio_performance.xml "$root/fixtures/v1/portfolio.xml"
 cmp 'input directory/purchase statement.pdf' "$root/fixtures/v1/baader-buy.pdf"
+cmp portfolio_performance.xml.pp-pal.json metadata-before
 python3 - "$work" <<'PY'
-import json, os, pathlib, sys
+import json, pathlib, sys
 work=pathlib.Path(sys.argv[1]); path=str(work/'input directory/purchase statement.pdf')
-commands=[json.loads(line) for line in (work/'docker-trace.jsonl').read_text().splitlines()]
-runs=[command for command in commands if command[0]=='run' and '--pdf' in command]
-assert runs and all(command[command.index('--user')+1]==f'{os.getuid()}:{os.getgid()}' for command in runs)
-assert any(path+':'+path+':ro' in command for command in runs), 'PDF needs an explicit individual read-only bind despite writable portfolio parent'
-assert not any(path+':'+path+':rw' in command for command in runs)
+commands=[json.loads(line) for line in (work/'java-trace.jsonl').read_text().splitlines()]
+runs=[command for command in commands if 'pal.Main' in command and '--pdf' in command]
+assert runs, 'PDF preview did not start the engine'
+# The launcher hands the engine the canonical absolute statement path, never a relative one.
+assert all(command[command.index('--pdf')+1]==path for command in runs), runs
 PY
+export PP_PAL_JAVA_WRAPPER=$PP_PAL_TRACE_NEXT
+[[ -n $PP_PAL_JAVA_WRAPPER ]] || unset PP_PAL_JAVA_WRAPPER
 echo 'PASS owner PDF purchase preview converts the actual statement and preserves inputs'
 # Broad behavior uses the real container boundary after the owner integration case.
-launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-container}
+launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-engine}
 cp "$root/fixtures/v1/pdf-purchase/missing-fee.pdf" 'input directory/missing fee.pdf'
 "$launcher" import --pdf 'input directory/missing fee.pdf' --securities-account 'Synthetic Securities A' --cash-account 'Synthetic Cash A' --fees 1 > supplemented-preview
 rg -Fq 'FEES EUR 1.00 (SUPPLEMENT)' supplemented-preview
@@ -113,5 +119,5 @@ cmp portfolio_performance.xml.pp-pal.migration.2020.bak migration-before
 [[ $(find . -name '*.????-??-??.bak' | wc -l) == 1 ]]
 [[ $(find . -name '*.pp-pal.migration.*.bak' | wc -l) == 1 ]]
 echo 'PASS section-scoped times, missing-only supplements, PP-authoritative amounts, complete page envelopes and joint security identity'
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PdfTextOracle.java /fixtures/v1/pdf-purchase
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PdfPurchaseOracle.java /fixtures/v1/portfolio.xml /fixtures/v1/pdf-purchase/two-purchases.pdf
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" PdfTextOracle "$root/fixtures"/v1/pdf-purchase
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" PdfPurchaseOracle "$root/fixtures"/v1/portfolio.xml "$root/fixtures"/v1/pdf-purchase/two-purchases.pdf

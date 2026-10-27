@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/pdf-dividend.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -18,12 +18,12 @@ cmp portfolio.xml "$root/fixtures/v1/portfolio.xml"
 echo 'PASS actual dividend PDF preview and immutable portfolio'
 "$launcher" import --file portfolio.xml --pdf "$root/fixtures/v1/pdf-dividend/basic.pdf" --cash-account 'Synthetic Cash A' --apply --desktop-closed > applied
 rg -q '^APPLIED PDF DIVIDEND DOCUMENT$' applied
-launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-container}
+launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-engine}
 export PP_PAL_TEST_ROOT="$root" PP_PAL_DIVIDEND_LAUNCHER="$launcher"
 python3 -u - <<'PY'
 import sys
 import json, os, pathlib, subprocess, tempfile, socket, threading
-ROOT=pathlib.Path(os.environ['PP_PAL_TEST_ROOT']); LAUNCHER=os.environ['PP_PAL_DIVIDEND_LAUNCHER']; IMAGE=os.environ['PP_PAL_IMAGE']
+ROOT=pathlib.Path(os.environ['PP_PAL_TEST_ROOT']); LAUNCHER=os.environ['PP_PAL_DIVIDEND_LAUNCHER']; RUNTIME=os.environ['PP_PAL_RUNTIME']
 sys.path.insert(0, str(ROOT/'tools'))
 from test_jobs import parallel_cases
 SOURCE=(ROOT/'fixtures/v1/portfolio.xml').read_bytes()
@@ -42,7 +42,7 @@ def fresh(base,name,source=SOURCE):
     w=base/name; w.mkdir(); (w/'portfolio.xml').write_bytes(source); (w/'before.xml').write_bytes(source); return w
 def oracle(w,name,cash_id=None):
     (w/'facts.tsv').write_text(''.join('\t'.join(str(f[k]) for k in ('reference','type','shares','total','gross','fees','taxes','date'))+'\n' for f in FACTS[name]))
-    r=subprocess.run(['python3',str(ROOT/'tests/oracle.py'),'run','--rm','--network','none','--user',f'{os.getuid()}:{os.getgid()}', '-v',f'{ROOT}/runtime/src/test/java:/tests:ro','-v',f'{w}:/work:ro','--entrypoint','java',IMAGE,'-cp','/opt/pp/classes:/opt/pp/lib/*','/tests/pal/PdfDividendAppliedOracle.java','/work/before.xml','/work/portfolio.xml','/work/facts.tsv',*([cash_id] if cash_id else [])],text=True,capture_output=True)
+    r=subprocess.run(['python3',str(ROOT/'tests/oracle.py'),os.environ['PP_PAL_RUNTIME'],'PdfDividendAppliedOracle',f'{w}/before.xml',f'{w}/portfolio.xml',f'{w}/facts.tsv',*([cash_id] if cash_id else [])],text=True,capture_output=True)
     expect(r,0,'PASS saved PDF dividend/mixed batch')
 with tempfile.TemporaryDirectory(prefix='pp-pal-pdf-dividend-') as tmp:
     base=pathlib.Path(tmp)
@@ -154,4 +154,4 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-pdf-dividend-') as tmp:
     expect(r,0,'RECOVERED'); oracle(w,'basic'); expect(run(w,apply=True),0,'SKIPPED PDF DIVIDEND')
     print('PASS partial confirmation across mixed types, exact migration protection and metadata recovery without financial replay',flush=True)
 PY
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PdfTextOracle.java /fixtures/v1/pdf-dividend
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" PdfTextOracle "$root/fixtures"/v1/pdf-dividend

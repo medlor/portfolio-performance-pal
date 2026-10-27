@@ -4,17 +4,14 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/smartbroker-current.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" \
-  -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" -v "$work:/work:rw" \
-  --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' \
-  /tests/pal/CurrentLayoutOracle.java prepare /fixtures/v1/portfolio.xml /work/base.xml
-python3 -u - "$root" "$work" "${PP_PAL_LAUNCHER:-$root/pp-pal}" "${PP_PAL_BEHAVIOR_LAUNCHER:-${PP_PAL_LAUNCHER:-$root/tools/run-container}}" "$PP_PAL_IMAGE" <<'PY'
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" CurrentLayoutOracle prepare "$root"/fixtures/v1/portfolio.xml "$work"/base.xml
+python3 -u - "$root" "$work" "${PP_PAL_LAUNCHER:-$root/pp-pal}" "${PP_PAL_BEHAVIOR_LAUNCHER:-${PP_PAL_LAUNCHER:-$root/tools/run-engine}}" "$PP_PAL_RUNTIME" <<'PY'
 import decimal, os, pathlib, re, subprocess, sys
 ROOT, BASE = map(pathlib.Path, sys.argv[1:3])
-OWNER, BEHAVIOR, IMAGE = sys.argv[3:]
+OWNER, BEHAVIOR, RUNTIME = sys.argv[3:]
 sys.path.insert(0, str(ROOT/'tools'))
 from test_jobs import parallel_cases
 SOURCE = (BASE/'base.xml').read_bytes()
@@ -25,9 +22,7 @@ def run(w, name, apply=False, launcher=BEHAVIOR, extra=()):
         '--cash-account', 'Synthetic Cash A', '--securities-account', 'Synthetic Securities A', *extra,
         *(['--apply', '--desktop-closed'] if apply else [])], cwd=w, text=True, capture_output=True)
 def oracle(w, name):
-    result = subprocess.run(['python3', str(ROOT/'tests/oracle.py'), 'run', '--rm', '--network', 'none', '--user', f'{os.getuid()}:{os.getgid()}',
-        '-v', f'{ROOT}/runtime/src/test/java:/tests:ro', '-v', f'{w}:/work:ro', '--entrypoint', 'java', IMAGE,
-        '-cp', '/opt/pp/classes:/opt/pp/lib/*', '/tests/pal/CurrentLayoutOracle.java', 'verify', '/work/before.xml', '/work/portfolio.xml', name], text=True, capture_output=True)
+    result = subprocess.run(['python3',str(ROOT/'tests/oracle.py'),os.environ['PP_PAL_RUNTIME'],'CurrentLayoutOracle', 'verify', f'{w}/before.xml', f'{w}/portfolio.xml', name], text=True, capture_output=True)
     expect(result, 0, 'PASS saved current-layout ' + name)
 def success(name):
     w=BASE/name; w.mkdir()
@@ -62,8 +57,5 @@ for name, extra in [('purchase', ('--total', '51')), ('sale', ('--quantity', '3'
         assert (w/'portfolio.xml').read_bytes() == SOURCE and not (w/'portfolio.xml.pp-pal-imports.properties').exists()
 print('PASS current-layout contradictory amounts/shares/CHF rate, missing continuation and invalid later member refuse whole documents unchanged', flush=True)
 PY
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" \
-  -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" \
-  --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' \
-  /tests/pal/PdfTextOracle.java /fixtures/v1/smartbroker-current
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" PdfTextOracle "$root"/fixtures/v1/smartbroker-current
 echo 'PASS current Smartbroker layout gate'

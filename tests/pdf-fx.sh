@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/pdf-fx.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -14,10 +14,10 @@ rg -Fq 'SUPPLEMENT' "$work/preview"
 cmp "$work/portfolio.xml" "$root/fixtures/v1/portfolio.xml"
 "$launcher" import --file "$work/portfolio.xml" --pdf "$root/fixtures/v1/pdf-fx/missing-rate.pdf" --cash-account 'Synthetic Cash A' --securities-account 'Synthetic Securities A' --exchange-rate 0.8 --forex-gross 10 --apply --desktop-closed --allow-suspected-duplicates > "$work/applied"
 rg -Fq 'APPLIED PDF PURCHASE DOCUMENT' "$work/applied"
-launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-${PP_PAL_LAUNCHER:-$root/tools/run-container}}
-python3 -u - "$root" "$work" "$launcher" "$PP_PAL_IMAGE" <<'PY'
+launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-${PP_PAL_LAUNCHER:-$root/tools/run-engine}}
+python3 -u - "$root" "$work" "$launcher" "$PP_PAL_RUNTIME" <<'PY'
 import os,pathlib,subprocess,sys,socket,threading
-ROOT,BASE=map(pathlib.Path,sys.argv[1:3]); LAUNCHER,IMAGE=sys.argv[3:]
+ROOT,BASE=map(pathlib.Path,sys.argv[1:3]); LAUNCHER,RUNTIME=sys.argv[3:]
 sys.path.insert(0,str(ROOT/'tools'))
 from test_jobs import parallel_cases
 SOURCE=(ROOT/'fixtures/v1/portfolio.xml').read_bytes()
@@ -33,7 +33,7 @@ def run(w,name='mixed',apply=False,override=False,extra=(),observer=False):
     if observer:env['PP_PAL_WRITE_OBSERVER']=str(w/'observer.sock')
     return subprocess.run(args,cwd=w,env=env,text=True,capture_output=True)
 def oracle(w,name):
-    r=subprocess.run(['python3',str(ROOT/'tests/oracle.py'),'run','--rm','--network','none','--user',f'{os.getuid()}:{os.getgid()}', '-v',f'{ROOT}/runtime/src/test/java:/tests:ro','-v',f'{w}:/work:ro','--entrypoint','java',IMAGE,'-cp','/opt/pp/classes:/opt/pp/lib/*','/tests/pal/PdfFxAppliedOracle.java','/work/before.xml','/work/portfolio.xml',name],text=True,capture_output=True)
+    r=subprocess.run(['python3',str(ROOT/'tests/oracle.py'),os.environ['PP_PAL_RUNTIME'],'PdfFxAppliedOracle',f'{w}/before.xml',f'{w}/portfolio.xml',name],text=True,capture_output=True)
     expect(r,0,'PASS saved FX PDF')
 def success(name):
     # A single sale uses the same funded batch first, preserving it as baseline.
@@ -96,5 +96,5 @@ expect(subprocess.run([LAUNCHER,'import','--file',str(w/'portfolio.xml'),'--reco
 expect(run(w,apply=True),0,'SKIPPED');assert (w/'portfolio.xml').read_bytes()==saved
 print('PASS exact model69 migration protection and whole mixed FX metadata recovery without financial replay',flush=True)
 PY
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PdfTextOracle.java /fixtures/v1/pdf-fx
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" PdfTextOracle "$root/fixtures"/v1/pdf-fx
 echo 'PASS FX/mixed PDF gate'

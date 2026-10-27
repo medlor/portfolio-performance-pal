@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/migrations.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -28,17 +28,11 @@ rg -q '^OUTPUT MODEL 70$' applied
 rg -q '^MIGRATION BACKUP ' applied
 cmp before.xml portfolio.xml.pp-pal.migration.*.bak
 test "$(cat portfolio.xml.2026-10-08.bak)" = 'older daily snapshot'
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" \
-  -v "$root/runtime/src/test/java:/tests:ro" -v "$work:/work:ro" \
-  --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' \
-  /tests/pal/PurchaseAppliedOracle.java /work/before.xml /work/portfolio.xml 1
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" PurchaseAppliedOracle "$work"/before.xml "$work"/portfolio.xml 1
 echo 'PASS migration application, exact separate backup, preserved daily backup and unrelated financial state'
 # Update validation compares migration output under an independent baseline JVM.
 mkdir trusted
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" \
-  -v "$root/runtime/src/test/java:/tests:ro" -v "$root/fixtures:/fixtures:ro" -v "$work:/work:rw" \
-  --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' \
-  /tests/pal/SelectedPortfolioOracle.java /work/before.xml /fixtures/v1/portfolio.xml /work/trusted
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" SelectedPortfolioOracle "$work"/before.xml "$root"/fixtures/v1/portfolio.xml "$work"/trusted
 python3 -u - "$root" <<'PY'
 #!/usr/bin/env python3
 """Migration behavior at the CLI and Linux filesystem boundaries."""
@@ -52,8 +46,8 @@ import tempfile
 import threading
 
 ROOT = pathlib.Path(sys.argv[1])
-IMAGE = os.environ['PP_PAL_IMAGE']
-LAUNCHER = os.environ.get('PP_PAL_BEHAVIOR_LAUNCHER', str(ROOT/'tools/run-container'))
+RUNTIME = os.environ['PP_PAL_RUNTIME']
+LAUNCHER = os.environ.get('PP_PAL_BEHAVIOR_LAUNCHER', str(ROOT/'tools/run-engine'))
 SOURCE = (ROOT/'fixtures/v1/migrations/model69.xml').read_bytes()
 NOW = '2026-10-08T12:00:00Z'
 
@@ -92,12 +86,16 @@ def unchanged(work, source=SOURCE):
     assert (work/'portfolio.xml.pp-pal.json').read_bytes() == b'opaque migration metadata\n'
 
 
+def host(work, path):
+    # Former container paths: /work is the case directory, /fixtures the fixture tree.
+    for prefix, target in (('/work', str(work)), ('/fixtures', str(ROOT / 'fixtures'))):
+        if path == prefix or path.startswith(prefix + '/'):
+            return target + path[len(prefix):]
+    return path
+
 def oracle(work, name, *args):
-    subprocess.run(['python3', str(ROOT/'tests/oracle.py'), 'run', '--rm', '--network', 'none',
-                    '--user', f'{os.getuid()}:{os.getgid()}', '-v', f'{ROOT}/fixtures:/fixtures:ro',
-                    '-v', f'{ROOT}/runtime/src/test/java:/tests:ro', '-v', f'{work}:/work:rw',
-                    '--entrypoint', 'java', IMAGE, '-cp', '/opt/pp/classes:/opt/pp/lib/*',
-                    '/tests/pal/'+name+'.java', *args], check=True)
+    subprocess.run(['python3', str(ROOT/'tests/oracle.py'), RUNTIME, name,
+                    *(host(work, arg) for arg in args)], check=True)
 
 
 def observe(work, action):
@@ -146,12 +144,12 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-migrations-') as temporary:
         expect(run(work, command), 0, 'OUTPUT MODEL 70 (input 69; migration 69 -> 70)' if command in ('purchase', 'sale', 'dividend') else 'Synthetic')
         unchanged(work)
     assert not list(work.glob('*.????-??-??.bak')) and not list(work.glob('*.migration.*.bak'))
-    subprocess.run(['docker', 'run', '--rm', '--network', 'none', '--user', f'{os.getuid()}:{os.getgid()}',
-                    '-v', f'{work}:/work:rw', IMAGE, 'roundtrip', '/work/portfolio.xml', '/work/disposable.xml'], check=True)
+    subprocess.run([str(ROOT/'tools/engine'), 'main', 'roundtrip', str(work/'portfolio.xml'), str(work/'disposable.xml')],
+                   env=dict(os.environ, PP_PAL_RUNTIME=RUNTIME), check=True)
     oracle(work, 'MigrationOracle', '/work/portfolio.xml', '/fixtures/v1/portfolio.xml', '/work/disposable.xml')
     oracle(work, 'FixtureOracle', '/work/portfolio.xml')
     oracle(work, 'FixtureOracle', '/work/disposable.xml')
-    # This trusted oracle must also work on the previously supported wrapper image.
+    # This trusted oracle must also work on the previously supported wrapper runtime.
     oracle(work, 'SelectedPortfolioOracle', '/work/portfolio.xml', '/work/disposable.xml', '/work')
     unchanged(work)
     print('PASS queries, all financial previews and disposable migration preserve original/import state', flush=True)

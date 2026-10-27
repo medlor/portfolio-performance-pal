@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/purchase-apply.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 export PP_PAL_NOW=2026-10-07T12:00:00Z
 if [[ ${2:-} != --boundaries-only ]]; then
@@ -29,16 +29,16 @@ cmp portfolio_performance.xml.pp-pal.json metadata-before
 test "$(stat -c %a portfolio_performance.xml)" = 600
 test "$(stat -c %u portfolio_performance.xml)" = "$(id -u)"
 test "$(stat -c %g portfolio_performance.xml)" = "$(id -g)"
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" -v "$work:/work:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PurchaseAppliedOracle.java /fixtures/v1/portfolio.xml /work/portfolio_performance.xml 1
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" PurchaseAppliedOracle "$root/fixtures"/v1/portfolio.xml "$work"/portfolio_performance.xml 1
 echo 'PASS declared desktop-closed fresh purchase commits linked entries with exact daily recovery and preserved complete unrelated model'
 fi
 export PP_PAL_TEST_ROOT="$root"
-python3 -u - "$PP_PAL_IMAGE" <<'PY'
+python3 -u - "$PP_PAL_RUNTIME" <<'PY'
 #!/usr/bin/env python3
 """Actual Linux container/filesystem cases; all financial oracles use pinned Java."""
 import datetime, fcntl, hashlib, os, pathlib, shutil, signal, socket, struct, subprocess, sys, tempfile, threading
 ROOT = pathlib.Path(os.environ["PP_PAL_TEST_ROOT"])
-IMAGE = sys.argv[1]
+RUNTIME = sys.argv[1]
 NOW = '2026-10-07T12:00:00Z'
 BUY = ['purchase', '--file', '/work/portfolio.xml', '--security', 'DE0000000001', '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A', '--date', '2025-03-01', '--quantity', '2.5', '--price', '10', '--fees', '1', '--taxes', '.5', '--apply', '--desktop-closed']
 SOURCE = (ROOT / 'fixtures/v1/portfolio.xml').read_bytes()
@@ -47,9 +47,12 @@ def check(value, message):
     if not value: raise AssertionError(message)
 
 def run(work, args=BUY, now=NOW, observer=False):
-    command = ['docker', 'run', '--rm', '--network', 'none', '--user', f'{os.getuid()}:{os.getgid()}', '-v', f'{work}:/work:rw', '--env', f'PP_PAL_NOW={now}']
-    if observer: command += ['--env', 'PP_PAL_WRITE_OBSERVER=/work/observer.sock']
-    return subprocess.run(command + [IMAGE] + args, text=True, capture_output=True)
+    # Direct engine invocation; /work in the shared argument lists is the case directory.
+    environment = dict(os.environ, PP_PAL_RUNTIME=RUNTIME, PP_PAL_NOW=now)
+    environment.pop('PP_PAL_WRITE_OBSERVER', None)
+    if observer: environment['PP_PAL_WRITE_OBSERVER'] = str(work / 'observer.sock')
+    args = [str(work) + arg[5:] if arg == '/work' or arg.startswith('/work/') else arg for arg in args]
+    return subprocess.run([str(ROOT / 'tools/engine'), 'main', *args], cwd=work, env=environment, text=True, capture_output=True)
 
 def fixture(base, name):
     work = base / name; work.mkdir(); (work / 'portfolio.xml').write_bytes(SOURCE); (work / 'portfolio.xml').chmod(0o600)
@@ -64,7 +67,7 @@ def expect(result, code, text):
     check(result.returncode == code and text in result.stdout + result.stderr, f'expected {code} {text}: {result.returncode}\n{result.stdout}\n{result.stderr}')
 
 def oracle(work, count=1):
-    result = subprocess.run(['python3', str(ROOT/'tests/oracle.py'), 'run', '--rm', '--network', 'none', '--user', f'{os.getuid()}:{os.getgid()}', '-v', f'{ROOT}/fixtures:/fixtures:ro', '-v', f'{ROOT}/runtime/src/test/java:/tests:ro', '-v', f'{work}:/work:ro', '--entrypoint', 'java', IMAGE, '-cp', '/opt/pp/classes:/opt/pp/lib/*', '/tests/pal/PurchaseAppliedOracle.java', '/fixtures/v1/portfolio.xml', '/work/portfolio.xml', str(count)], text=True, capture_output=True)
+    result = subprocess.run(['python3',str(ROOT/'tests/oracle.py'),os.environ['PP_PAL_RUNTIME'],'PurchaseAppliedOracle', f'{ROOT}/fixtures/v1/portfolio.xml', f'{work}/portfolio.xml', str(count)], text=True, capture_output=True)
     check(result.returncode == 0, result.stdout + result.stderr)
 
 def observe(work, action):

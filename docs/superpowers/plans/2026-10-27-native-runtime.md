@@ -408,26 +408,26 @@ Two special cases:
 - `tests/purchase-apply.sh:50`: `PP_PAL_NOW` is passed through the
   environment.
 
-- [ ] **Step 1: Record the baseline.** Save the old scripts' assertion
+- [x] **Step 1: Record the baseline.** Save the old scripts' assertion
   inventory as
   `rg -c 'check\(|assert|cmp |diff -u|test "' tests/*.sh > /tmp/assert-before`.
   Use the committed `main` versions.
 
-- [ ] **Step 2: Convert the manual-entry scripts.** These are holdings,
+- [x] **Step 2: Convert the manual-entry scripts.** These are holdings,
   history, backups, purchase, purchase-apply, migrations, fx,
   security-create, sale and dividend. Run each one with
   `bash tests/<name>.sh "$R"` and expect `PASS`.
 
-- [ ] **Step 3: Convert the PDF and reuse scripts.** These are
+- [x] **Step 3: Convert the PDF and reuse scripts.** These are
   pdf-purchase, pdf-apply, pdf-sale, pdf-dividend, pdf-fx,
   smartbroker-current and upstream-reuse. Run each one and expect `PASS`.
 
-- [ ] **Step 4: Check that no assertion was lost.** Rerun the `rg -c` from
+- [x] **Step 4: Check that no assertion was lost.** Rerun the `rg -c` from
   Step 1 and diff it against `/tmp/assert-before`. Every count must be
   greater than or equal to its old value. `rg -n 'docker|/opt/pp|--entrypoint' tests`
   must return nothing.
 
-- [ ] **Step 5: Commit.** Message: `Run all gate scripts against native
+- [x] **Step 5: Commit.** Message: `Run all gate scripts against native
   runtimes`.
 
 ### Task 5: Native updater

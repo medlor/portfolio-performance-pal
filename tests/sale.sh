@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/sale.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -25,7 +25,7 @@ sale_file=owner-applied.xml
 sale --apply --desktop-closed > applied
 rg -q '^APPLIED SALE$' applied
 sale_file=portfolio.xml
-launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-container}
+launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-engine}
 python3 - "$root" "$launcher" "$work" <<'PY'
 import os, pathlib, subprocess, sys, xml.etree.ElementTree as ET
 root, launcher, work = map(pathlib.Path, sys.argv[1:])
@@ -42,10 +42,8 @@ def expect(result, status, text):
     assert result.returncode==status and text in result.stdout+result.stderr, result.stdout+result.stderr
 def reset(content=source): (work/'portfolio.xml').write_bytes(content)
 def oracle(quantity, date, directory=work):
-    subprocess.run(['python3',str(root/'tests/oracle.py'),'run','--rm','--network','none','--user',f'{os.getuid()}:{os.getgid()}',
-        '-v',f'{root}/runtime/src/test/java:/tests:ro','-v',f'{directory}:/work:ro',
-        '--entrypoint','java',os.environ['PP_PAL_IMAGE'],'-cp','/opt/pp/classes:/opt/pp/lib/*',
-        '/tests/pal/SaleAppliedOracle.java','/work/before.xml','/work/portfolio.xml',quantity,date],check=True)
+    subprocess.run(['python3',str(root/'tests/oracle.py'),os.environ['PP_PAL_RUNTIME'],'SaleAppliedOracle',
+        f'{directory}/before.xml',f'{directory}/portfolio.xml',quantity,date],check=True)
 (work/'before.xml').write_bytes(source)
 (work/'portfolio.xml').write_bytes((work/'owner-applied.xml').read_bytes())
 oracle('2.5', '2025-03-01T11:00:01')

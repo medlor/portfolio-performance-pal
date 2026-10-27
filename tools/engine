@@ -9,7 +9,7 @@
 # PP_PAL_RUNTIME selects the runtime directory. The default is the dev runtime
 # in the state directory. The host's java is never used.
 set -euo pipefail
-here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+here=$(cd "$(dirname "$(readlink -f -- "${BASH_SOURCE[0]}")")" && pwd)
 state=${PP_PAL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/pp-pal}
 runtime=${PP_PAL_RUNTIME:-$state/runtimes/dev}
 (($#)) || { echo 'Usage: tools/engine (main|java|javac|classpath) ARGS...' >&2; exit 2; }
@@ -28,7 +28,7 @@ unset DISPLAY LC_ALL
 if [[ $mode == main ]]; then
   for variable in $(compgen -e); do
     case $variable in
-      PATH|HOME|LANG|TZ|PP_PAL_NOW|PP_PAL_WRITE_OBSERVER|PP_PAL_ENGINE_RUNTIME|PP_PAL_JAVA_WRAPPER|PP_PAL_TEST_BUDGET|PP_PAL_TEST_SUITE|PP_PAL_TEST_WORKERS) ;;
+      PATH|HOME|LANG|TZ|PP_PAL_NOW|PP_PAL_WRITE_OBSERVER|PP_PAL_ENGINE_RUNTIME|PP_PAL_JAVA_*|PP_PAL_TRACE_*|PP_PAL_TEST_*) ;;
       *) unset "$variable";;
     esac
   done

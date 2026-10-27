@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/pdf-apply.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -19,18 +19,18 @@ cmp portfolio_performance.xml.2026-10-07.bak "$root/fixtures/v1/portfolio.xml"
 rg -Fq '2025-01-03T09:30' history
 rg -Fq '2025-01-04T09:30' history
 echo 'PASS complete PDF purchase batch through command boundary'
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" -v "$work:/work:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PdfAppliedOracle.java /fixtures/v1/portfolio.xml /work/portfolio_performance.xml 2
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" PdfAppliedOracle "$root/fixtures"/v1/portfolio.xml "$work"/portfolio_performance.xml 2
 cp portfolio_performance.xml after
 "$launcher" import --pdf "$root/fixtures/v1/pdf-purchase/two-purchases.pdf" --securities-account 'Synthetic Securities A' --cash-account 'Synthetic Cash A' --apply --desktop-closed > repeated
 rg -q '^SKIPPED PDF PURCHASE DOCUMENT' repeated
 cmp portfolio_performance.xml after
 echo 'PASS confirmed repeat skips without financial changes'
 export PP_PAL_TEST_ROOT="$root"
-python3 -u - "$PP_PAL_IMAGE" <<'PY'
+python3 -u - "$PP_PAL_RUNTIME" <<'PY'
 import os, pathlib, re, shutil, signal, socket, struct, subprocess, sys, tempfile, threading
 ROOT = pathlib.Path(os.environ['PP_PAL_TEST_ROOT'])
-IMAGE = sys.argv[1]
-LAUNCHER = os.environ.get('PP_PAL_BEHAVIOR_LAUNCHER', str(ROOT/'tools/run-container'))
+RUNTIME = sys.argv[1]
+LAUNCHER = os.environ.get('PP_PAL_BEHAVIOR_LAUNCHER', str(ROOT/'tools/run-engine'))
 SOURCE = (ROOT/'fixtures/v1/portfolio.xml').read_bytes()
 PDF = ROOT/'fixtures/v1/pdf-purchase/two-purchases.pdf'
 
@@ -48,7 +48,7 @@ def command(work, apply=False, override=False, pdf=None, extra=(), observer=Fals
     if apply: args += ['--apply', '--desktop-closed']
     if override: args += ['--allow-suspected-duplicates']
     args += list(extra)
-    env = dict(os.environ, PP_PAL_IMAGE=IMAGE, PP_PAL_NOW='2026-10-07T12:00:00Z')
+    env = dict(os.environ, PP_PAL_RUNTIME=RUNTIME, PP_PAL_NOW='2026-10-07T12:00:00Z')
     if observer: env['PP_PAL_WRITE_OBSERVER'] = str(work/'observer.sock')
     return subprocess.run([LAUNCHER,*args], cwd=work, env=env, text=True, capture_output=True)
 
@@ -59,7 +59,7 @@ def metadata(work): return work/'portfolio.xml.pp-pal-imports.properties'
 
 def oracle(work, count=2, original=None):
     before = work/'before.xml'; before.write_bytes(original or SOURCE)
-    result = subprocess.run(['python3',str(ROOT/'tests/oracle.py'),'run','--rm','--network','none','--user',f'{os.getuid()}:{os.getgid()}', '-v',f'{ROOT}/runtime/src/test/java:/tests:ro','-v',f'{work}:/work:ro','--entrypoint','java',IMAGE,'-cp','/opt/pp/classes:/opt/pp/lib/*','/tests/pal/PdfAppliedOracle.java','/work/before.xml','/work/portfolio.xml',str(count)],text=True,capture_output=True)
+    result = subprocess.run(['python3',str(ROOT/'tests/oracle.py'),os.environ['PP_PAL_RUNTIME'],'PdfAppliedOracle',f'{work}/before.xml',f'{work}/portfolio.xml',str(count)],text=True,capture_output=True)
     expect(result,0,'PASS saved PDF batch')
 
 def observe(work, action, crash=None):
@@ -158,7 +158,7 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-pdf-apply-') as temporary:
             gross=7700 if kind=='SELL' else 7500
             facts+=f'SYNTHETIC-PAGED-0002\t{kind}\t3\t7600\t{gross}\t100\t0\t2025-01-04T09:30:00\n'
         (w/'facts.tsv').write_text(facts)
-        result=subprocess.run(['python3',str(ROOT/'tests/oracle.py'),'run','--rm','--network','none','--user',f'{os.getuid()}:{os.getgid()}', '-v',f'{ROOT}/runtime/src/test/java:/tests:ro','-v',f'{w}:/work:ro','--entrypoint','java',IMAGE,'-cp','/opt/pp/classes:/opt/pp/lib/*','/tests/pal/PdfSaleAppliedOracle.java','/work/before.xml','/work/portfolio.xml','/work/facts.tsv'],text=True,capture_output=True)
+        result=subprocess.run(['python3',str(ROOT/'tests/oracle.py'),os.environ['PP_PAL_RUNTIME'],'PdfSaleAppliedOracle',f'{w}/before.xml',f'{w}/portfolio.xml',f'{w}/facts.tsv'],text=True,capture_output=True)
         expect(result,0,'PASS saved PDF sale batch')
         saved=(w/'portfolio.xml').read_bytes()
         expect(command(w,True,pdf=ROOT/f'fixtures/v1/pdf-purchase/{name}.pdf'),0,'SKIPPED PDF ')
@@ -182,15 +182,15 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-pdf-apply-') as temporary:
     oracle(w)
     expect(command(w,True,True),4,'Previous financial replacement already succeeded')
     metadata(w).rmdir()
-    result=subprocess.run([LAUNCHER,'import','--file',str(w/'portfolio.xml'),'--recover-write','--desktop-closed'],cwd=w,env=dict(os.environ,PP_PAL_IMAGE=IMAGE),text=True,capture_output=True)
+    result=subprocess.run([LAUNCHER,'import','--file',str(w/'portfolio.xml'),'--recover-write','--desktop-closed'],cwd=w,env=dict(os.environ,PP_PAL_RUNTIME=RUNTIME),text=True,capture_output=True)
     expect(result,0,'RECOVERED pending cleanup'); oracle(w)
     expect(command(w,True),0,'SKIPPED PDF PURCHASE DOCUMENT')
     print('PASS post-replacement metadata failure reports financial success, blocks replay and recovers evidence without financial insertion',flush=True)
     for phase in ('before-final-check','committed-before-follow-up'):
         w=fixture(base,'crash-'+phase)
-        expect(observe(w,lambda phase: None,crash=phase),3,'Docker command failed')
+        expect(observe(w,lambda phase: None,crash=phase),3,'Engine command failed')
         check(not metadata(w).exists(),'crash wrote import evidence prematurely')
-        result=subprocess.run([LAUNCHER,'import','--file',str(w/'portfolio.xml'),'--recover-write','--desktop-closed'],cwd=w,env=dict(os.environ,PP_PAL_IMAGE=IMAGE),text=True,capture_output=True)
+        result=subprocess.run([LAUNCHER,'import','--file',str(w/'portfolio.xml'),'--recover-write','--desktop-closed'],cwd=w,env=dict(os.environ,PP_PAL_RUNTIME=RUNTIME),text=True,capture_output=True)
         expect(result,0,'RECOVERED' if phase=='committed-before-follow-up' else 'NO FINANCIAL CHANGE')
         if phase=='before-final-check':
             check((w/'portfolio.xml').read_bytes()==SOURCE and not metadata(w).exists(),'uncommitted crash recovery wrote financial/import data')

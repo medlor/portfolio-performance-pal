@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/pdf-sale.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -18,13 +18,13 @@ cmp portfolio.xml "$root/fixtures/v1/portfolio.xml"
 echo 'PASS actual sale PDF preview and immutable portfolio'
 "$launcher" import --file portfolio.xml --pdf "$root/fixtures/v1/pdf-sale/partial.pdf" --securities-account 'Synthetic Securities A' --cash-account 'Synthetic Cash A' --apply --desktop-closed --allow-suspected-duplicates > applied
 rg -q '^APPLIED PDF SALE DOCUMENT$' applied
-launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-container}
+launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-engine}
 export PP_PAL_TEST_ROOT="$root" PP_PAL_SALE_LAUNCHER="$launcher"
 python3 -u - <<'PY'
 import sys
 import json, os, pathlib, shutil, socket, subprocess, tempfile, threading
 ROOT=pathlib.Path(os.environ['PP_PAL_TEST_ROOT'])
-LAUNCHER=os.environ['PP_PAL_SALE_LAUNCHER']; IMAGE=os.environ['PP_PAL_IMAGE']
+LAUNCHER=os.environ['PP_PAL_SALE_LAUNCHER']; RUNTIME=os.environ['PP_PAL_RUNTIME']
 sys.path.insert(0, str(ROOT/'tools'))
 from test_jobs import parallel_cases
 SOURCE=(ROOT/'fixtures/v1/portfolio.xml').read_bytes()
@@ -42,7 +42,7 @@ def fresh(base,name,source=SOURCE):
     w=base/name; w.mkdir(); (w/'portfolio.xml').write_bytes(source); (w/'before.xml').write_bytes(source); return w
 def oracle(w,name):
     (w/'facts.tsv').write_text(''.join('\t'.join(str(f[k]) for k in ('reference','type','shares','total','gross','fees','taxes','date'))+'\n' for fact in FACTS[name] for f in [{'type':'SELL',**fact}]))
-    r=subprocess.run(['python3',str(ROOT/'tests/oracle.py'),'run','--rm','--network','none','--user',f'{os.getuid()}:{os.getgid()}', '-v',f'{ROOT}/runtime/src/test/java:/tests:ro','-v',f'{w}:/work:ro','--entrypoint','java',IMAGE,'-cp','/opt/pp/classes:/opt/pp/lib/*','/tests/pal/PdfSaleAppliedOracle.java','/work/before.xml','/work/portfolio.xml','/work/facts.tsv'],text=True,capture_output=True)
+    r=subprocess.run(['python3',str(ROOT/'tests/oracle.py'),os.environ['PP_PAL_RUNTIME'],'PdfSaleAppliedOracle',f'{w}/before.xml',f'{w}/portfolio.xml',f'{w}/facts.tsv'],text=True,capture_output=True)
     expect(r,0,'PASS saved PDF sale batch')
 with tempfile.TemporaryDirectory(prefix='pp-pal-pdf-sale-') as tmp:
     base=pathlib.Path(tmp)
@@ -121,4 +121,4 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-pdf-sale-') as tmp:
     expect(r,0,'RECOVERED'); oracle(w,'partial'); expect(run(w,apply=True),0,'SKIPPED PDF SALE')
     print('PASS sale metadata failure reports committed financial success and recovery never replays it',flush=True)
 PY
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PdfTextOracle.java /fixtures/v1/pdf-sale
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" PdfTextOracle "$root/fixtures"/v1/pdf-sale
