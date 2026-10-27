@@ -103,6 +103,22 @@ pinned by a test in the task that owns it:
 - Create: `tools/build-runtime` (executable)
 - Create: `tools/runtime_dir.py`, with small helpers that both
   `update.py` and the tests use.
+- Modify: `README.md`. Add a "Network access" section listing every URL
+  the build and the updater fetch, including the redirect hosts. It also
+  says that `PP_PAL_ARCHIVE_CACHE` or `--inputs` allow offline builds
+  from pre-fetched archives, verified by SHA-256. The section lists:
+  - `https://github.com/adoptium/temurin21-binaries/releases/download/…`:
+    the JDK.
+  - `https://api.github.com/repos/portfolio-performance/portfolio/…`:
+    release discovery and the source tarball.
+  - `https://github.com/portfolio-performance/portfolio/releases/download/…`:
+    the PP Linux release.
+  - `https://api.github.com/repos/medlor/portfolio-performance-pal/…`:
+    wrapper release discovery and tarballs.
+  - Redirect targets: `codeload.github.com`,
+    `objects.githubusercontent.com` and
+    `release-assets.githubusercontent.com`.
+  - Maintainers only, for pin lookup: `api.adoptium.net`.
 - Test: `tests/build-runtime.sh`
 
 **Interfaces:**
@@ -187,7 +203,12 @@ pinned by a test in the task that owns it:
 
 - [ ] **Step 5: Run it.** `bash tests/build-runtime.sh` prints `PASS`.
 
-- [ ] **Step 6: Commit.** Message: `Add rootless annotated runtime build`.
+- [ ] **Step 6: Document network access.** Write the README "Network
+  access" section. Check each listed URL against the URLs that
+  `tools/build-runtime`, `release-package.json` and `tools/update.py`
+  actually use.
+
+- [ ] **Step 7: Commit.** Message: `Add rootless annotated runtime build`.
 
 ### Task 2: Native launch (`tools/engine`, `tools/run-engine`) and Java renames
 
