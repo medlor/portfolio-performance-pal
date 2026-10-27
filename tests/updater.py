@@ -199,6 +199,62 @@ def upstream_release(api):
     api.routes[repo + '/tarball/' + revision] = source
     api.routes['/assets/' + asset] = dependency
 
+def relabel_upstream(api, tag):
+    """Publish the pinned upstream source/assets under a new stable tag the wrapper does not support."""
+    repo = '/repos/portfolio-performance/portfolio'
+    revision = '8de1fe41d71a2c1b74a6bfbe913f885899aaf123'
+    latest = api.routes[repo + '/releases/latest']
+    data = api.routes['/assets/' + latest['assets'][0]['name']]
+    asset = 'PortfolioPerformance-' + tag + '-linux.gtk.x86_64.tar.gz'
+    api.routes['/assets/' + asset] = data
+    api.routes[repo + '/releases/latest'] = {'tag_name': tag, 'draft': False, 'prerelease': False,
+        'assets': [{'name': asset, 'digest': 'sha256:' + sha(data),
+                    'browser_download_url': f'http://127.0.0.1:{api.server_port}/assets/' + asset}]}
+    api.routes[repo + '/git/ref/tags/' + tag] = {'object': {'type': 'commit', 'sha': revision}}
+    return revision
+
+def unsupported_upstream():
+    """A stable upstream release without tested support stops every operation with an agent prompt."""
+    import shlex
+    with tempfile.TemporaryDirectory(prefix='pp-pal-unsupported-') as temporary, server() as api:
+        work = pathlib.Path(temporary)
+        selected = work / "my 'quoted' portfolio.xml"
+        shutil.copyfile(ROOT / 'fixtures/v1/portfolio.xml', selected)
+        original = selected.read_bytes()
+        metadata = selected.with_name(selected.name + '.pp-pal.json')
+        metadata.write_bytes(b'opaque unsupported-upgrade metadata\n')
+        released_snapshot(work, api)
+        upstream_release(api)
+        revision = relabel_upstream(api, '0.88.1-fixture')
+        purchase = ['purchase', '--file', str(selected), '--security', 'DE0000000001',
+                    '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A',
+                    '--date', '2025-03-01', '--quantity', '2.5', '--price', '10', '--apply', '--desktop-closed']
+        for argv in (purchase, ['--update', '--file', str(selected)]):
+            result = run(work, api, *argv)
+            check(result.returncode == 3, f'Unsupported upstream must stop with 3: {result.returncode} {result.stderr}')
+            check('UPGRADE REQUIRED: Portfolio Performance 0.88.1-fixture (' + revision + ') has no tested pp-pal support.'
+                  in result.stderr, result.stderr)
+            check(str(ROOT / 'UPGRADE.md') in result.stderr, 'Prompt does not name UPGRADE.md: ' + result.stderr)
+            last = [line for line in result.stderr.splitlines() if line.strip()][-1]
+            check(shlex.split(last) == [str(ROOT / 'pp-pal'), *argv], 'Prompt does not reproduce the original command: ' + last)
+            request = json.loads((work / 'state/upgrades/0.88.1-fixture/request.json').read_text())
+            check(request['schema'] == 1 and request['argv'] == argv and request['cwd'] == str(work)
+                  and request['upstream'] == {'tag': '0.88.1-fixture', 'revision': revision}
+                  and request['prompt'] in result.stderr, request)
+            check(selected.read_bytes() == original and metadata.read_bytes() == b'opaque unsupported-upgrade metadata\n',
+                  'Unsupported upstream changed portfolio or metadata')
+            check(not list(work.glob(selected.name + '.pp-pal.update.*.bak')), 'Unsupported upstream created an update backup')
+            check(not (work / 'state/builds').exists() or not list((work / 'state/builds').iterdir()), 'Unsupported upstream started a build')
+            check(not (work / 'state/active.json').exists(), 'Unsupported upstream activated a pair')
+            check(not any('/portfolio/tarball/' in path or '/assets/' in path for path in api.requests), 'Unsupported upstream downloaded sources')
+        print('PASS unsupported upstream stops before backup/build with an exact agent prompt and saved request')
+
+if '--unsupported-slice' in sys.argv[2:]:
+    unsupported_upstream()
+    sys.exit(0)
+if not sys.argv[2:]:
+    unsupported_upstream()  # The cumulative run covers the unsupported-release stop too.
+
 @contextlib.contextmanager
 def released_work():
     # Optional developer cache preserves an ACTUALLY validated fixture between slices.

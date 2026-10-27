@@ -554,7 +554,7 @@ Two special cases:
   - `dispatch` passes the full original argv. An explicit `--update` passes
     `['--update', *rest]`.
 
-- [ ] **Step 1: Write the failing test.** The fixture upstream's latest
+- [x] **Step 1: Write the failing test.** The fixture upstream's latest
   release is `0.88.1-fixture`, pointing at the same revision and asset
   bytes. The released wrapper's policy still says `0.88.0`. Run
   `pp-pal purchase … --apply --desktop-closed --file "$work/my 'quoted' portfolio.xml"`
@@ -573,16 +573,16 @@ Two special cases:
   Also assert that `--update` alone produces the same stop, with argv
   `['--update', …]`.
 
-- [ ] **Step 2: Run it.** `bash tests/updater.sh "$R" --unsupported-slice`
+- [x] **Step 2: Run it.** `bash tests/updater.sh "$R" --unsupported-slice`
   fails, because it currently proceeds to build.
 
-- [ ] **Step 3: Implement** the interfaces above.
+- [x] **Step 3: Implement** the interfaces above.
 
-- [ ] **Step 4: Run it.** `bash tests/updater.sh "$R" --unsupported-slice`
+- [x] **Step 4: Run it.** `bash tests/updater.sh "$R" --unsupported-slice`
   prints `PASS unsupported upstream`. The `--arguments-only` slice must
   still pass.
 
-- [ ] **Step 5: Commit.** Message: `Stop unsupported upstream releases with
+- [x] **Step 5: Commit.** Message: `Stop unsupported upstream releases with
   an agent upgrade prompt`.
 
 ### Task 7: `--update --local-upgrade CHECKOUT`

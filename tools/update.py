@@ -10,6 +10,7 @@ import os
 import pathlib
 import platform
 import re
+import shlex
 import shutil
 import socket
 import struct
@@ -530,7 +531,39 @@ def build_runtime(package, inputs, wrapper_revision, state, digests):
              '--wrapper-revision', wrapper_revision])
     return target
 
-def perform_update(arguments):
+class UpgradeRequired(UpdateError):
+    pass
+
+def supported(policy, active, upstream):
+    """Tested support: the wrapper policy, or a validated local upgrade, names this exact release."""
+    def same(declared):
+        return isinstance(declared, dict) and declared.get('tag') == upstream['tag'] and declared.get('revision') == upstream['revision']
+    if active is not None:
+        return active.get('source') == 'local-upgrade' and same(active.get('upstream'))
+    return same(policy.get('upstream'))
+
+def upgrade_prompt(upstream, argv, cwd):
+    return (f"UPGRADE REQUIRED: Portfolio Performance {upstream['tag']} ({upstream['revision']}) has no tested pp-pal support.\n"
+            'Agent prompt:\n'
+            f"  Read {ROOT / 'UPGRADE.md'} and perform the pp-pal upgrade to Portfolio\n"
+            f"  Performance {upstream['tag']} ({upstream['revision']}). Origin: https://github.com/{WRAPPER}.\n"
+            f'  When finished, resume this operation exactly, in directory {cwd}:\n'
+            f"  {shlex.join([str(ROOT / 'pp-pal'), *argv])}")
+
+def upgrade_required(state, upstream, argv):
+    """Record the request for the agent (UPGRADE.md) and return the stopping error."""
+    cwd = os.getcwd()
+    prompt = upgrade_prompt(upstream, argv, cwd)
+    if not re.fullmatch(r'[0-9A-Za-z._-]+', upstream['tag']):
+        raise UpdateError('Unsupported upstream release tag cannot name an upgrade request')
+    directory = state / 'upgrades' / upstream['tag']
+    directory.mkdir(parents=True, exist_ok=True)
+    atomic_json(directory / 'request.json', {'schema': 1, 'upstream': {'tag': upstream['tag'], 'revision': upstream['revision']},
+                                             'argv': list(argv), 'cwd': cwd, 'prompt': prompt})
+    return UpgradeRequired(prompt)
+
+def perform_update(arguments, original_argv=None):
+    original_argv = list(arguments if original_argv is None else original_argv)
     selected_args = selection(arguments)
     qualification = candidate_qualification()
     state = state_directory()
@@ -577,12 +610,9 @@ def perform_update(arguments):
             unchanged(file, original, identity)
             print('UNCHANGED validated released pair; reused ' + active['identity'])
             return active
-        unchanged(file, original, identity)
-        execute([launcher, 'backup-before-update', *selected_args], environment)
-        print('BUILD released wrapper ' + wrapper['tag'] + ' and upstream ' + upstream['tag'], flush=True)
+        # The released wrapper's support policy decides whether this upstream
+        # release may be built at all, before any backup, source download or build.
         wrapper_archive, wrapper_hash = download(state, api_base() + '/repos/' + WRAPPER + '/tarball/' + wrapper['revision'])
-        source_archive, source_hash = download(state, api_base() + '/repos/' + UPSTREAM + '/tarball/' + upstream['revision'])
-        dependency_archive, dependency_hash = download(state, asset_url, official_dependency_hash)
         wrappers = state / 'wrappers'
         wrappers.mkdir(exist_ok=True)
         package = wrappers / wrapper['revision']
@@ -600,6 +630,19 @@ def perform_update(arguments):
                 if package.exists():
                     shutil.rmtree(package)
                 raise
+        if not supported(policy, None, upstream):
+            if supported(policy, active, upstream):
+                # A validated local upgrade covers this upstream; the released wrapper does not yet.
+                validate_selected(state, original, baseline_runtime, baseline_runtime)
+                unchanged(file, original, identity)
+                print('UNCHANGED validated local-upgrade pair; reused ' + active['identity'])
+                return active
+            raise upgrade_required(state, upstream, original_argv)
+        unchanged(file, original, identity)
+        execute([launcher, 'backup-before-update', *selected_args], environment)
+        print('BUILD released wrapper ' + wrapper['tag'] + ' and upstream ' + upstream['tag'], flush=True)
+        source_archive, source_hash = download(state, api_base() + '/repos/' + UPSTREAM + '/tarball/' + upstream['revision'])
+        dependency_archive, dependency_hash = download(state, asset_url, official_dependency_hash)
         # The build inputs contain only public upstream archives; the released
         # wrapper's own tools/build-runtime builds from its released tree.
         jdk_archive, jdk_hash = download(state, policy['jdkArchive']['url'], policy['jdkArchive']['sha256'])
@@ -650,7 +693,7 @@ def prepare_processing(arguments):
         else:
             index += 1
     with contextlib.redirect_stdout(sys.stderr):
-        return perform_update(options)
+        return perform_update(options, arguments)
 
 def dispatch(arguments):
     state = state_directory()
@@ -680,6 +723,9 @@ def main():
 if __name__ == '__main__':
     try:
         main()
+    except UpgradeRequired as failure:
+        print(str(failure), file=sys.stderr)
+        sys.exit(3)
     except InputError as failure:
         print('ERROR: ' + str(failure), file=sys.stderr)
         sys.exit(2)
