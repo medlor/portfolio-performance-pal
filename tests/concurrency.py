@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scheduling regressions using real child processes and a disposable Docker stub."""
+"""Scheduling regressions using real child processes and a disposable JDK tool stub."""
 import concurrent.futures
 import importlib.util
 import json
@@ -27,26 +27,22 @@ STUB = '''#!/usr/bin/env python3
 import json, os, pathlib, signal, sys, time
 args = sys.argv[1:]
 directory = pathlib.Path(__file__).parent
-def event(kind):
+kind = 'build' if '--build-marker' in args else 'run'
+def event(name):
     with (directory/'events').open('a') as output:
-        output.write(json.dumps([kind,args,time.monotonic()])+'\\n')
-if args[0] in ('run','build'):
-    name = args[args.index('--name')+1] if '--name' in args else 'build'
-    (directory/name).write_text(str(os.getpid()))
-    event('start')
-    try:
-        time.sleep(float(args[-1]))
-    finally:
-        event('end')
-        (directory/name).unlink(missing_ok=True)
-elif args[0] == 'rm':
-    for name in args[2:]:
-        target = directory/name
-        if target.exists():
-            try: os.kill(int(target.read_text()),signal.SIGTERM)
-            except ProcessLookupError: pass
-            target.unlink(missing_ok=True)
+        output.write(json.dumps([name,[kind,*args],time.monotonic()])+'\\n')
+def stop(signum, frame):
     event('cleanup')
+    sys.exit(143)
+signal.signal(signal.SIGTERM, stop)
+job = directory/('pp-pal-test-job-'+str(os.getpid()))
+job.write_text(str(os.getpid()))
+event('start')
+try:
+    time.sleep(float(args[-1]))
+finally:
+    event('end')
+    job.unlink(missing_ok=True)
 '''
 
 
@@ -122,18 +118,20 @@ class BudgetTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix='pp-pal-budget-test-')
         self.directory = pathlib.Path(self.temporary.name)
-        self.docker = self.directory / 'docker'
-        self.docker.write_text(STUB)
-        self.docker.chmod(0o755)
+        self.java = self.directory / 'java'
+        self.java.write_text(STUB)
+        self.java.chmod(0o755)
+        self.javac = self.directory / 'javac'
+        self.javac.write_text(STUB)
+        self.javac.chmod(0o755)
         self.patches = [patch.object(runner, 'memory', return_value=(16*runner.GIB, 12*runner.GIB)),
                         patch.object(runner, 'cpu_count', return_value=16),
                         patch.dict(os.environ, PP_PAL_TEST_JOBS='2', PP_PAL_TEST_MEMORY_MIB='1024',
-                                   PP_PAL_TEST_CPUS='2', PP_PAL_TEST_PIDS='256')]
+                                   PP_PAL_TEST_CPUS='2')]
         for item in self.patches:
             item.start()
-        self.budget = runner.Budget(self.directory, str(self.docker))
-        self.environment = dict(os.environ, PP_PAL_TEST_DOCKER=str(self.docker),
-                                PP_PAL_TEST_BUDGET=self.budget.socket_path,
+        self.budget = runner.Budget(self.directory)
+        self.environment = dict(os.environ, PP_PAL_TEST_BUDGET=self.budget.socket_path,
                                 PP_PAL_TEST_SUITE=self.budget.suite)
         self.processes = []
 
@@ -147,8 +145,12 @@ class BudgetTests(unittest.TestCase):
             item.stop()
         self.temporary.cleanup()
 
+    def command(self, *args, build=False, tool=None):
+        return [sys.executable, str(ROOT/'tests/run.py'), '--java', *(['--build'] if build else []),
+                str(tool or self.java), *(['--build-marker'] if build else []), *args]
+
     def start(self, kind='run', seconds='0.15'):
-        process = subprocess.Popen([sys.executable, str(ROOT/'tests/run.py'), '--docker', kind, seconds],
+        process = subprocess.Popen(self.command(seconds, build=kind == 'build'),
                                    env=self.environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.processes.append(process)
         return process
@@ -163,9 +165,9 @@ class BudgetTests(unittest.TestCase):
             if sum(event[0] == 'start' for event in self.events()) >= count:
                 return
             time.sleep(0.02)
-        self.fail('Docker stub did not start')
+        self.fail('JDK tool stub did not start')
 
-    def test_shared_limit_and_container_caps(self):
+    def test_shared_limit_and_jvm_caps(self):
         processes = [self.start() for _ in range(8)]
         for process in processes:
             _, errors = process.communicate(timeout=10)
@@ -175,15 +177,13 @@ class BudgetTests(unittest.TestCase):
             if kind == 'start':
                 active += 1
                 peak = max(peak, active)
-                for flag, expected in [('--memory','1024m'), ('--memory-swap','1024m'),
-                                       ('--cpus','2'), ('--pids-limit','256')]:
-                    self.assertEqual(args[args.index(flag)+1], expected)
+                self.assertEqual(args[1:3], ['-Xmx768m', '-XX:ActiveProcessorCount=2'])
             elif kind == 'end':
                 active -= 1
         self.assertEqual(peak, 2)
         self.assertEqual(active, 0)
 
-    def test_build_waits_for_running_containers_and_runs_exclusively(self):
+    def test_build_waits_for_running_jobs_and_runs_exclusively(self):
         first = self.start(seconds='0.4')
         self.await_starts(1)
         build = self.start('build', '0.3')
@@ -196,7 +196,7 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(events, [('start','run'),('end','run'),('start','build'),
                                   ('end','build'),('start','run'),('end','run')])
 
-    def test_killed_client_cleans_container_before_reusing_slot(self):
+    def test_killed_client_stops_its_jvm_before_reusing_slot(self):
         self.budget.limit = 1
         first = self.start(seconds='30')
         self.await_starts(1)
@@ -221,9 +221,8 @@ class BudgetTests(unittest.TestCase):
         _, errors = process.communicate(timeout=5)
         self.assertEqual(process.returncode, 0, errors.decode())
 
-    def test_foreground_auto_remove_receipt_avoids_redundant_cleanup(self):
-        process = subprocess.Popen([sys.executable, str(ROOT/'tests/run.py'), '--docker',
-                                    'run', '--rm', '0.1'], env=self.environment,
+    def test_completion_receipt_avoids_redundant_cleanup(self):
+        process = subprocess.Popen(self.command('0.1'), env=self.environment,
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.processes.append(process)
         _, errors = process.communicate(timeout=5)
@@ -233,7 +232,7 @@ class BudgetTests(unittest.TestCase):
             time.sleep(0.02)
         self.assertEqual([kind for kind, _, _ in self.events()], ['start', 'end'])
 
-    def test_pressure_timeout_reports_failure_without_starting_container(self):
+    def test_pressure_timeout_reports_failure_without_starting_jvm(self):
         with patch.object(runner, 'ADMISSION_TIMEOUT', 0.1), patch.object(
                 runner, 'memory', return_value=(16*runner.GIB, 4*runner.GIB)):
             process = self.start()
@@ -242,27 +241,33 @@ class BudgetTests(unittest.TestCase):
             self.assertIn('memory pressure', errors.decode())
             self.assertEqual(self.events(), [])
 
-    def test_container_cannot_override_budget_limits_or_detach(self):
-        for flags in (['--memory=8g'], ['-m8g'], ['--cpus','16'], ['--pids-limit=-1'], ['--detach']):
-            result = subprocess.run([sys.executable, str(ROOT/'tests/run.py'), '--docker',
-                                     'run', *flags, '0.1'], env=self.environment,
+    def test_jvm_cannot_override_budget_limits(self):
+        cases = [(self.java, ['-Xmx8g']), (self.java, ['-XX:MaxRAM=8g']),
+                 (self.java, ['-XX:MaxRAMPercentage=90']), (self.java, ['-XX:ActiveProcessorCount=16']),
+                 (self.java, ['-cp', 'x', '-Xmx1g']), (self.javac, ['-J-Xmx8g']),
+                 (self.javac, ['-d', 'out', '-J-XX:ActiveProcessorCount=16'])]
+        for tool, flags in cases:
+            result = subprocess.run(self.command(*flags, '0.1', tool=tool), env=self.environment,
                                     text=True, capture_output=True)
-            self.assertNotEqual(result.returncode, 0)
+            self.assertNotEqual(result.returncode, 0, flags)
             self.assertIn('shared resource limits', result.stderr)
         self.assertEqual(self.events(), [])
 
-    def test_java_compiler_output_flag_is_not_docker_detachment(self):
-        result = subprocess.run([sys.executable, str(ROOT/'tests/run.py'), '--docker',
-                                 'run', '--rm', '--entrypoint', 'javac', 'test-image',
-                                 '-d', '/classes', '0.1'], env=self.environment,
-                                text=True, capture_output=True)
+    def test_application_arguments_are_not_jvm_limits(self):
+        result = subprocess.run(self.command('-cp', '/classes', 'Oracle.java', '-Xmx99g', '0.1'),
+                                env=self.environment, text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
+        result = subprocess.run(self.command('-d', '/classes', 'A.java', '0.1', tool=self.javac),
+                                env=self.environment, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        javac = [args for kind, args, _ in self.events() if kind == 'start'][-1]
+        self.assertEqual(javac[1:3], ['-J-Xmx768m', '-J-XX:ActiveProcessorCount=2'])
 
     def test_configuration_clamps_requested_workers(self):
         self.assertEqual(self.budget.limit, 2)
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict(os.environ, PP_PAL_TEST_JOBS='100'):
-                budget = runner.Budget(pathlib.Path(tmp), str(self.docker))
+                budget = runner.Budget(pathlib.Path(tmp))
                 try:
                     self.assertEqual(budget.limit, 4)  # Half of 16 CPUs, two per job.
                 finally:
@@ -272,15 +277,15 @@ class BudgetTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with patch.object(runner, 'memory', return_value=(16*runner.GIB, 4*runner.GIB)):
                 with self.assertRaisesRegex(ValueError, 'Insufficient available memory'):
-                    runner.Budget(pathlib.Path(tmp), str(self.docker))
+                    runner.Budget(pathlib.Path(tmp))
 
-    def test_serial_limit_and_shutdown_stop_active_container(self):
+    def test_serial_limit_and_shutdown_stop_active_jvm(self):
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict(os.environ, PP_PAL_TEST_JOBS='1'):
-                budget = runner.Budget(pathlib.Path(tmp), str(self.docker))
+                budget = runner.Budget(pathlib.Path(tmp))
             environment = dict(self.environment, PP_PAL_TEST_BUDGET=budget.socket_path,
                                PP_PAL_TEST_SUITE=budget.suite)
-            process = subprocess.Popen([sys.executable, str(ROOT/'tests/run.py'), '--docker', 'run', '30'],
+            process = subprocess.Popen(self.command('30'),
                                        env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             self.processes.append(process)
             try:
@@ -299,12 +304,11 @@ runner=importlib.util.module_from_spec(spec);spec.loader.exec_module(runner)
 runner.memory=lambda:(16*runner.GIB,12*runner.GIB)
 runner.cpu_count=lambda:16
 with runner.test_environment() as environment:
-    subprocess.Popen(['docker','run','--rm','30'],env=environment)
+    subprocess.Popen([environment['PP_PAL_JAVA_WRAPPER'],sys.argv[2],'30'],env=environment)
     time.sleep(30)
 '''
         environment = {key:value for key,value in os.environ.items() if not key.startswith('PP_PAL_TEST_')}
-        environment['PATH'] = str(self.directory) + os.pathsep + environment['PATH']
-        process = subprocess.Popen([sys.executable,'-c',code,str(ROOT/'tests/run.py')],
+        process = subprocess.Popen([sys.executable,'-c',code,str(ROOT/'tests/run.py'),str(self.java)],
                                    env=environment,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         self.processes.append(process)
         self.await_starts(1)

@@ -2,38 +2,45 @@
 
 ## Shared concurrency budget
 
-Shell entry points remain available. `tests/run.py` supplies one Docker boundary
+Shell entry points remain available. `tests/run.py` supplies one JVM budget
 for the entire invocation, including nested modules, oracle compilation,
-selected-file validation, and image builds. Fixture qualification started by
-the owner launcher creates the same shared boundary if one is not inherited.
+selected-file validation, and runtime builds. Every JDK process started through
+`tools/engine` or `tools/build-runtime` is routed through the budget by the
+`PP_PAL_JAVA_WRAPPER` shim that `tests/run.py` installs. Fixture qualification
+started by the owner launcher creates the same shared budget if one is not inherited.
 
 ```sh
-bash tests/all.sh pp-pal:0.88.0                       # conservative default: two jobs
-PP_PAL_TEST_JOBS=1 bash tests/all.sh pp-pal:0.88.0    # serial modules and cases
-PP_PAL_TEST_JOBS=3 bash tests/all.sh pp-pal:0.88.0    # request at most three jobs
+R=~/.local/state/pp-pal/runtimes/dev
+bash tests/all.sh "$R"                       # conservative default: two jobs
+PP_PAL_TEST_JOBS=1 bash tests/all.sh "$R"    # serial modules and cases
+PP_PAL_TEST_JOBS=3 bash tests/all.sh "$R"    # request at most three jobs
 ```
 
 The requested maximum is clamped to available memory after reserving at least
 1 GiB or 25% of effective RAM, whichever is larger, and half the effective CPU
 capacity. Linux cgroup v2 ancestor limits and CPU affinity participate in those
 calculations. Admission pauses under host memory pressure and fails after 120
-seconds if resources remain unavailable. Each active job's full memory ceiling
+seconds if resources remain unavailable. Each active job's full memory share
 is reserved conservatively before another job starts.
 
 | Variable | Default | Meaning |
 |---|---:|---|
 | `PP_PAL_TEST_JOBS` | 2 | Shared maximum expensive jobs across modules and cases |
-| `PP_PAL_TEST_MEMORY_MIB` | 1024 | Hard memory limit per test container; swap disabled |
-| `PP_PAL_TEST_CPUS` | 2 | CPU quota per test container, reduced on small hosts |
-| `PP_PAL_TEST_PIDS` | 256 | Process/thread limit per test container |
+| `PP_PAL_TEST_MEMORY_MIB` | 1024 | Memory share per test JVM; the heap is capped at 75% of it (`-Xmx`) |
+| `PP_PAL_TEST_CPUS` | 2 | Processors per test JVM (`-XX:ActiveProcessorCount`), reduced on small hosts |
 
-Container jobs time out after 20 minutes. Suite-labelled containers are removed
-on interruption; an abruptly killed Docker wrapper loses its socket lease, and
-its container is removed before the slot becomes available again. Cleanup
-targets only this invocation's containers. Builds hold all slots and run alone;
-the existing BuildKit path has no hard build-memory/CPU cap. The Docker boundary
-assumes the native local Docker daemon; host/cgroup measurements do not describe
-a remote daemon or a separate Docker VM.
+Limits are JVM flags, not kernel ceilings. Rootless processes have no per-job
+cgroup, so native memory outside the heap is not hard-capped and there is no
+process/thread limit (the former per-container pids limit has no rootless
+equivalent). Callers cannot pass their own `-Xmx`, `-XX:MaxRAM*` or
+`-XX:ActiveProcessorCount` (`-J…` for `javac`). Application arguments after
+the main class or source file are not inspected.
+
+JVM jobs time out after 20 minutes. Each job runs in its own process group. An
+abruptly killed client loses its socket lease, and its process group is stopped
+(SIGTERM, then SIGKILL after 5 seconds) before the slot becomes available again.
+Interruption stops only this invocation's process groups. Builds hold all slots,
+run alone, and get no heap ceiling.
 
 Holdings remains the prerequisite candidate gate. Other modules use a rolling
 queue, replacing finished workers immediately. Independent case groups in
@@ -44,10 +51,10 @@ Updater scenarios that intentionally modify shared release/state remain serial.
 
 `python3 tests/concurrency.py` checks scheduling, nested-process accounting,
 exclusive builds, resource caps, parent cgroup limits, low-memory refusal,
-serial mode, killed-worker cleanup, and shutdown without running real containers.
+serial mode, killed-worker cleanup, and shutdown with a stub JDK tool instead of real JVMs.
 The cumulative suite includes these checks before the financial gates.
 
-## Shared-budget benchmark (2026-10-11)
+## Shared-budget benchmark (2026-10-11, historical Docker runtime)
 
 Both cumulative runs passed against the same local `pp-pal:0.88.0` image on a
 16-logical-CPU Linux host with approximately 15.2 GiB RAM. The unmodified run

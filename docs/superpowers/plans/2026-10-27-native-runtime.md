@@ -350,7 +350,7 @@ pinned by a test in the task that owns it:
     - Outside a budget, it re-execs through `tests/run.py --`, as it does
       today.
 
-- [ ] **Step 1: Port `tests/concurrency.py`.** Every existing scenario
+- [x] **Step 1: Port `tests/concurrency.py`.** Every existing scenario
   stays: admission, timeout, build exclusivity, interruption cleanup,
   refusing controlled flags, and "application `-d` is not a resource
   flag". Each becomes a fake `java`, a script that sleeps or records its
@@ -359,17 +359,17 @@ pinned by a test in the task that owns it:
   - a caller-supplied `-Xmx1g` is refused;
   - on SIGTERM, the fake process group is gone within 5 seconds.
 
-- [ ] **Step 2: Run it.** `python3 tests/concurrency.py` fails, because
+- [x] **Step 2: Run it.** `python3 tests/concurrency.py` fails, because
   `--java` is unknown.
 
-- [ ] **Step 3: Implement** the `tests/run.py` and `tests/oracle.py`
+- [x] **Step 3: Implement** the `tests/run.py` and `tests/oracle.py`
   interfaces above. Switch the `tests/runtime.sh` oracle calls to
   `python3 tests/oracle.py "$PP_PAL_RUNTIME" FixtureOracle <host path>`.
 
-- [ ] **Step 4: Run both.** `python3 tests/concurrency.py` and
+- [x] **Step 4: Run both.** `python3 tests/concurrency.py` and
   `bash tests/runtime.sh "$R"` print `PASS`.
 
-- [ ] **Step 5: Commit.** Message: `Budget native JVM test jobs`.
+- [x] **Step 5: Commit.** Message: `Budget native JVM test jobs`.
 
 ### Task 4: Migrate the gate scripts
 

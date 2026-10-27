@@ -13,7 +13,7 @@ def parallel_cases(function, cases):
     """Run a bounded rolling queue; drain active work and stop admission on failure.
 
     Callers own isolation and dependencies. Workers never acquire resource slots:
-    the test Docker boundary accounts for expensive child work separately.
+    the test JVM budget accounts for expensive child work separately.
     """
     cases = iter(cases)
     results = []

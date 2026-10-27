@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Suite-scoped Docker budget; shell entry points and assertions remain intact."""
+"""Suite-scoped JVM budget; shell entry points and assertions remain intact."""
 import collections
 import contextlib
 import json
@@ -8,7 +8,6 @@ import os
 import pathlib
 import select
 import shlex
-import shutil
 import signal
 import socket
 import struct
@@ -74,13 +73,11 @@ def positive(name, default):
 
 
 class Budget:
-    def __init__(self, directory, docker):
-        self.docker = docker
+    def __init__(self, directory):
         self.suite = uuid.uuid4().hex
         self.socket_path = str(directory / 'budget.sock')
         self.memory_mib = positive('PP_PAL_TEST_MEMORY_MIB', 1024)
         self.cpus = min(positive('PP_PAL_TEST_CPUS', 2), max(1, math.floor(cpu_count() / 2)))
-        self.pids = positive('PP_PAL_TEST_PIDS', 256)
         requested = positive('PP_PAL_TEST_JOBS', 2)
         total, available = memory()
         self.reserve = max(GIB, total // 4)
@@ -97,6 +94,7 @@ class Budget:
         self.closed = False
         self.handlers = []
         self.clients = {}
+        self.groups = {}
         self.listener = socket.socket(socket.AF_UNIX)
         self.listener.bind(self.socket_path)
         self.listener.listen()
@@ -105,7 +103,7 @@ class Budget:
         self.thread.start()
         print(f'TEST BUDGET requested={requested} jobs={self.limit} '
               f'memory/job={self.memory_mib}MiB cpus/job={self.cpus} '
-              f'pids/job={self.pids} reserve={self.reserve // MIB}MiB', flush=True)
+              f'reserve={self.reserve // MIB}MiB', flush=True)
 
     def serve(self):
         while not self.stopped:
@@ -131,12 +129,12 @@ class Budget:
             return
         with self.condition:
             self.clients[pid] = pidfd
+        stream = connection.makefile('rb')
         try:
-            with connection.makefile('rb') as stream:
-                request = json.loads(stream.readline(4096))
+            request = json.loads(stream.readline(4096))
             name = request['name']
             if not name.startswith('pp-pal-test-' + self.suite + '-'):
-                raise ValueError('Container does not belong to this suite')
+                raise ValueError('Job does not belong to this suite')
             weight = self.limit if request['build'] else 1
             pressure_since = None
             with self.condition:
@@ -168,24 +166,26 @@ class Budget:
                         return
                     self.condition.wait(0.2)
             connection.sendall(json.dumps({'memory': self.memory_mib,
-                'cpus': self.cpus, 'pids': self.pids}).encode() + b'\n')
+                'cpus': self.cpus}).encode() + b'\n')
             # Socket lifetime owns the lease, including abrupt client death.
-            completion = b''
-            while chunk := connection.recv(1024):
-                completion += chunk
-            completed = completion == b'complete\n'
+            # The client reports its JVM process group, then a completion receipt.
+            for line in stream:
+                if line.startswith(b'pgid '):
+                    with self.condition:
+                        self.groups[name] = int(line[5:])
+                elif line == b'complete\n':
+                    completed = True
         except (OSError, ValueError, KeyError, RuntimeError) as failure:
             with contextlib.suppress(OSError):
                 connection.sendall(json.dumps({'error': str(failure)}).encode() + b'\n')
         finally:
+            stream.close()
             connection.close()
-            if admitted and not completed:
-                # Removing an already --rm'ed container is harmless. On client
-                # death this stops the container before releasing its slot.
-                try:
-                    subprocess.run([self.docker, 'rm', '-f', name], stdout=subprocess.DEVNULL,
-                                   stderr=subprocess.DEVNULL, timeout=30)
-                except subprocess.TimeoutExpired:
+            with self.condition:
+                group = self.groups.pop(name, None) if name else None
+            if admitted and not completed and group:
+                # On client death, stop its JVM before releasing the slot.
+                if not stop_group(group):
                     self.stopped = True
             with self.condition:
                 self.clients.pop(pid, None)
@@ -205,65 +205,88 @@ class Budget:
             for pidfd in self.clients.values():
                 with contextlib.suppress(ProcessLookupError):
                     signal.pidfd_send_signal(pidfd, signal.SIGTERM)
+            groups = list(self.groups.values())
             self.condition.notify_all()
         self.thread.join()
         self.listener.close()
-        # Kill only this suite's containers, including clients killed with SIGKILL.
-        result = subprocess.run([self.docker, 'ps', '-aq', '--filter',
-                                 f'label=pp-pal-test-suite={self.suite}'],
-                                text=True, capture_output=True, timeout=30)
-        if result.returncode == 0 and result.stdout.split():
-            subprocess.run([self.docker, 'rm', '-f', *result.stdout.split()],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+        # Stop only this suite's JVMs, including those of clients killed with SIGKILL.
+        for group in groups:
+            stop_group(group)
         for handler in self.handlers:
             handler.join(timeout=2)
         print(f'TEST RESOURCE SUMMARY jobs={self.jobs} peak_slots={self.peak}/{self.limit} '
               f'min_available={self.min_available // MIB}MiB', flush=True)
 
 
-def docker_command(args):
-    docker = os.environ['PP_PAL_TEST_DOCKER']
-    if not args or args[0] not in ('run', 'build'):
-        os.execv(docker, [docker, *args])
-    if args[0] == 'run':
-        controlled = {'--memory', '--memory-swap', '--cpus', '--cpu-quota', '--cpu-period',
-                      '--pids-limit', '--name', '--detach', '-d', '-m'}
-        values = {'--network', '--user', '-u', '--workdir', '-w', '--env', '-e', '--env-file',
-                  '--entrypoint', '--volume', '-v', '--mount', '--label', '-l', '--label-file',
-                  '--hostname', '-h', '--device', '--gpus', '--platform', '--pull', '--dns',
-                  '--add-host', '--tmpfs', '--security-opt', '--cap-add', '--cap-drop'}
-        switches = {'--rm', '--read-only', '--init', '--privileged', '--tty', '-t',
-                    '--interactive', '-i', '-it', '--sig-proxy', '--help'}
-        index = 1
-        while index < len(args) and args[index].startswith('-'):
-            arg = args[index]
-            flag = arg.split('=', 1)[0]
-            if flag in controlled or arg.startswith('-m'):
-                raise ValueError('Test containers must use the shared resource limits and foreground execution')
-            if flag not in values and flag not in switches:
-                raise ValueError('Unsupported test Docker option (declare its arity in tests/run.py): ' + flag)
-            index += 2 if flag in values and '=' not in arg else 1
-        # Stop at the image: javac's -d and application arguments are unrelated
-        # to Docker detachment or resource flags.
+def stop_group(group, grace=5):
+    """Terminate a job's process group; escalate to SIGKILL after the grace period."""
+    for signum in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(group, signum)
+        except ProcessLookupError:
+            return True
+        deadline = time.monotonic() + grace
+        while time.monotonic() < deadline:
+            try:
+                os.killpg(group, 0)
+            except ProcessLookupError:
+                return True
+            time.sleep(0.05)
+    return False
+
+
+# JVM options that would override the shared limits. javac takes them as -J<option>.
+LIMIT_OPTIONS = ('-Xmx', '-XX:MaxRAM', '-XX:ActiveProcessorCount', '-XX:MaxHeapSize')
+# java options whose value is the next argument; anything else not starting
+# with '-' is the main class/source file, after which arguments belong to the application.
+JAVA_VALUES = {'-cp', '-classpath', '--class-path', '-p', '--module-path', '--add-modules',
+               '--add-opens', '--add-exports', '-jar'}
+
+
+def check_limits(tool, args):
+    javac = pathlib.Path(tool).name == 'javac'
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        option = arg[2:] if javac and arg.startswith('-J') else arg
+        if option.startswith(LIMIT_OPTIONS):
+            raise ValueError('Test JVMs must use the shared resource limits')
+        if not javac:
+            if not arg.startswith('-') or arg == '-jar':
+                return
+            if arg in JAVA_VALUES:
+                index += 1
+        index += 1
+
+
+def java_command(args):
+    build = args[:1] == ['--build']
+    if build:
+        args = args[1:]
+    if not args:
+        raise ValueError('Usage: tests/run.py --java [--build] TOOL [ARGS...]')
+    tool, rest = args[0], args[1:]
+    check_limits(tool, rest)
     name = 'pp-pal-test-' + os.environ['PP_PAL_TEST_SUITE'] + '-' + uuid.uuid4().hex
     with socket.socket(socket.AF_UNIX) as connection:
         connection.connect(os.environ['PP_PAL_TEST_BUDGET'])
-        connection.sendall(json.dumps({'name': name, 'build': args[0] == 'build'}).encode() + b'\n')
+        connection.sendall(json.dumps({'name': name, 'build': build}).encode() + b'\n')
         with connection.makefile('rb') as response:
             limits = json.loads(response.readline())
         if 'error' in limits:
             raise RuntimeError(limits['error'])
-        command = [docker, *args]
-        if args[0] == 'run':
-            command = [docker, 'run', '--name', name, '--label',
-                       'pp-pal-test-suite=' + os.environ['PP_PAL_TEST_SUITE'],
-                       '--memory', str(limits['memory']) + 'm',
-                       '--memory-swap', str(limits['memory']) + 'm',
-                       '--cpus', str(limits['cpus']), '--pids-limit', str(limits['pids']),
-                       *args[1:]]
-        # BuildKit ignores run-container limits. Builds own the entire budget
-        # and are serialized; do not claim a hard build-memory ceiling.
+        command = [tool]
+        if not build:
+            # A heap ceiling below the job's memory share leaves room for
+            # metaspace, threads and code cache.
+            heap = limits['memory'] * 3 // 4
+            processors = math.ceil(limits['cpus'])
+            prefix = '-J' if pathlib.Path(tool).name == 'javac' else ''
+            command += [f'{prefix}-Xmx{heap}m', f'{prefix}-XX:ActiveProcessorCount={processors}']
+        # Builds own the entire budget and are serialized; they get no heap ceiling.
+        command += rest
         with subprocess.Popen(command, start_new_session=True) as process:
+            connection.sendall(f'pgid {process.pid}\n'.encode())
             def interrupt(signum, frame):
                 with contextlib.suppress(ProcessLookupError):
                     os.killpg(process.pid, signal.SIGTERM)
@@ -271,15 +294,13 @@ def docker_command(args):
             signal.signal(signal.SIGINT, interrupt)
             try:
                 status = process.wait(timeout=JOB_TIMEOUT)
-                # Foreground --rm removes its container before Docker returns.
-                # A completion receipt avoids a second Docker CLI per normal job.
-                if status >= 0 and ('--rm' in args or args[0] == 'build'):
+                if status >= 0:
                     connection.sendall(b'complete\n')
                 return status
             except subprocess.TimeoutExpired:
                 os.killpg(process.pid, signal.SIGKILL)
                 process.wait()
-                raise RuntimeError('Docker test job exceeded 1200 seconds')
+                raise RuntimeError('Test JVM job exceeded 1200 seconds')
 
 
 @contextlib.contextmanager
@@ -287,12 +308,9 @@ def test_environment():
     if os.environ.get('PP_PAL_TEST_BUDGET'):
         yield dict(os.environ)
         return
-    docker = shutil.which('docker')
-    if docker is None:
-        raise ValueError('Docker is required for container tests')
     with tempfile.TemporaryDirectory(prefix='pp-pal-test-budget-') as tmp:
         directory = pathlib.Path(tmp)
-        budget = Budget(directory, docker)
+        budget = Budget(directory)
         previous_handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
         def interrupt(signum, frame):
             budget.close()
@@ -302,14 +320,14 @@ def test_environment():
         try:
             bin_dir = directory / 'bin'
             bin_dir.mkdir()
-            shim = bin_dir / 'docker'
+            shim = bin_dir / 'pp-pal-java'
             shim.write_text('#!/bin/sh\nexec ' + shlex.join(
-                [sys.executable, str(pathlib.Path(__file__).resolve()), '--docker']) + ' "$@"\n')
+                [sys.executable, str(pathlib.Path(__file__).resolve()), '--java']) + ' "$@"\n')
             shim.chmod(0o755)
-            environment = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ['PATH'],
-                               PYTHONDONTWRITEBYTECODE='1',
+            environment = dict(os.environ, PYTHONDONTWRITEBYTECODE='1',
+                               PP_PAL_JAVA_WRAPPER=str(shim),
                                PP_PAL_TEST_BUDGET=budget.socket_path,
-                               PP_PAL_TEST_SUITE=budget.suite, PP_PAL_TEST_DOCKER=docker,
+                               PP_PAL_TEST_SUITE=budget.suite,
                                PP_PAL_TEST_WORKERS=str(budget.limit))
             yield environment
         finally:
@@ -331,8 +349,8 @@ def run(command):
 
 if __name__ == '__main__':
     try:
-        if sys.argv[1] == '--docker':
-            status = docker_command(sys.argv[2:])
+        if sys.argv[1] == '--java':
+            status = java_command(sys.argv[2:])
         elif sys.argv[1] == '--':
             status = run(sys.argv[2:])
         else:

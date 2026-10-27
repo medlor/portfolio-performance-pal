@@ -9,7 +9,7 @@ if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 run() { "$root/tools/engine" main "$@"; }
-oracle() { "$root/tools/engine" java -cp "$("$root/tools/engine" classpath)" "$root/runtime/src/test/java/pal/FixtureOracle.java" "$1"; }
+oracle() { python3 "$root/tests/oracle.py" "${PP_PAL_RUNTIME:?}" FixtureOracle "$1"; }
 oracle "$root"/fixtures/v1/portfolio.xml
 run inspect "$root"/fixtures/v1/portfolio.xml > "$work/before"
 test "$(head -n 1 "$work/before")" = 'MODEL 70 EUR'
