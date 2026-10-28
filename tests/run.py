@@ -21,6 +21,10 @@ import uuid
 MIB = 1024 * 1024
 GIB = 1024 * MIB
 ADMISSION_TIMEOUT = 120
+# A build holds every slot so it runs alone, but it is a single JVM (javac of
+# the upstream core); admit it against this much free memory, not one job share
+# per slot.
+BUILD_MEMORY = 2 * GIB
 JOB_TIMEOUT = 1200
 
 
@@ -149,7 +153,9 @@ class Budget:
                     self.min_available = min(self.min_available, available)
                     # Active jobs may grow to their hard ceilings. Reserve
                     # their remaining headroom before admitting another job.
-                    enough_memory = available >= self.reserve + (self.used + weight) * self.memory_mib * MIB
+                    # An exclusive build is admitted only when nothing else runs.
+                    demand = BUILD_MEMORY if request['build'] else (self.used + weight) * self.memory_mib * MIB
+                    enough_memory = available >= self.reserve + demand
                     eligible = self.queue[0] is ticket and self.used + weight <= self.limit
                     if eligible and enough_memory:
                         self.queue.popleft()

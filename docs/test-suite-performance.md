@@ -43,7 +43,8 @@ JVM jobs time out after 20 minutes. Each job runs in its own process group. An
 abruptly killed client loses its socket lease, and its process group is stopped
 (SIGTERM, then SIGKILL after 5 seconds) before the slot becomes available again.
 Interruption stops only this invocation's process groups. Builds hold all slots,
-run alone, and get no heap ceiling.
+run alone, and get no heap ceiling. Because a build is a single JVM, it is admitted
+once 2 GiB beyond the host reserve is free, not one job share per slot.
 
 Holdings remains the prerequisite candidate gate. Other modules use a rolling
 queue, replacing finished workers immediately. Independent case groups in

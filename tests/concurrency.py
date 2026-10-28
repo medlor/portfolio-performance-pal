@@ -213,6 +213,25 @@ class BudgetTests(unittest.TestCase):
         relevant = [kind for kind, _, _ in self.events()]
         self.assertLess(relevant.index('cleanup'), relevant.index('start', 1))
 
+    def test_exclusive_build_needs_build_memory_not_one_share_per_slot(self):
+        # A build holds every slot to run alone, but it is one JVM: with 8 slots it
+        # must not need the reserve plus 8 job shares of free memory.
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, PP_PAL_TEST_JOBS='8', PP_PAL_TEST_CPUS='1'), \
+                patch.object(runner, 'ADMISSION_TIMEOUT', 0.5):
+            budget = runner.Budget(pathlib.Path(tmp))
+            try:
+                self.assertEqual(budget.limit, 8)
+                environment = dict(self.environment, PP_PAL_TEST_BUDGET=budget.socket_path, PP_PAL_TEST_SUITE=budget.suite)
+                # 4 GiB reserve + 3 GiB: enough for a 2 GiB build, far below 8 job shares.
+                with patch.object(runner, 'memory', return_value=(16*runner.GIB, 7*runner.GIB)):
+                    process = subprocess.Popen(self.command('0.1', build=True), env=environment,
+                                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    self.processes.append(process)
+                    _, errors = process.communicate(timeout=10)
+                self.assertEqual(process.returncode, 0, errors.decode())
+            finally:
+                budget.close()
+
     def test_host_pressure_blocks_admission_until_memory_recovers(self):
         with patch.object(runner, 'memory', return_value=(16*runner.GIB, 4*runner.GIB)):
             process = self.start()
