@@ -1819,6 +1819,103 @@
       ],
       "validationElapsedSeconds": 2381,
       "validationNotes": "First qualification on the native runtime (ADR 0005), rootless, Temurin 21.0.11+10 unpacked from the pinned archive. All 18 registered gates passed exactly once for each qualified candidate: the fixture local upgrade, the release replacing it, and the main released pair. Also passed: unsupported-upstream stop with agent prompt, local-upgrade refusals/activation/unattended resume (ADR 0006), and all updater attack scenarios. The runtime classpath is fixed in classes.jar's manifest (older PDFBox 1.8 jars last) and the runtime carries an AppCDS archive. Test budget: 2 jobs x 1 CPU (4-CPU cgroup quota). Earlier entries record Docker-image evidence and are kept unchanged."
+    },
+    {
+      "upstreamRelease": "0.89.0",
+      "upstreamRevision": "20d7fb690ad532c5f4a8813f6c4f365745e37c7d",
+      "sourceArchiveSha256": "c49a85ef1386759bae70fcb642de719bcc9a4c4adcc9e158fb43e28bdcb9ae89",
+      "dependencyReleaseArchiveSha256": "01ee66debf2f52fc6e6c3eb353ecdff9cb3629cedbe9d31b1f7c103b750b322c",
+      "jdk": "Temurin 21.0.11+10-LTS",
+      "jdkArchiveSha256": "4b2220e232a97997b436ca6ab15cbf70171ecff52958a46159dfa5a8c44ca4de",
+      "platform": "linux/amd64",
+      "fixtureVersion": "v1",
+      "runtime": "native runtime directory built by tools/build-runtime (no Docker); development identity \"dev\" from branch upgrade/pp-0.89.0 (based on wrapper commit 79ed505)",
+      "validatedOn": "2026-10-28",
+      "validatedBy": "tests/all.sh",
+      "input": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70,
+        "modelVersions": [
+          69,
+          70
+        ]
+      },
+      "output": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "migrations": [
+        {
+          "inputModelVersion": 69,
+          "outputModelVersion": 70,
+          "representation": "XML-ID-references",
+          "semantics": "Optional client-filter weight; existing unweighted selections, financial records and unrelated persisted state unchanged",
+          "validatedBy": "tests/migrations.sh"
+        }
+      ],
+      "features": [
+        "holdings",
+        "history",
+        "configuration",
+        "monthly-launch-backups",
+        "exact-pre-upgrade-backups",
+        "released-pair-updates",
+        "same-currency-purchase-preview",
+        "baader-purchase-pdf-preview",
+        "atomic-same-currency-purchase-application",
+        "verified-financial-write-recovery",
+        "successful-write-backup-retention",
+        "explicit-purchase-security-creation",
+        "same-currency-sale-preview",
+        "atomic-same-currency-sale-application",
+        "complete-sale-quantity-history-validation",
+        "same-currency-dividend-preview",
+        "atomic-same-currency-dividend-application",
+        "explicit-manual-foreign-currency-transactions",
+        "transaction-only-model69-to70-migration",
+        "atomic-baader-purchase-pdf-application",
+        "duplicate-safe-import-bookkeeping-recovery",
+        "baader-sale-pdf-preview",
+        "atomic-baader-sale-pdf-application",
+        "same-timestamp-pdf-purchase-sale-admission",
+        "baader-dividend-pdf-preview",
+        "atomic-baader-dividend-pdf-application",
+        "mixed-purchase-dividend-pdf-admission",
+        "pp-authoritative-pdf-extraction",
+        "pp-import-actions",
+        "pp-holdings-and-dividend-relevance",
+        "baader-foreign-currency-pdf-import",
+        "single-statement-missing-fx-supplement",
+        "atomic-mixed-purchase-sale-dividend-fx-pdf",
+        "verified-current-smartbroker-layouts",
+        "native-rootless-runtime",
+        "unsupported-upstream-agent-upgrade-prompt",
+        "agent-local-upgrade-activation"
+      ],
+      "layouts": [
+        "Baader synthetic domestic purchase/sale/dividend PDF/text v1 only",
+        "baader-german-eur-purchase-flat-v1",
+        "baader-german-eur-purchase-page1-of1-v1",
+        "baader-german-eur-sale-flat-v1",
+        "baader-german-eur-sale-page1-of1-v1",
+        "baader-german-eur-purchase-sale-page1-of1-v1",
+        "baader-german-eur-dividend-page1-of1-v1",
+        "baader-german-eur-purchase-dividend-page1-of1-v1",
+        "baader-pp-authoritative-complete-page-sequences-v1",
+        "baader-synthetic-eur-usd-purchase-dividend-v1",
+        "baader-synthetic-eur-usd-purchase-sale-dividend-v1",
+        "baader-synthetic-mixed-fx-page-sequences-v1",
+        "baader-smartbroker-current-eur-purchase-execution-table-v1",
+        "baader-smartbroker-current-eur-sale-tax-continuation-v1",
+        "baader-smartbroker-current-chf-dividend-tax-continuation-v1",
+        "baader-smartbroker-current-mixed-eur-chf-complete-page-sequences-v1"
+      ],
+      "validationCommands": [
+        "tools/build-runtime --output ~/.local/state/pp-pal/upgrades/0.89.0/runtime/dev",
+        "PP_PAL_TEST_JOBS=4 bash tests/all.sh ~/.local/state/pp-pal/upgrades/0.89.0/runtime/dev"
+      ],
+      "validationElapsedSeconds": 2050,
+      "validationNotes": "Upgrade from Portfolio Performance 0.88.0 to 0.89.0. XML model stays 70 (Client.CURRENT_VERSION unchanged; ClientFactory, Client and transaction model classes unchanged), so input/output models, the protected model69-to70 migration, features and layouts are carried over unchanged. Headless patch applied unchanged; wrapper Java compiled without adaptation. Upstream changes reviewed: BaaderBankPDFExtractor now labels documents per white-label broker (getLabel(PDFInputFile), not used by the wrapper) and offsets a Handelsplatzabhaengige Gutschrift exceeding the Finanzkommission against later fees (no qualified fixture contains this line); CheckValidTypesAction now rejects taxes on account transactions other than dividends/interest and fees on non-dividends (wrapper imports only dividends as account transactions). All 18 registered gates passed exactly once for each qualified candidate; baseline checks, local-upgrade activation and updater adversity checks passed. Only test adaptation: pinned upstream release literals in tests/build-runtime.sh and tests/updater.py follow the new pins. One earlier full run stopped on test-runner memory admission (host memory pressure) during a fixture build; the unchanged rerun passed."
     }
   ]
 }

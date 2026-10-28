@@ -8,11 +8,11 @@
     "sha256": "4b2220e232a97997b436ca6ab15cbf70171ecff52958a46159dfa5a8c44ca4de"
   },
   "upstream": {
-    "tag": "0.88.0",
-    "revision": "8de1fe41d71a2c1b74a6bfbe913f885899aaf123",
-    "sourceSha256": "ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656",
-    "releaseSha256": "1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2",
-    "releaseAsset": "PortfolioPerformance-0.88.0-linux.gtk.x86_64.tar.gz"
+    "tag": "0.89.0",
+    "revision": "20d7fb690ad532c5f4a8813f6c4f365745e37c7d",
+    "sourceSha256": "c49a85ef1386759bae70fcb642de719bcc9a4c4adcc9e158fb43e28bdcb9ae89",
+    "releaseSha256": "01ee66debf2f52fc6e6c3eb353ecdff9cb3629cedbe9d31b1f7c103b750b322c",
+    "releaseAsset": "PortfolioPerformance-0.89.0-linux.gtk.x86_64.tar.gz"
   },
   "input": {
     "representation": "XML-ID-references",
