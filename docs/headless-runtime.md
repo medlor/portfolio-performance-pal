@@ -218,5 +218,5 @@ fees) and the stricter `CheckValidTypesAction` unit checks do not affect the qua
 fixtures. No layout, migration or feature was added.
 
 `PP_PAL_TEST_JOBS=3 bash tests/all.sh ~/.local/state/pp-pal/upgrades/0.89.0/runtime/dev`
-passed in **1978 seconds (32 minutes 58 seconds)**, with all 18 registered gates once per
+passed in **2032 seconds (33 minutes 52 seconds)**, with all 18 registered gates once per
 qualified candidate. Gates qualify against the updater's frozen loopback release view. See the 0.89.0 entry in the [support matrix](../runtime/support-matrix.json).
