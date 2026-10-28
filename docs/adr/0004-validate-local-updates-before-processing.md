@@ -3,3 +3,5 @@
 Before preview/import, check for the latest stable Portfolio Performance and released wrapper versions, build changed candidates locally, and activate the pair only after fixture checks and validation of a disposable local copy of the selected portfolio pass. This reduces manual upgrade work while avoiding container publication, at the cost of network/build dependencies before processing; failed checks stop the command instead of continuing with the previous image. Pin the validated pair for each invocation, retain the previous pair on update failure, and leave the original portfolio unchanged during updates.
 
 Local agent upgrades for unsupported upstream releases: see [ADR 0006](0006-agent-local-upgrades.md).
+
+Wrapper release tags equal the Portfolio Performance tag they support (for example `0.88.0`; wrapper fixes `0.88.0-2`, …), and the updater refuses releases tagged otherwise; see [release tags](../local-updater.md#release-tags).

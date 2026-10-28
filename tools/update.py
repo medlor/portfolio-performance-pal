@@ -79,7 +79,8 @@ def release(repository, label):
         data = request_json('/repos/' + repository + '/releases/latest')
     except UpdateError as failure:
         if 'HTTP 404' in str(failure):
-            raise UpdateError(f'No stable released {label} is available; publish the documented bootstrap release package before updating') from failure
+            raise UpdateError(f'No stable released {label} is available; publish the documented bootstrap release package before updating'
+                              + (' (tag it exactly like the Portfolio Performance release it supports, e.g. 0.88.0)' if repository == WRAPPER else '')) from failure
         raise UpdateError(f'{label} release discovery failed: {failure}') from failure
     if not isinstance(data, dict):
         raise UpdateError('Release service returned an invalid release object')
@@ -555,6 +556,11 @@ def build_runtime(package, inputs, wrapper_revision, state, digests):
 class UpgradeRequired(UpdateError):
     pass
 
+def wrapper_tag_matches(tag, upstream_tag):
+    """Wrapper releases are tagged exactly like the Portfolio Performance release they
+    support (e.g. 0.88.0); later wrapper fixes for that release add -2, -3, ..."""
+    return tag == upstream_tag or re.fullmatch(re.escape(upstream_tag) + r'-([2-9]|[1-9][0-9]+)', tag) is not None
+
 def supported(policy, active, upstream):
     """Tested support: the wrapper policy, or a validated local upgrade, names this exact release."""
     def same(declared):
@@ -653,6 +659,10 @@ def perform_update(arguments, original_argv=None):
                 if package.exists():
                     shutil.rmtree(package)
                 raise
+        declared = policy.get('upstream', {}).get('tag', '')
+        if not wrapper_tag_matches(wrapper['tag'], declared):
+            raise UpdateError(f"Wrapper release tag {wrapper['tag']} does not match its supported Portfolio Performance release {declared}; "
+                              'wrapper releases are tagged exactly like the Portfolio Performance tag they support (fixes: <tag>-2, <tag>-3, ...)')
         if not supported(policy, None, upstream):
             if supported(policy, active, upstream):
                 # A validated local upgrade covers this upstream; the released wrapper does not yet.

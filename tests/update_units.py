@@ -54,5 +54,17 @@ class BuildRuntimeReuse(unittest.TestCase):
             self.assertEqual(update.build_runtime(package, state / 'inputs', revision, state, digests), existing)
 
 
+class WrapperTagRule(unittest.TestCase):
+    def test_wrapper_tag_must_equal_the_supported_upstream_tag(self):
+        # The wrapper's release tag equals the Portfolio Performance tag it supports;
+        # later wrapper fixes for the same PP release add -<n>.
+        for tag, upstream, expected in (('0.88.0', '0.88.0', True), ('0.88.0-2', '0.88.0', True),
+                                        ('0.88.0-12', '0.88.0', True), ('v0.88.0', '0.88.0', False),
+                                        ('0.88.1', '0.88.0', False), ('0.88.0-rc1', '0.88.0', False),
+                                        ('0.88.0-0', '0.88.0', False), ('0.88.0.1', '0.88.0', False),
+                                        ('0.88.0-', '0.88.0', False), ('v0.1.0', '0.88.0', False)):
+            self.assertIs(update.wrapper_tag_matches(tag, upstream), expected, (tag, upstream))
+
+
 if __name__ == '__main__':
     unittest.main()

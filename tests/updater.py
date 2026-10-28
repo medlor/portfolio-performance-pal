@@ -145,7 +145,7 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-updater-') as temporary, server(
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
-def released_snapshot(work, api, tag='v0.1.0', mutate=None):
+def released_snapshot(work, api, tag='0.88.0', mutate=None):
     package = work / ('released-' + tag)
     existing = package.exists()
     if not existing: package.mkdir()
@@ -257,7 +257,7 @@ def local_upgrade():
         selected = work / 'owner portfolio.xml'
         shutil.copyfile(ROOT / 'fixtures/v1/portfolio.xml', selected)
         original = selected.read_bytes()
-        released = work / 'released-v0.1.0'
+        released = work / 'released-0.88.0'
         released_snapshot(work, api)
         upstream_release(api)
         revision = relabel_upstream(api, '0.88.1-fixture')
@@ -325,13 +325,13 @@ def local_upgrade():
                                  str(ROOT / 'fixtures/v1/portfolio.xml'), str(selected), '1'], text=True, capture_output=True)
         check(oracle.returncode == 0, oracle.stderr + oracle.stdout)
         print('PASS resumed request applies unattended on the local upgrade pair ' + active['identity'])
-        # (e) A later stable release that supports the upstream replaces the local pair.
+        # (e) A later stable release (tagged like the upstream it supports) replaces the local pair.
         def declare_support(package):
             policy_path = package / 'runtime/release-package.json'
             policy = json.loads(policy_path.read_text())
             policy['upstream'].update(tag='0.88.1-fixture', releaseAsset='PortfolioPerformance-0.88.1-fixture-linux.gtk.x86_64.tar.gz')
             policy_path.write_text(json.dumps(policy, indent=2) + '\n')
-        release_revision = released_snapshot(work, api, tag='v0.2.0', mutate=declare_support)
+        release_revision = released_snapshot(work, api, tag='0.88.1-fixture', mutate=declare_support)
         result = run(work, api, '--update', '--file', str(selected))
         check(result.returncode == 0, result.stderr + result.stdout)
         replaced = json.loads((work / 'state/active.json').read_text())
@@ -339,14 +339,33 @@ def local_upgrade():
               and replaced['previous']['source'] == 'local-upgrade', replaced)
         print('PASS later stable release supporting the upstream replaces the local upgrade pair')
 
+def mismatched_wrapper_tag():
+    """A wrapper release whose tag is not its supported PP tag is refused before backup or build."""
+    with tempfile.TemporaryDirectory(prefix='pp-pal-wrapper-tag-') as temporary, server() as api:
+        work = pathlib.Path(temporary)
+        selected = work / 'portfolio.xml'
+        shutil.copyfile(ROOT / 'fixtures/v1/portfolio.xml', selected)
+        original = selected.read_bytes()
+        released_snapshot(work, api, tag='v0.1.0')
+        upstream_release(api)
+        result = run(work, api, '--update', '--file', str(selected))
+        check(result.returncode == 3 and 'Wrapper release tag v0.1.0 does not match its supported Portfolio Performance release 0.88.0' in result.stderr,
+              result.stderr)
+        check(selected.read_bytes() == original and not list(work.glob('portfolio.xml.pp-pal.update.*.bak')), 'Tag refusal changed or backed up the portfolio')
+        check(not (work / 'state/builds').exists() or not list((work / 'state/builds').iterdir()), 'Tag refusal started a build')
+        check(not (work / 'state/active.json').exists(), 'Tag refusal activated a pair')
+        print('PASS wrapper release tag must equal its supported Portfolio Performance tag')
+
 if '--local-upgrade-slice' in sys.argv[2:]:
     local_upgrade()
     sys.exit(0)
 if '--unsupported-slice' in sys.argv[2:]:
+    mismatched_wrapper_tag()
     unsupported_upstream()
     sys.exit(0)
 if not sys.argv[2:]:
     # The cumulative run covers the unsupported-release stop and the agent local upgrade too.
+    mismatched_wrapper_tag()
     unsupported_upstream()
     local_upgrade()
 
@@ -827,7 +846,7 @@ with released_work() as temporary, server() as api:
                     save(client, Path.of(args[2]));'''
         check(needle in text, 'Synthetic candidate transformation no longer matches reviewed fixture source')
         source.write_text(text.replace(needle, replacement))
-    attack_revision = released_snapshot(work, api, tag='v0.2.0', mutate=tamper_selected_only)
+    attack_revision = released_snapshot(work, api, tag='0.88.0-2', mutate=tamper_selected_only)
     result = run(work, api, '--update', '--file', str(selected))
     check(result.returncode == 3, 'Candidate overwrote independent selected-copy oracle and activated: ' + result.stdout)
     check('CHECK START ' not in result.stdout, 'Selected-copy refusal ran expensive fixture qualification')
@@ -838,7 +857,7 @@ with released_work() as temporary, server() as api:
     def changed_bootstrap(package):
         target = package / 'tools/update.py'
         target.write_text(target.read_text() + '\n# changed released host orchestration\n')
-    released_snapshot(work, api, tag='v0.3.0', mutate=changed_bootstrap)
+    released_snapshot(work, api, tag='0.88.0-3', mutate=changed_bootstrap)
     result = run(work, api, '--update', '--file', str(selected))
     check(result.returncode == 3 and 'trusted-bootstrap maintenance' in result.stderr, result.stderr)
     check((work / 'state/active.json').read_bytes() == before, 'Unsupported host bootstrap change activated')
@@ -848,7 +867,7 @@ with released_work() as temporary, server() as api:
     def changed_scheduler(package):
         target = package / 'tools/test_jobs.py'
         target.write_text(target.read_text() + '\n# changed released scheduling helper\n')
-    released_snapshot(work, api, tag='v0.3.1', mutate=changed_scheduler)
+    released_snapshot(work, api, tag='0.88.0-4', mutate=changed_scheduler)
     result = run(work, api, '--update', '--file', str(selected))
     check(result.returncode == 3 and 'trusted-bootstrap maintenance' in result.stderr, result.stderr)
     check((work / 'state/active.json').read_bytes() == before, 'Unsupported scheduling helper activated')
@@ -888,7 +907,7 @@ with released_work() as temporary, server() as api:
         target.write_text(text)
         (package / 'tests/all.sh').write_text('#!/usr/bin/env bash\nexit 0\n')
         (package / 'fixtures/v1/baader-buy.expected').write_text('candidate-controlled expectation\n')
-    bad_revision = released_snapshot(work, api, tag='v0.4.0', mutate=wrong_query_and_own_tests)
+    bad_revision = released_snapshot(work, api, tag='0.88.0-5', mutate=wrong_query_and_own_tests)
     attempts = len(list(work.glob('selected portfolio.xml.pp-pal.update.*.bak')))
     for retry in range(2):
         result = run(work, api, '--update', '--file', str(selected))

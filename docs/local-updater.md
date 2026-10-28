@@ -38,6 +38,29 @@ a separate directory, build its pinned initial runtime with
 package; its immutable checkout and reviewed validation files are the initial trust root.
 The initial recipe pins upstream 0.88.0, Java 21.0.11+10 and their digests.
 
+### Release tags
+
+A wrapper release is tagged **exactly like the Portfolio Performance release it
+supports**: the tag equals `upstream.tag` in that release's
+`runtime/release-package.json`, with no `v` prefix (PP tags its releases `0.88.0`).
+A later wrapper fix for the same PP release appends `-2`, `-3`, and so on (for
+example `0.88.0-2`). The updater refuses any release whose tag breaks this rule,
+before backup or build. Tags are annotated and point at a commit on `main`.
+
+Publish the release for the current pin after the change is merged:
+
+```sh
+git switch main && git pull --ff-only
+python3 -c 'import json; print(json.load(open("runtime/release-package.json"))["upstream"]["tag"])'   # must print 0.88.0
+git tag -a 0.88.0 -m "pp-pal for Portfolio Performance 0.88.0"
+git push origin 0.88.0
+gh release create 0.88.0 --verify-tag --title "pp-pal for Portfolio Performance 0.88.0" \
+  --notes "Native runtime (ADR 0005); agent local upgrades (ADR 0006)."
+```
+
+The first `pp-pal --update --file …` afterwards builds and qualifies that release
+(all gates; roughly 20–40 minutes), then activates it.
+
 The updater copies the reviewed bootstrap checks and fixture expectations into a
 separate local validation bundle on first use. Candidate releases cannot replace
 this bundle. Each subsequent feature must extend `runtime/candidate-gates.json`

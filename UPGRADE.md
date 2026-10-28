@@ -112,6 +112,12 @@ must not do.
    If `git push` or `gh` lacks permission, do not stop. Report it to the owner, keep the
    branch local, and continue with step 7.
 
+   Do not tag or publish a release yourself. Tell the owner the release tag to use
+   after merging: exactly the Portfolio Performance tag, `$TAG` (no `v` prefix), or
+   `$TAG-2`, `$TAG-3`, ... if that tag already exists. Include the commands from
+   [docs/local-updater.md](docs/local-updater.md#release-tags) in the PR body. The
+   updater refuses releases tagged any other way.
+
 7. **Activate locally.** The original command's `--file` or `--config` selects the
    portfolio to validate. Run from the original `cwd`:
 
