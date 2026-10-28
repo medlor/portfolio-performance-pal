@@ -49,8 +49,8 @@ public final class Purchase {
         String currency = tx.getCurrencyCode();
         boolean sale = tx.getType() == PortfolioTransaction.Type.SELL;
         var out = new StringBuilder(sale ? "PREVIEW SALE\n" : "PREVIEW PURCHASE\n");
-        String image = System.getenv("PP_PAL_ENGINE_IMAGE");
-        if (image != null) out.append("ENGINE IMAGE ").append(image).append('\n');
+        String runtime = System.getenv("PP_PAL_ENGINE_RUNTIME");
+        if (runtime != null) out.append("ENGINE RUNTIME ").append(runtime).append('\n');
         out.append(Core.outputModel(inputModel));
         out.append("SECURITY ").append(tx.getSecurity().getName()).append(" | ").append(tx.getSecurity().getUUID()).append(" | ").append(tx.getSecurity().getCurrencyCode()).append(plan.createsSecurity() ? " (create)\n" : " (existing)\n");
         out.append("SECURITIES ACCOUNT ").append(entry.getPortfolio().getName()).append(" | ").append(entry.getPortfolio().getUUID()).append('\n');

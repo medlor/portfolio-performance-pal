@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/holdings.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -139,4 +139,4 @@ mkdir "$work/help-bin"
 for tool in bash cat dirname readlink; do ln -s "$(command -v "$tool")" "$work/help-bin/$tool"; done
 PATH="$work/help-bin" "$launcher" --config /absent --help > "$work/help"
 rg -q '^Usage: pp-pal COMMAND' "$work/help"
-echo 'PASS holdings controls, stable ties, transfer/delivery, configuration paths/IDs, host ownership, immutability, errors, Docker-free help'
+echo 'PASS holdings controls, stable ties, transfer/delivery, configuration paths/IDs, host ownership, immutability, errors, runtime-free help'

@@ -1,9 +1,19 @@
 {
   "schema": 1,
-  "buildRecipe": 1,
+  "buildRecipe": 2,
   "platform": "linux/amd64",
   "jdk": "Temurin 21.0.11+10-LTS",
-  "baseImage": "eclipse-temurin:21.0.11_10-jdk-jammy@sha256:dbfd085220ae632a0830166e443747d1ee89e9038d92e3b48c3e5e9d8292b9a7",
+  "jdkArchive": {
+    "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.11%2B10/OpenJDK21U-jdk_x64_linux_hotspot_21.0.11_10.tar.gz",
+    "sha256": "4b2220e232a97997b436ca6ab15cbf70171ecff52958a46159dfa5a8c44ca4de"
+  },
+  "upstream": {
+    "tag": "0.88.0",
+    "revision": "8de1fe41d71a2c1b74a6bfbe913f885899aaf123",
+    "sourceSha256": "ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656",
+    "releaseSha256": "1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2",
+    "releaseAsset": "PortfolioPerformance-0.88.0-linux.gtk.x86_64.tar.gz"
+  },
   "input": {
     "representation": "XML-ID-references",
     "modelVersion": 70,
@@ -43,7 +53,7 @@
     "baader-smartbroker-current-chf-dividend-tax-continuation-v1",
     "baader-smartbroker-current-mixed-eur-chf-complete-page-sequences-v1"
   ],
-  "bootstrapProtocol": 1,
+  "bootstrapProtocol": 2,
   "features": [
     "holdings",
     "history",

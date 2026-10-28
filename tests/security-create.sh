@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/security-create.sh" "$@"
 fi
-export PP_PAL_IMAGE=${1:-${PP_PAL_IMAGE:-pp-pal:0.88.0}}
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -22,15 +22,15 @@ echo 'PASS explicit identifier-free security creation preview preserves financia
 buy --create-security --name 'New Synthetic Instrument' --currency EUR --apply --desktop-closed > applied
 rg -q '^APPLIED PURCHASE$' applied
 cmp portfolio.xml.2026-10-08.bak "$root/fixtures/v1/portfolio.xml"
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" -v "$work:/work:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/SecurityCreatedOracle.java /fixtures/v1/portfolio.xml /work/portfolio.xml
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" SecurityCreatedOracle "$root/fixtures"/v1/portfolio.xml "$work"/portfolio.xml
 echo 'PASS persisted identifier-free definition and linked purchase reload with pinned core'
 # Broad behavior uses the real container boundary after the owner integration case.
-launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-container}
+launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-engine}
 cp "$root/fixtures/v1/portfolio.xml" reuse.xml
 "$launcher" purchase --file reuse.xml --create-security --name 'Requested broker spelling' --currency EUR --isin DE0000000001 --wkn TEST01 --securities-account 'Synthetic Securities A' --cash-account 'Synthetic Cash A' --date 2025-03-01 --quantity 2.5 --price 10 --fees 1 --taxes .5 > reused-preview
 rg -Fq 'SECURITY Synthetic Euro Instrument | 00000000-0000-4000-8000-000000000001 | EUR (existing)' reused-preview
 "$launcher" purchase --file reuse.xml --create-security --name 'Requested broker spelling' --currency EUR --isin DE0000000001 --wkn TEST01 --securities-account 'Synthetic Securities A' --cash-account 'Synthetic Cash A' --date 2025-03-01 --quantity 2.5 --price 10 --fees 1 --taxes .5 --apply --desktop-closed > reused
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" -v "$work:/work:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PurchaseAppliedOracle.java /fixtures/v1/portfolio.xml /work/reuse.xml 1
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" PurchaseAppliedOracle "$root/fixtures"/v1/portfolio.xml "$work"/reuse.xml 1
 cp "$root/fixtures/v1/portfolio.xml" failed.xml
 reject() {
   local rc=0
@@ -61,7 +61,7 @@ echo 'PASS external identifiers reuse retained definitions; missing/conflicting/
 
 cp "$root/fixtures/v1/portfolio.xml" identifiers.xml
 "$launcher" purchase --file identifiers.xml --create-security --name 'New Synthetic Instrument' --currency eur --isin de0000000099 --wkn new099 --ticker new.syn --securities-account 'Synthetic Securities A' --cash-account 'Synthetic Cash A' --date 2025-03-01 --quantity 2.5 --price 10 --fees 1 --taxes .5 --apply --desktop-closed > identifiers-applied
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" -v "$work:/work:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/SecurityCreatedOracle.java /fixtures/v1/portfolio.xml /work/identifiers.xml identifiers
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" SecurityCreatedOracle "$root/fixtures"/v1/portfolio.xml "$work"/identifiers.xml identifiers
 cp identifiers.xml identifiers-before
 "$launcher" purchase --file identifiers.xml --create-security --name 'Requested broker spelling' --currency EUR --isin DE0000000099 --wkn NEW099 --ticker NEW.SYN --securities-account 'Synthetic Securities A' --cash-account 'Synthetic Cash A' --date 2025-03-01 --quantity 1 --price 10 > created-reuse
 rg -Fq 'SECURITY New Synthetic Instrument |' created-reuse

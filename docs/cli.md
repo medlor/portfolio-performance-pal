@@ -1,22 +1,29 @@
 # Command conventions and queries
 
+> Dated evidence paragraphs below that cite `sha256:` image identities, `IMAGE`
+> arguments or containers record runs on the former Docker runtime and are kept as
+> history. Current commands take a runtime directory (see
+> [ADR 0005](adr/0005-native-runtime.md)).
+
 Use `pp-pal COMMAND [OPTIONS]`, with the command first. Options can appear in any
 order after it. Each value option requires a separate value argument; repeated or
 unknown options fail. Names and paths with spaces must be quoted. `--help` is
-handled by the host launcher before Docker, configuration or portfolio lookup.
+handled by the host launcher before any runtime, configuration or portfolio lookup.
 The Java dispatcher uses the same `runtime/help.txt` text.
 
 Current owner commands are `holdings`, `history`, `purchase`, `sale`, `dividend`, `import`, `configure`, `backup-before-update`,
 and `--update`. Developer diagnostics
-`inspect`, `roundtrip`, `prove` and `pdf` remain available through the **container**
-entry point for the runtime fixture gates; the host launcher exposes owner commands.
+`inspect`, `roundtrip`, `prove` and `pdf` remain available through the **engine**
+entry point (`tools/engine main …`) for the runtime fixture gates; the host launcher exposes owner commands.
 Additional PDF layouts remain pending. Release discovery/validation/activation
 is implemented, with the initial released bootstrap package still a prerequisite.
 
 Exit 0 means a successful query/configuration/preview or financial operation. Exit 2 rejects input or validation,
 including unknown/ambiguous account selectors, invalid options and unsupported
 portfolio representations. Exit 3 reports an operational failure, including an
-unavailable local image or inability to write explicit configuration. Exit 4 is
+unavailable or incomplete runtime directory, inability to write explicit configuration,
+and `UPGRADE REQUIRED` for an unsupported upstream release (see
+[local updater](local-updater.md#unsupported-releases-and-agent-local-upgrades)). Exit 4 is
 reserved for a successful financial replacement with failed follow-up work.
 Errors go to stderr with `ERROR:`; ordinary output goes to stdout. Upstream loading
 may also print informational status lines to stderr. Successful empty queries show
@@ -148,8 +155,8 @@ financial records. Different security and cash currencies require the explicit r
 [manual foreign-currency transactions](#manual-foreign-currency-transactions). Linked proposed records use the upstream BuySellEntry and monetary units.
 
 The launcher performs mandatory release discovery and selected-file validation
-before constructing a plan, then fixes the selected immutable image for that
-invocation. Preview shows that image, the input/output model version, accounts,
+before constructing a plan, then fixes the selected runtime for that
+invocation. Preview shows its identity (`ENGINE RUNTIME <identity>`), the input/output model version, accounts,
 existing security, quantity, currencies, fee/tax/booked values and their origins.
 Missing time defaults to `11:00:00` and is marked as a fallback. Explicit local
 times, including midnight and fractional seconds, retain their supplied value.
@@ -177,7 +184,7 @@ consume that plan once against its invocation's snapshot; a PDF planner can shar
 
 The fixed updater gates exercise the real released purchase launcher. During those
 checks, only descendants of the live identical trusted updater can obtain a
-temporary Unix-socket qualification for its exact built wrapper/upstream/image,
+temporary Unix-socket qualification for its exact built wrapper/upstream/runtime,
 reviewed suite and checked archive bytes. They still discover releases, validate
 the selected disposable portfolio and recheck staleness; they reuse the built pair
 without recursively invoking its gates. Qualification cannot activate a production
@@ -253,23 +260,23 @@ already-tested updater adversity cases. The complete registry remains intact.
 
 ## Linux launcher and maintenance seams
 
-The host dispatcher requires Python 3.10+, Docker and standard Linux core utilities. It resolves
-the selected **local** image once to an immutable identity before either container
-runs. It does not pull a missing wrapper image. Without an active release pair,
-`PP_PAL_IMAGE` selects a local tag or image identity for development and compatibility
-gates; the default is `pp-pal:0.88.0`. Once activated, the integrity-checked manifest
-selects the released launcher and immutable image together, taking precedence over
-that development variable.
+The host dispatcher requires Python 3.10+ and standard Linux core utilities; it
+needs neither Docker nor a host Java. It validates the selected runtime directory
+(`runtime.json` identity matches its directory name) before either Java invocation
+runs, and never builds or downloads one implicitly. Without an active release pair,
+`PP_PAL_RUNTIME` selects a runtime directory for development and compatibility
+gates; the default is `$STATE/runtimes/dev`. Once activated, the integrity-checked
+manifest selects the released launcher and runtime directory together, taking
+precedence over that development variable.
 
-A read-only Java invocation resolves configuration using the same parser used by
-the command. A second invocation mounts the selected portfolio parent and required
-configuration/working directories at their canonical host absolute paths, preserving
-relative-path semantics and symlinks. The selected portfolio parent is writable
-to create required adjacent backups even for queries; other mounts are read-only
-unless `configure` needs to write its configuration directory. Both run without network/display and
-with the numeric host UID/GID. Mount arguments use shell arrays, including paths
-with spaces. Bind paths containing a colon or newline are rejected explicitly
-because they cannot be represented in this launcher's Docker volume syntax.
+A first Java invocation resolves the configuration using the same parser as the
+command. A second invocation runs the command on the canonical absolute portfolio
+path. Both run as the invoking user, in the working directory, with no display,
+`LANG=C.UTF-8`, `TZ=UTC` and a pruned environment. There is no sandbox: the engine
+writes only what its command writes (the selected file, adjacent backups, receipts
+and metadata, or the configuration for `configure`). Arguments are passed as
+arrays, so paths with spaces and colons work; paths containing a newline are
+rejected.
 
 Shared public Java interfaces are `CommandLine.parse/allow/value/flag/limit`,
 `Configuration.load/portfolio/selection/path/save`, `Accounts.securities/cash`, and
@@ -278,7 +285,7 @@ Later commands extend the dispatch/allowed option sets and use these account/pat
 interfaces; new boolean flags are registered in `CommandLine`. Launcher-only
 resolved-path options are reserved and cannot be supplied by an owner invocation.
 
-`tests/all.sh [IMAGE]` is the cumulative compatibility gate. It currently runs
+`tests/all.sh [RUNTIME]` is the cumulative compatibility gate. It currently runs
 real core/PDF runtime tests and the owner-facing holdings/configuration/history/backup
 and released-pair updater tests, including trusted purchase compatibility checks.
 `tests/purchase.sh` runs within the real updater's candidate qualification so it
@@ -338,9 +345,9 @@ integration result is claimed yet.
 
 The explicit clock boundary `PP_PAL_NOW` accepts an ISO UTC instant for reproducible
 compatibility gates; when unset, the system UTC clock is converted to Berlin for
-calendar decisions. The launcher passes it to both fixed-image invocations. It
+calendar decisions. The launcher passes it to both fixed-runtime invocations. It
 changes backup timing only, never transaction dates. Keep it unset for ordinary
-use. `tests/backups.sh IMAGE` exercises real launcher/container snapshots, spring
+use. `tests/backups.sh RUNTIME` exercises real launcher snapshots, spring
 and autumn month boundaries, unchanged months and catch-up, repeated attempts,
 selected paths, private permissions and ownership, old/unowned retention during
 launch, raw future input, uncertainty and permission failures.
@@ -376,7 +383,7 @@ keeps each earlier image's evidence separate from this combined result.
 The stable host dispatcher now requires Python 3.10+ for commands and updates;
 `--help` remains Bash-only. `--update [--file PATH] [--config PATH]` follows the
 same separate-value, repeated-option and path conventions. The active manifest
-selects a released `tools/run-container` implementation and immutable image together.
+selects a released `tools/run-engine` implementation and runtime directory together.
 The bootstrap validator stays fixed and rejects changed candidate bootstrap files.
 Its trusted candidate gates are registered in `runtime/candidate-gates.json`; add
 each implemented command's fixed independent checks there as well as `tests/all.sh`.
@@ -584,9 +591,9 @@ create daily/migration backups or alter portfolio/import metadata.
 container financial cases and an independent pinned-core saved-model oracle for
 fees/taxes, derivations, references and relevance, closed/shared holdings, unchanged
 quantity/timestamps, exact times, ambiguous/missing selectors, configuration,
-invalid decimals, backup failure and stale input. Run a local development image
-with `PP_PAL_LAUNCHER="$PWD/tools/run-container" bash tests/dividend.sh pp-pal:issue27`;
-`bash tests/all.sh IMAGE` qualifies the released owner launcher as well.
+invalid decimals, backup failure and stale input. Run it against a development runtime
+with `PP_PAL_LAUNCHER="$PWD/tools/run-engine" bash tests/dividend.sh RUNTIME`;
+`bash tests/all.sh RUNTIME` qualifies the released owner launcher as well.
 
 The final cumulative run on 2026-10-08 passed in 1023 seconds (17 minutes 3
 seconds), qualifying all ten candidate gates once and the complete historical
@@ -674,8 +681,8 @@ financial application with exit 4 and `do not repeat apply`; use the documented
 `--recover-write --desktop-closed` workflow to finish cleanup without replay.
 
 Run the focused gate with
-`PP_PAL_LAUNCHER="$PWD/tools/run-container" bash tests/migrations.sh IMAGE`, then
-`bash tests/all.sh IMAGE`. The migration gate is mandatory alongside all prior
+`PP_PAL_LAUNCHER="$PWD/tools/run-engine" bash tests/migrations.sh RUNTIME`, then
+`bash tests/all.sh RUNTIME`. The migration gate is mandatory alongside all prior
 gates. Independent literal pre/post fixtures and pinned saved-model oracles check
 financial changes and complete unrelated-state preservation. The updater also
 checks a disposable model69 selected copy and released owner preview/application.

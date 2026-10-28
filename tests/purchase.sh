@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/purchase.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -28,7 +28,7 @@ rg -q '^BOOKED DEBIT EUR 26.50 \(derived' preview
 cmp portfolio_performance.xml "$root/fixtures/v1/portfolio.xml"
 echo 'PASS exact linked same-currency purchase preview preserves the portfolio'
 # Broad behavior uses the real container boundary after the owner integration case.
-launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-container}
+launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-engine}
 purchase() {
   local options=("$@") defaults=() key value found arg
   for key in security securities-account cash-account date; do
@@ -166,7 +166,7 @@ cmp portfolio_performance.xml.pp-pal.migration.2020.bak migration-before
 test "$(find . -name '*.????-??-??.bak' | wc -l)" = 1
 test "$(find . -name '*.pp-pal.migration.*.bak' | wc -l)" = 1
 test "$(stat -c %a portfolio_performance.xml)" = 600
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PurchaseOracle.java /fixtures/v1/portfolio.xml
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" PurchaseOracle "$root/fixtures"/v1/portfolio.xml
 echo 'PASS exact rounding/range/contradictions, selector intersections, accounts, explicit times, paths and immutable preview'
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 # Exercise qualification refusal through the same live candidate launcher. No
@@ -189,11 +189,11 @@ package = pathlib.Path(launcher).parent
 help_file = package / 'runtime/help.txt'; original = help_file.read_bytes()
 try:
     help_file.write_bytes(original + b'\nchanged candidate help\n')
-    refused(dict(os.environ), 'qualification pair/revision/digest/suite/image mismatch')
+    refused(dict(os.environ), 'qualification pair/revision/digest/suite/runtime mismatch')
 finally: help_file.write_bytes(original)
-other = os.environ['PP_PAL_GATE_BASELINE_IMAGE']
-assert other != os.environ['PP_PAL_IMAGE'], 'Released candidate must differ from the independently built baseline'
-refused(dict(os.environ, PP_PAL_IMAGE=other), 'qualification pair/revision/digest/suite/image mismatch')
+other = os.environ['PP_PAL_GATE_BASELINE_RUNTIME']
+assert other != os.environ['PP_PAL_RUNTIME'], 'Released candidate must differ from the independently built baseline'
+refused(dict(os.environ, PP_PAL_RUNTIME=other), 'qualification pair/revision/digest/suite/runtime mismatch')
 base = os.environ['PP_PAL_RELEASE_API']
 mode = None
 class Proxy(http.server.BaseHTTPRequestHandler):
@@ -214,7 +214,7 @@ server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Proxy)
 thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
 try:
     for mode in ('wrapper-revision', 'upstream-revision', 'dependency-digest'):
-        refused(dict(os.environ, PP_PAL_RELEASE_API=f'http://127.0.0.1:{server.server_port}'), 'qualification pair/revision/digest/suite/image mismatch')
+        refused(dict(os.environ, PP_PAL_RELEASE_API=f'http://127.0.0.1:{server.server_port}'), 'qualification pair/revision/digest/suite/runtime mismatch')
 finally: server.shutdown(); server.server_close(); thread.join()
-print('PASS live fixed-check qualification rejects source tree, image, trusted suite, wrapper/upstream revisions and dependency digest mismatches')
+print('PASS live fixed-check qualification rejects source tree, runtime, trusted suite, wrapper/upstream revisions and dependency digest mismatches')
 PY

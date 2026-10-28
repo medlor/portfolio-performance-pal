@@ -3,6 +3,11 @@ Usage: pp-pal COMMAND [OPTIONS]
 Updates:
   --update [--file PATH] [--config PATH]  Validate and activate released pairs locally.
   Requires a stable wrapper bootstrap release; no usable release exists yet.
+  An unsupported Portfolio Performance release stops with UPGRADE REQUIRED and
+  an agent prompt; see UPGRADE.md.
+  --update --local-upgrade CHECKOUT [--file PATH] [--config PATH]
+                                          Qualify and activate a committed agent
+                                          upgrade checkout (UPGRADE.md).
 
 Models:
   Tested ID-reference XML input 69/70; output 70. Preview discloses 69 -> 70.
@@ -25,7 +30,7 @@ Shared options:
   --config PATH               Select UTF-8 pp-pal.properties configuration.
   --securities-account ID|NAME  Stable ID or exact unique securities account name.
   --cash-account ID|NAME      Stable ID or exact unique cash account name.
-  --help                     Show this help without Docker or a portfolio.
+  --help                     Show this help without a runtime or a portfolio.
 
 Holdings options:
   --security IDENTIFIER|TEXT  Exact ID/ISIN/WKN/ticker, or name substring.

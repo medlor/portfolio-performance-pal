@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/purchase-apply.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 export PP_PAL_NOW=2026-10-07T12:00:00Z
 if [[ ${2:-} != --boundaries-only ]]; then
@@ -29,27 +29,29 @@ cmp portfolio_performance.xml.pp-pal.json metadata-before
 test "$(stat -c %a portfolio_performance.xml)" = 600
 test "$(stat -c %u portfolio_performance.xml)" = "$(id -u)"
 test "$(stat -c %g portfolio_performance.xml)" = "$(id -g)"
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" -v "$work:/work:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PurchaseAppliedOracle.java /fixtures/v1/portfolio.xml /work/portfolio_performance.xml 1
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" PurchaseAppliedOracle "$root/fixtures"/v1/portfolio.xml "$work"/portfolio_performance.xml 1
 echo 'PASS declared desktop-closed fresh purchase commits linked entries with exact daily recovery and preserved complete unrelated model'
 fi
 export PP_PAL_TEST_ROOT="$root"
-python3 -u - "$PP_PAL_IMAGE" <<'PY'
+python3 -u - "$PP_PAL_RUNTIME" <<'PY'
 #!/usr/bin/env python3
 """Actual Linux container/filesystem cases; all financial oracles use pinned Java."""
 import datetime, fcntl, hashlib, os, pathlib, shutil, signal, socket, struct, subprocess, sys, tempfile, threading
 ROOT = pathlib.Path(os.environ["PP_PAL_TEST_ROOT"])
-IMAGE = sys.argv[1]
+RUNTIME = sys.argv[1]
 NOW = '2026-10-07T12:00:00Z'
-BUY = ['purchase', '--file', '/work/portfolio.xml', '--security', 'DE0000000001', '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A', '--date', '2025-03-01', '--quantity', '2.5', '--price', '10', '--fees', '1', '--taxes', '.5', '--apply', '--desktop-closed']
+BUY = ['purchase', '--file', 'portfolio.xml', '--security', 'DE0000000001', '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A', '--date', '2025-03-01', '--quantity', '2.5', '--price', '10', '--fees', '1', '--taxes', '.5', '--apply', '--desktop-closed']
 SOURCE = (ROOT / 'fixtures/v1/portfolio.xml').read_bytes()
 
 def check(value, message):
     if not value: raise AssertionError(message)
 
 def run(work, args=BUY, now=NOW, observer=False):
-    command = ['docker', 'run', '--rm', '--network', 'none', '--user', f'{os.getuid()}:{os.getgid()}', '-v', f'{work}:/work:rw', '--env', f'PP_PAL_NOW={now}']
-    if observer: command += ['--env', 'PP_PAL_WRITE_OBSERVER=/work/observer.sock']
-    return subprocess.run(command + [IMAGE] + args, text=True, capture_output=True)
+    # Direct engine invocation in the case directory; argument paths are relative to it.
+    environment = dict(os.environ, PP_PAL_RUNTIME=RUNTIME, PP_PAL_NOW=now)
+    environment.pop('PP_PAL_WRITE_OBSERVER', None)
+    if observer: environment['PP_PAL_WRITE_OBSERVER'] = str(work / 'observer.sock')
+    return subprocess.run([str(ROOT / 'tools/engine'), 'main', *args], cwd=work, env=environment, text=True, capture_output=True)
 
 def fixture(base, name):
     work = base / name; work.mkdir(); (work / 'portfolio.xml').write_bytes(SOURCE); (work / 'portfolio.xml').chmod(0o600)
@@ -64,7 +66,7 @@ def expect(result, code, text):
     check(result.returncode == code and text in result.stdout + result.stderr, f'expected {code} {text}: {result.returncode}\n{result.stdout}\n{result.stderr}')
 
 def oracle(work, count=1):
-    result = subprocess.run(['python3', str(ROOT/'tests/oracle.py'), 'run', '--rm', '--network', 'none', '--user', f'{os.getuid()}:{os.getgid()}', '-v', f'{ROOT}/fixtures:/fixtures:ro', '-v', f'{ROOT}/runtime/src/test/java:/tests:ro', '-v', f'{work}:/work:ro', '--entrypoint', 'java', IMAGE, '-cp', '/opt/pp/classes:/opt/pp/lib/*', '/tests/pal/PurchaseAppliedOracle.java', '/fixtures/v1/portfolio.xml', '/work/portfolio.xml', str(count)], text=True, capture_output=True)
+    result = subprocess.run(['python3',str(ROOT/'tests/oracle.py'),os.environ['PP_PAL_RUNTIME'],'PurchaseAppliedOracle', f'{ROOT}/fixtures/v1/portfolio.xml', f'{work}/portfolio.xml', str(count)], text=True, capture_output=True)
     check(result.returncode == 0, result.stdout + result.stderr)
 
 def observe(work, action):
@@ -135,7 +137,7 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-write-boundaries-') as temporary
     check('portfolio.xml.2026-10-07.bak.kind' not in (work/'portfolio.xml.pp-pal-backups.properties').read_text(), 'foreign backup adopted'); oracle(work)
     expect(run(work), 0, 'APPLIED PURCHASE'); check(daily.read_bytes()==sentinel, 'second daily overwritten'); oracle(work, 2)
     work=fixture(base,'required-index-failure')
-    expect(run(work,['backup-monthly','--file','/work/portfolio.xml']),0,'')
+    expect(run(work,['backup-monthly','--file','portfolio.xml']),0,'')
     (work/'portfolio.xml.pp-pal-backups.properties').chmod(0o400)
     expect(run(work),3,'index is not writable'); unchanged(work)
     check(not (work/'portfolio.xml.2026-10-07.bak').exists(),'required protection failure created daily')
@@ -163,7 +165,7 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-write-boundaries-') as temporary
         if name != 'post-receipt-permission': check((work/'portfolio.xml.2024-10-01.bak').exists(), 'failed cleanup pruned')
         work.chmod(0o700); (work/'portfolio.xml.pp-pal-backups.properties').chmod(0o600); (work/'portfolio.xml.pp-pal-write.properties').chmod(0o600)
         expect(run(work), 4, 'Previous financial replacement already succeeded'); check((work/'portfolio.xml').read_bytes()==output, 'pending repeat inserted')
-        expect(run(work, ['purchase','--file','/work/portfolio.xml','--recover-write','--desktop-closed']), 0, 'no financial records inserted')
+        expect(run(work, ['purchase','--file','portfolio.xml','--recover-write','--desktop-closed']), 0, 'no financial records inserted')
         check((work/'portfolio.xml').read_bytes()==output and not (work/'portfolio.xml.2024-10-01.bak').exists(), 'recovery changed financial state or failed cleanup')
     print('PASS postreplacement failures report committed exit4, block replay, and verified recovery only finishes cleanup', flush=True)
 
@@ -176,7 +178,7 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-write-boundaries-') as temporary
         if phase=='before-final-check': unchanged(work); text='NO FINANCIAL CHANGE'
         else: oracle(work); text='no financial records inserted'; expect(run(work),4,'Previous financial replacement already succeeded')
         output=(work/'portfolio.xml').read_bytes()
-        expect(run(work,['purchase','--file','/work/portfolio.xml','--recover-write','--desktop-closed']),0,text)
+        expect(run(work,['purchase','--file','portfolio.xml','--recover-write','--desktop-closed']),0,text)
         check((work/'portfolio.xml').read_bytes()==output, 'interruption recovery replayed')
     print('PASS deterministic process interruption before/after rename resolves exact input/output without replay', flush=True)
 

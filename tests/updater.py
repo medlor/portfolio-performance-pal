@@ -25,7 +25,12 @@ if not os.environ.get('PP_PAL_TEST_BUDGET'):
 sys.path.insert(0, str(ROOT / 'tools'))
 from test_jobs import parallel_cases
 
-IMAGE = sys.argv[1] if len(sys.argv) > 1 else os.environ.get('PP_PAL_IMAGE', 'pp-pal:0.88.0')
+import runtime_dir
+
+DEFAULT_STATE = pathlib.Path(os.environ.get('XDG_STATE_HOME', str(pathlib.Path.home() / '.local/state'))) / 'pp-pal'
+RUNTIME = str(pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else os.environ.get('PP_PAL_RUNTIME', str(DEFAULT_STATE / 'runtimes/dev'))).absolute())
+# Public archives (PP source/release, Temurin JDK) are cached by digest across fresh test states.
+ARCHIVES = os.environ.get('PP_PAL_ARCHIVE_CACHE', str(pathlib.Path(tempfile.gettempdir()) / 'pp-pal-test-public-archives'))
 
 class ReleaseServer(http.server.ThreadingHTTPServer):
     def __init__(self):
@@ -70,9 +75,9 @@ def server():
         thread.join()
 
 def run(work, api, *args, **changes):
-    environment = dict(os.environ, PP_PAL_IMAGE=IMAGE, PP_PAL_STATE_DIR=str(work / 'state'),
+    environment = dict(os.environ, PP_PAL_RUNTIME=RUNTIME, PP_PAL_STATE_DIR=str(work / 'state'),
                        PP_PAL_RELEASE_API=f'http://127.0.0.1:{api.server_port}',
-                       PP_PAL_NOW='2026-10-07T12:00:00Z')
+                       PP_PAL_NOW='2026-10-07T12:00:00Z', PP_PAL_ARCHIVE_CACHE=ARCHIVES)
     environment.update(changes)
     command = [str(ROOT / 'pp-pal'), *args]
     with subprocess.Popen(command, cwd=work, env=environment, text=True,
@@ -140,13 +145,13 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-updater-') as temporary, server(
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
-def released_snapshot(work, api, tag='v0.1.0', mutate=None):
+def released_snapshot(work, api, tag='0.88.0', mutate=None):
     package = work / ('released-' + tag)
     existing = package.exists()
     if not existing: package.mkdir()
     for name in (() if existing else ('runtime', 'tools', 'tests', 'fixtures')):
         shutil.copytree(ROOT / name, package / name, ignore=shutil.ignore_patterns('__pycache__'))
-    for name in (() if existing else ('pp-pal', 'Dockerfile', '.dockerignore')):
+    for name in (() if existing else ('pp-pal',)):
         shutil.copyfile(ROOT / name, package / name)
     (package / 'pp-pal').chmod(0o755)
     if mutate and not existing:
@@ -167,9 +172,9 @@ def released_snapshot(work, api, tag='v0.1.0', mutate=None):
     return revision
 
 def public_archive(name, url, digest, previous):
-    cache = pathlib.Path(tempfile.gettempdir()) / 'pp-pal-test-public-archives'
-    cache.mkdir(exist_ok=True)
-    target = cache / name
+    cache = pathlib.Path(ARCHIVES)
+    cache.mkdir(parents=True, exist_ok=True)
+    target = cache / (digest + '.tar.gz')
     for candidate in (target, pathlib.Path(previous)):
         if candidate.is_file() and sha(candidate.read_bytes()) == digest:
             return candidate.read_bytes()
@@ -194,6 +199,176 @@ def upstream_release(api):
     api.routes[repo + '/tarball/' + revision] = source
     api.routes['/assets/' + asset] = dependency
 
+def relabel_upstream(api, tag):
+    """Publish the pinned upstream source/assets under a new stable tag the wrapper does not support."""
+    repo = '/repos/portfolio-performance/portfolio'
+    revision = '8de1fe41d71a2c1b74a6bfbe913f885899aaf123'
+    latest = api.routes[repo + '/releases/latest']
+    data = api.routes['/assets/' + latest['assets'][0]['name']]
+    asset = 'PortfolioPerformance-' + tag + '-linux.gtk.x86_64.tar.gz'
+    api.routes['/assets/' + asset] = data
+    api.routes[repo + '/releases/latest'] = {'tag_name': tag, 'draft': False, 'prerelease': False,
+        'assets': [{'name': asset, 'digest': 'sha256:' + sha(data),
+                    'browser_download_url': f'http://127.0.0.1:{api.server_port}/assets/' + asset}]}
+    api.routes[repo + '/git/ref/tags/' + tag] = {'object': {'type': 'commit', 'sha': revision}}
+    return revision
+
+def unsupported_upstream():
+    """A stable upstream release without tested support stops every operation with an agent prompt."""
+    import shlex
+    with tempfile.TemporaryDirectory(prefix='pp-pal-unsupported-') as temporary, server() as api:
+        work = pathlib.Path(temporary)
+        selected = work / "my 'quoted' portfolio.xml"
+        shutil.copyfile(ROOT / 'fixtures/v1/portfolio.xml', selected)
+        original = selected.read_bytes()
+        metadata = selected.with_name(selected.name + '.pp-pal.json')
+        metadata.write_bytes(b'opaque unsupported-upgrade metadata\n')
+        released_snapshot(work, api)
+        upstream_release(api)
+        revision = relabel_upstream(api, '0.88.1-fixture')
+        purchase = ['purchase', '--file', str(selected), '--security', 'DE0000000001',
+                    '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A',
+                    '--date', '2025-03-01', '--quantity', '2.5', '--price', '10', '--apply', '--desktop-closed']
+        for argv in (purchase, ['--update', '--file', str(selected)]):
+            result = run(work, api, *argv)
+            check(result.returncode == 3, f'Unsupported upstream must stop with 3: {result.returncode} {result.stderr}')
+            check('UPGRADE REQUIRED: Portfolio Performance 0.88.1-fixture (' + revision + ') has no tested pp-pal support.'
+                  in result.stderr, result.stderr)
+            check(str(ROOT / 'UPGRADE.md') in result.stderr, 'Prompt does not name UPGRADE.md: ' + result.stderr)
+            last = [line for line in result.stderr.splitlines() if line.strip()][-1]
+            check(shlex.split(last) == [str(ROOT / 'pp-pal'), *argv], 'Prompt does not reproduce the original command: ' + last)
+            request = json.loads((work / 'state/upgrades/0.88.1-fixture/request.json').read_text())
+            check(request['schema'] == 1 and request['argv'] == argv and request['cwd'] == str(work)
+                  and request['upstream'] == {'tag': '0.88.1-fixture', 'revision': revision}
+                  and request['prompt'] in result.stderr, request)
+            check(selected.read_bytes() == original and metadata.read_bytes() == b'opaque unsupported-upgrade metadata\n',
+                  'Unsupported upstream changed portfolio or metadata')
+            check(not list(work.glob(selected.name + '.pp-pal.update.*.bak')), 'Unsupported upstream created an update backup')
+            check(not (work / 'state/builds').exists() or not list((work / 'state/builds').iterdir()), 'Unsupported upstream started a build')
+            check(not (work / 'state/active.json').exists(), 'Unsupported upstream activated a pair')
+            check(not any('/portfolio/tarball/' in path or '/assets/' in path for path in api.requests), 'Unsupported upstream downloaded sources')
+        print('PASS unsupported upstream stops before backup/build with an exact agent prompt and saved request')
+
+def local_upgrade():
+    """An agent upgrade checkout is validated, activated locally, serves the resumed command, and yields to a later release."""
+    import shlex
+    with tempfile.TemporaryDirectory(prefix='pp-pal-local-upgrade-') as temporary, server() as api:
+        work = pathlib.Path(temporary)
+        selected = work / 'owner portfolio.xml'
+        shutil.copyfile(ROOT / 'fixtures/v1/portfolio.xml', selected)
+        original = selected.read_bytes()
+        released = work / 'released-0.88.0'
+        released_snapshot(work, api)
+        upstream_release(api)
+        revision = relabel_upstream(api, '0.88.1-fixture')
+        # The standard fixture purchase (PurchaseAppliedOracle expects booked 26.50).
+        purchase = ['purchase', '--file', str(selected), '--security', 'DE0000000001',
+                    '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A',
+                    '--date', '2025-03-01', '--quantity', '2.5', '--price', '10', '--fees', '1', '--taxes', '.5',
+                    '--apply', '--desktop-closed']
+        result = run(work, api, *purchase)
+        check(result.returncode == 3 and 'UPGRADE REQUIRED' in result.stderr, result.stderr)
+        request = json.loads((work / 'state/upgrades/0.88.1-fixture/request.json').read_text())
+        git = ['git', '-c', 'user.name=Upgrade Agent', '-c', 'user.email=agent@example.invalid']
+        def checkout(name, *changes):
+            target = work / name
+            subprocess.run(['git', 'clone', '-q', str(released), str(target)], check=True)
+            policy_path = target / 'runtime/release-package.json'
+            policy = json.loads(policy_path.read_text())
+            policy['upstream'].update(tag='0.88.1-fixture', releaseAsset='PortfolioPerformance-0.88.1-fixture-linux.gtk.x86_64.tar.gz')
+            policy_path.write_text(json.dumps(policy, indent=2) + '\n')
+            for change in changes:
+                change(target)
+            subprocess.run([*git, '-C', str(target), 'commit', '-qam', 'Support Portfolio Performance 0.88.1-fixture'], check=True)
+            return target, subprocess.check_output(['git', '-C', str(target), 'rev-parse', 'HEAD'], text=True).strip()
+        def adapt_holdings(target):
+            gate = target / 'tests/holdings.sh'
+            gate.write_text(gate.read_text() + '# adapted for 0.88.1-fixture\n')
+        def drop_sale_gate(target):
+            gates = target / 'runtime/candidate-gates.json'
+            registry = json.loads(gates.read_text())
+            registry['checks'].remove('tests/sale.sh')
+            gates.write_text(json.dumps(registry, indent=2) + '\n')
+        upgrade = lambda path: run(work, api, '--update', '--local-upgrade', str(path), '--file', str(selected))
+        # (a) A dirty checkout is refused before anything else.
+        dirty, _ = checkout('dirty-checkout', adapt_holdings)
+        (dirty / 'uncommitted.txt').write_text('agent scratch\n')
+        result = upgrade(dirty)
+        check(result.returncode == 2 and 'must be clean and committed' in result.stderr, result.stderr)
+        check(not (work / 'state/active.json').exists(), 'Dirty checkout activated')
+        # (b) Removing a trusted gate is refused before any build.
+        gateless, _ = checkout('gateless-checkout', drop_sale_gate)
+        result = upgrade(gateless)
+        check(result.returncode == 3 and 'removes trusted gate tests/sale.sh' in result.stderr, result.stderr)
+        check(not (work / 'state/runtimes').exists() or not list((work / 'state/runtimes').iterdir()), 'Gate removal started a build')
+        print('PASS local upgrade refuses dirty checkouts and removed gates before building')
+        # (c) A clean checkout with an adapted gate is qualified and activated locally.
+        valid, commit = checkout('checkout', adapt_holdings)
+        result = upgrade(valid)
+        check(result.returncode == 0, result.stderr + result.stdout)
+        changes = result.stdout.split('TRUSTED CHANGES', 1)[1]
+        check('changed tests/holdings.sh' in changes, result.stdout)
+        check(f'ACTIVATED local-upgrade 0.88.1-fixture-{commit[:12]}' in result.stdout, result.stdout)
+        active = json.loads((work / 'state/active.json').read_text())
+        check(active['source'] == 'local-upgrade' and active['identity'] == '0.88.1-fixture-' + commit[:12]
+              and active['wrapper']['revision'] == commit and active['upstream']['tag'] == '0.88.1-fixture'
+              and active['upstream']['revision'] == revision and 'tests/holdings.sh' in active['trustedChanges']['changed'], active)
+        check((work / f'state/trusted-validation.previous-{commit}').is_dir(), 'Previous trusted bundle not retained')
+        check(selected.read_bytes() == original, 'Local upgrade changed the portfolio')
+        print('PASS clean local upgrade qualifies adapted gates, reports trusted changes and activates the local pair')
+        # (d) The saved request resumes exactly and applies with the local pair.
+        result = run(pathlib.Path(request['cwd']), api, *request['argv'])
+        check(result.returncode == 0 and 'APPLIED PURCHASE' in result.stdout
+              and 'ENGINE RUNTIME 0.88.1-fixture-' + commit[:12] in result.stdout, result.stderr + result.stdout)
+        check('UNCHANGED validated local-upgrade pair' in result.stderr, result.stderr)
+        oracle = subprocess.run([sys.executable, str(ROOT / 'tests/oracle.py'), active['runtime'], 'PurchaseAppliedOracle',
+                                 str(ROOT / 'fixtures/v1/portfolio.xml'), str(selected), '1'], text=True, capture_output=True)
+        check(oracle.returncode == 0, oracle.stderr + oracle.stdout)
+        print('PASS resumed request applies unattended on the local upgrade pair ' + active['identity'])
+        # (e) A later stable release (tagged like the upstream it supports) replaces the local pair.
+        def declare_support(package):
+            policy_path = package / 'runtime/release-package.json'
+            policy = json.loads(policy_path.read_text())
+            policy['upstream'].update(tag='0.88.1-fixture', releaseAsset='PortfolioPerformance-0.88.1-fixture-linux.gtk.x86_64.tar.gz')
+            policy_path.write_text(json.dumps(policy, indent=2) + '\n')
+        release_revision = released_snapshot(work, api, tag='0.88.1-fixture', mutate=declare_support)
+        result = run(work, api, '--update', '--file', str(selected))
+        check(result.returncode == 0, result.stderr + result.stdout)
+        replaced = json.loads((work / 'state/active.json').read_text())
+        check(replaced['wrapper']['revision'] == release_revision and replaced.get('source') != 'local-upgrade'
+              and replaced['previous']['source'] == 'local-upgrade', replaced)
+        print('PASS later stable release supporting the upstream replaces the local upgrade pair')
+
+def mismatched_wrapper_tag():
+    """A wrapper release whose tag is not its supported PP tag is refused before backup or build."""
+    with tempfile.TemporaryDirectory(prefix='pp-pal-wrapper-tag-') as temporary, server() as api:
+        work = pathlib.Path(temporary)
+        selected = work / 'portfolio.xml'
+        shutil.copyfile(ROOT / 'fixtures/v1/portfolio.xml', selected)
+        original = selected.read_bytes()
+        released_snapshot(work, api, tag='v0.1.0')
+        upstream_release(api)
+        result = run(work, api, '--update', '--file', str(selected))
+        check(result.returncode == 3 and 'Wrapper release tag v0.1.0 does not match its supported Portfolio Performance release 0.88.0' in result.stderr,
+              result.stderr)
+        check(selected.read_bytes() == original and not list(work.glob('portfolio.xml.pp-pal.update.*.bak')), 'Tag refusal changed or backed up the portfolio')
+        check(not (work / 'state/builds').exists() or not list((work / 'state/builds').iterdir()), 'Tag refusal started a build')
+        check(not (work / 'state/active.json').exists(), 'Tag refusal activated a pair')
+        print('PASS wrapper release tag must equal its supported Portfolio Performance tag')
+
+if '--local-upgrade-slice' in sys.argv[2:]:
+    local_upgrade()
+    sys.exit(0)
+if '--unsupported-slice' in sys.argv[2:]:
+    mismatched_wrapper_tag()
+    unsupported_upstream()
+    sys.exit(0)
+if not sys.argv[2:]:
+    # The cumulative run covers the unsupported-release stop and the agent local upgrade too.
+    mismatched_wrapper_tag()
+    unsupported_upstream()
+    local_upgrade()
+
 @contextlib.contextmanager
 def released_work():
     # Optional developer cache preserves an ACTUALLY validated fixture between slices.
@@ -215,16 +390,16 @@ with released_work() as temporary, server() as api:
     metadata = work / 'selected portfolio.xml.pp-pal.json'
     metadata.write_bytes(b'opaque adjacent import metadata sentinel\n')
     def marker(package):
-        target = package / 'tools/run-container'
+        target = package / 'tools/run-engine'
         text = target.read_text()
         target.write_text(text.replace('set -euo pipefail', 'set -euo pipefail\necho RELEASED-LAUNCHER-FIXTURE >&2', 1))
     prior_attempts = len(list(work.glob('selected portfolio.xml.pp-pal.update.*.bak')))
     was_active = (work / 'state/active.json').exists()
     if not was_active:
         # Distinct baseline coverage runs once before qualifying the new released pair.
-        baseline_env = dict(os.environ, PP_PAL_IMAGE=IMAGE, PP_PAL_STATE_DIR=str(work/'baseline-state'))
+        baseline_env = dict(os.environ, PP_PAL_RUNTIME=RUNTIME, PP_PAL_STATE_DIR=str(work/'baseline-state'))
         classes = work / 'baseline-oracle-classes'
-        subprocess.run([sys.executable, str(ROOT/'tests/oracle.py'), '--compile', IMAGE, str(classes)], check=True)
+        subprocess.run([sys.executable, str(ROOT/'tests/oracle.py'), '--compile', RUNTIME, str(classes)], check=True)
         baseline_env['PP_PAL_TEST_CLASSES'] = str(classes)
         def baseline_gate(gate):
             environment = dict(baseline_env, PP_PAL_STATE_DIR=str(work / ('baseline-state-' + gate)))
@@ -242,7 +417,10 @@ with released_work() as temporary, server() as api:
     active = json.loads((work / 'state/active.json').read_text())
     check(active['wrapper']['revision'] == revision, active)
     check(active['upstream']['revision'] == '8de1fe41d71a2c1b74a6bfbe913f885899aaf123', active)
-    check(active['image'].startswith('sha256:'), active)
+    runtime = pathlib.Path(active['runtime'])
+    check(runtime.parent == work / 'state/runtimes' and runtime.name == active['identity']
+          and runtime_dir.read_runtime(runtime)['identity'] == active['identity'], active)
+    check(active['identity'] == '0.88.0-' + revision[:12], active)
     check(selected.read_bytes() == original, 'Successful update replaced original')
     check(len(list(work.glob('selected portfolio.xml.pp-pal.update.*.bak'))) == prior_attempts + (0 if was_active else 1), 'Actual update attempt lacks exact snapshot')
     for context in (work / 'state/builds').iterdir():
@@ -265,11 +443,11 @@ with released_work() as temporary, server() as api:
     request_count = len(api.requests)
     result = run(work, api, 'import', '--file', str(selected), '--pdf', str(pdf), '--securities-account', 'Synthetic Securities A', '--cash-account', 'Synthetic Cash A')
     check(result.returncode == 0 and 'PREVIEW PDF PURCHASE DOCUMENT' in result.stdout and 'BOOKED DEBIT EUR 51.00 (PDF)' in result.stdout, result.stderr + result.stdout)
-    check('UNCHANGED' in result.stderr and 'ENGINE IMAGE ' + active['image'] in result.stdout, 'PDF preview did not use the freshly checked fixed pair')
+    check('UNCHANGED' in result.stderr and 'ENGINE RUNTIME ' + active['identity'] in result.stdout, 'PDF preview did not use the freshly checked fixed pair')
     check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:] and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'PDF preview omitted mandatory releases')
     check(pdf.read_bytes() == pdf_original and selected.read_bytes() == original and metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'PDF preview changed document, portfolio or metadata')
     check(not list(work.glob('selected portfolio.xml.????-??-??.bak')) and not list(work.glob('selected portfolio.xml.pp-pal.migration.*.bak')), 'PDF preview created daily/migration backups')
-    print('PASS mandatory-release fixed-engine PDF preview preserves statement, financial input and opaque sidecar on released image ' + active['image'])
+    print('PASS mandatory-release fixed-engine PDF preview preserves statement, financial input and opaque sidecar on released runtime ' + active['identity'])
     pdf_file = work / 'PDF applied portfolio.xml'
     pdf_file.write_bytes(original)
     pdf_args = ('import', '--file', str(pdf_file), '--pdf', str(ROOT/'fixtures/v1/pdf-purchase/two-purchases.pdf'),
@@ -285,7 +463,7 @@ with released_work() as temporary, server() as api:
     released_snapshot(work, api, mutate=marker)
     result = run(work, api, *pdf_args, '--allow-suspected-duplicates')
     check(result.returncode == 0 and 'APPLIED PDF PURCHASE DOCUMENT' in result.stdout
-          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+          and 'ENGINE RUNTIME ' + active['identity'] in result.stdout, result.stderr + result.stdout)
     check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:]
           and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'PDF apply omitted mandatory releases')
     applied_pdf_bytes = pdf_file.read_bytes()
@@ -301,7 +479,7 @@ with released_work() as temporary, server() as api:
     request_count = len(api.requests)
     result = run(work, api, *pdf_sale_args)
     check(result.returncode == 0 and 'PREVIEW PDF SALE DOCUMENT' in result.stdout
-          and 'BOOKED CREDIT EUR 23.50 (PDF)' in result.stdout and 'ENGINE IMAGE ' + active['image'] in result.stdout,
+          and 'BOOKED CREDIT EUR 23.50 (PDF)' in result.stdout and 'ENGINE RUNTIME ' + active['identity'] in result.stdout,
           result.stderr + result.stdout)
     check(pdf_sale_file.read_bytes() == original, 'Owner PDF sale preview changed portfolio')
     check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:]
@@ -315,7 +493,7 @@ with released_work() as temporary, server() as api:
         api.routes[route] = release
     result = run(work, api, *pdf_sale_args, '--apply', '--desktop-closed', '--allow-suspected-duplicates')
     check(result.returncode == 0 and 'APPLIED PDF SALE DOCUMENT' in result.stdout
-          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+          and 'ENGINE RUNTIME ' + active['identity'] in result.stdout, result.stderr + result.stdout)
     pdf_sale_bytes = pdf_sale_file.read_bytes()
     result = run(work, api, *pdf_sale_args, '--apply', '--desktop-closed')
     check(result.returncode == 0 and 'SKIPPED PDF SALE DOCUMENT' in result.stdout
@@ -328,7 +506,7 @@ with released_work() as temporary, server() as api:
     request_count = len(api.requests)
     result = run(work, api, *pdf_dividend_args)
     check(result.returncode == 0 and 'PREVIEW PDF DIVIDEND DOCUMENT' in result.stdout
-          and 'BOOKED CREDIT EUR 23.50 (PDF)' in result.stdout and 'ENGINE IMAGE ' + active['image'] in result.stdout,
+          and 'BOOKED CREDIT EUR 23.50 (PDF)' in result.stdout and 'ENGINE RUNTIME ' + active['identity'] in result.stdout,
           result.stderr + result.stdout)
     check(pdf_dividend_file.read_bytes() == original, 'Owner PDF dividend preview changed portfolio')
     check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:]
@@ -341,7 +519,7 @@ with released_work() as temporary, server() as api:
         api.routes[route] = release
     result = run(work, api, *pdf_dividend_args, '--apply', '--desktop-closed')
     check(result.returncode == 0 and 'APPLIED PDF DIVIDEND DOCUMENT' in result.stdout
-          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+          and 'ENGINE RUNTIME ' + active['identity'] in result.stdout, result.stderr + result.stdout)
     pdf_dividend_bytes = pdf_dividend_file.read_bytes()
     result = run(work, api, *pdf_dividend_args, '--apply', '--desktop-closed', '--allow-suspected-duplicates')
     check(result.returncode == 0 and 'SKIPPED PDF DIVIDEND DOCUMENT' in result.stdout
@@ -355,7 +533,7 @@ with released_work() as temporary, server() as api:
     request_count = len(api.requests)
     result = run(work, api, *sale_args)
     check(result.returncode == 0 and 'PREVIEW SALE' in result.stdout and 'BOOKED CREDIT EUR 23.50' in result.stdout
-          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+          and 'ENGINE RUNTIME ' + active['identity'] in result.stdout, result.stderr + result.stdout)
     check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:]
           and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'Sale omitted mandatory releases')
     check(sale_file.read_bytes() == original, 'Sale preview changed portfolio')
@@ -369,7 +547,7 @@ with released_work() as temporary, server() as api:
         api.routes[route] = release
     result = run(work, api, *sale_args, '--apply', '--desktop-closed')
     check(result.returncode == 0 and 'APPLIED SALE' in result.stdout and sale_file.read_bytes() != original
-          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+          and 'ENGINE RUNTIME ' + active['identity'] in result.stdout, result.stderr + result.stdout)
     print('PASS mandatory released-pair sale preview/application and release-failure immutability')
     dividend_file = work / 'dividend portfolio.xml'
     dividend_file.write_bytes(original)
@@ -378,7 +556,7 @@ with released_work() as temporary, server() as api:
     request_count = len(api.requests)
     result = run(work, api, *dividend_args)
     check(result.returncode == 0 and 'PREVIEW DIVIDEND' in result.stdout and 'GROSS EUR 25.00 (derived from booked + fees + taxes)' in result.stdout
-          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+          and 'ENGINE RUNTIME ' + active['identity'] in result.stdout, result.stderr + result.stdout)
     check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:]
           and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'Dividend omitted mandatory releases')
     check(dividend_file.read_bytes() == original, 'Dividend preview changed portfolio')
@@ -398,7 +576,7 @@ with released_work() as temporary, server() as api:
     check(not list(work.glob('dividend portfolio.xml.????-??-??.bak')), 'Rejected dividend created daily backup')
     result = run(work, api, *dividend_args, '--apply', '--desktop-closed')
     check(result.returncode == 0 and 'APPLIED DIVIDEND' in result.stdout and dividend_file.read_bytes() != original
-          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+          and 'ENGINE RUNTIME ' + active['identity'] in result.stdout, result.stderr + result.stdout)
     print('PASS mandatory released-pair dividend preview/application, release-failure and changed-input immutability')
     fx_purchased = None
     for command in ('purchase', 'sale', 'dividend'):
@@ -415,7 +593,7 @@ with released_work() as temporary, server() as api:
         request_count = len(api.requests)
         result = run(work, api, *fx_args)
         check(result.returncode == 0 and 'FOREIGN GROSS USD 25.00' in result.stdout
-              and 'GROSS EUR 20.00' in result.stdout and 'ENGINE IMAGE ' + active['image'] in result.stdout,
+              and 'GROSS EUR 20.00' in result.stdout and 'ENGINE RUNTIME ' + active['identity'] in result.stdout,
               result.stderr + result.stdout)
         check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:]
               and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'FX omitted mandatory releases')
@@ -436,7 +614,7 @@ with released_work() as temporary, server() as api:
         check(not list(work.glob(fx_file.name + '.????-??-??.bak')), 'Rejected FX created daily backup')
         result = run(work, api, *fx_args, '--apply', '--desktop-closed')
         check(result.returncode == 0 and 'APPLIED ' + command.upper() in result.stdout and fx_file.read_bytes() != content
-              and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+              and 'ENGINE RUNTIME ' + active['identity'] in result.stdout, result.stderr + result.stdout)
         check(fx_metadata.read_bytes() == b'opaque FX metadata\n', 'FX changed import metadata')
         if command == 'purchase': fx_purchased = fx_file.read_bytes()
     print('PASS all FX commands use mandatory fixed released pair; release/stale failures refuse changes and application preserves metadata')
@@ -446,7 +624,7 @@ with released_work() as temporary, server() as api:
             '--date', '2025-03-01', '--quantity', '2.5', '--price', '10', '--fees', '1', '--taxes', '.5')
         request_count = len(api.requests)
         result = run(work, api, *creation_args)
-        check(result.returncode == 0 and ' (create)' in result.stdout and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+        check(result.returncode == 0 and ' (create)' in result.stdout and 'ENGINE RUNTIME ' + active['identity'] in result.stdout, result.stderr + result.stdout)
         check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:] and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'Creation omitted mandatory releases')
         check(selected.read_bytes() == original, 'Creation preview changed owner file')
         wrapper_route = '/repos/medlor/portfolio-performance-pal/releases/latest'
@@ -463,15 +641,14 @@ with released_work() as temporary, server() as api:
         check(not list(work.glob('selected portfolio.xml.????-??-??.bak')), 'Rejected creation created daily backup')
         request_count = len(api.requests)
         result = run(work, api, *creation_args, '--apply', '--desktop-closed')
-        check(result.returncode == 0 and 'APPLIED PURCHASE' in result.stdout and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+        check(result.returncode == 0 and 'APPLIED PURCHASE' in result.stdout and 'ENGINE RUNTIME ' + active['identity'] in result.stdout, result.stderr + result.stdout)
         check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:] and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'Creation apply omitted mandatory releases')
         check(metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Creation changed import metadata')
         original_path = work / 'before-creation.xml'; original_path.write_bytes(original)
-        oracle = subprocess.run(['docker', 'run', '--rm', '--network', 'none', '--user', f'{os.getuid()}:{os.getgid()}',
-            '-v', f'{ROOT}/runtime/src/test/java:/tests:ro', '-v', f'{work}:/work:ro', '--entrypoint', 'java', active['image'],
-            '-cp', '/opt/pp/classes:/opt/pp/lib/*', '/tests/pal/SecurityCreatedOracle.java', '/work/before-creation.xml', '/work/selected portfolio.xml'], text=True, capture_output=True)
+        oracle = subprocess.run([sys.executable, str(ROOT/'tests/oracle.py'), active['runtime'], 'SecurityCreatedOracle',
+            str(work/'before-creation.xml'), str(work/'selected portfolio.xml')], text=True, capture_output=True)
         check(oracle.returncode == 0, oracle.stderr + oracle.stdout)
-        print('PASS mandatory released fixed-engine security creation preview/apply, stale/release refusal and pinned new-definition oracle on ' + active['image'])
+        print('PASS mandatory released fixed-engine security creation preview/apply, stale/release refusal and pinned new-definition oracle on ' + active['identity'])
         sys.exit(0)
 
     if '--pdf-slice' in sys.argv[2:]:
@@ -483,11 +660,11 @@ with released_work() as temporary, server() as api:
     request_count = len(api.requests)
     result = run(work, api, *purchase_args)
     check(result.returncode == 0 and 'PREVIEW PURCHASE' in result.stdout and 'BOOKED DEBIT EUR 26.50 (derived' in result.stdout, result.stderr + result.stdout)
-    check('UNCHANGED' in result.stderr and 'ENGINE IMAGE ' + active['image'] in result.stdout, 'Preview did not use the freshly checked fixed pair')
+    check('UNCHANGED' in result.stderr and 'ENGINE RUNTIME ' + active['identity'] in result.stdout, 'Preview did not use the freshly checked fixed pair')
     check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:] and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'Preview omitted mandatory releases')
     check(selected.read_bytes() == original and metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Preview changed financial/import bytes')
     check(not list(work.glob('selected portfolio.xml.????-??-??.bak')) and not list(work.glob('selected portfolio.xml.pp-pal.migration.*.bak')), 'Preview created daily/migration backups')
-    print('PASS mandatory-release fixed-engine purchase preview on released image ' + active['image'])
+    print('PASS mandatory-release fixed-engine purchase preview on released runtime ' + active['identity'])
     # Owner supplied qualification signals never grant candidate reuse.
     result = run(work, api, *purchase_args, PP_PAL_GATE_SOCKET=str(work / 'expired.sock'))
     check(result.returncode == 3 and 'qualification' in result.stderr.lower() and 'PREVIEW PURCHASE' not in result.stdout, result.stderr)
@@ -504,9 +681,9 @@ with released_work() as temporary, server() as api:
         result = run(work, api, *purchase_args, PP_PAL_GATE_SOCKET=fake_path)
         check(result.returncode == 3 and 'trusted updater' in result.stderr.lower() and 'PREVIEW PURCHASE' not in result.stdout, result.stderr)
     finally: fake.close(); fake_thread.join(timeout=5)
-    # A generic development-image override cannot change the checked active pair.
-    result = run(work, api, *purchase_args, PP_PAL_IMAGE='missing-owner-image')
-    check(result.returncode == 0 and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr)
+    # A generic development-runtime override cannot change the checked active pair.
+    result = run(work, api, *purchase_args, PP_PAL_RUNTIME=str(work / 'missing-owner-runtime'))
+    check(result.returncode == 0 and 'ENGINE RUNTIME ' + active['identity'] in result.stdout, result.stderr)
     wrapper_route = '/repos/medlor/portfolio-performance-pal/releases/latest'
     api.before[wrapper_route] = lambda: selected.write_bytes(original + b'\n')
     try:
@@ -520,7 +697,7 @@ with released_work() as temporary, server() as api:
         check(result.returncode == 3 and 'released wrapper' in result.stderr.lower() and 'PREVIEW PURCHASE' not in result.stdout, result.stderr)
     finally: api.routes[wrapper_route] = wrapper_release
     check(selected.read_bytes() == original and metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Failed preview protection changed financial bytes')
-    print('PASS owner-injected/forged qualification refused, fixed active image, selected stale and release failure stop before preview')
+    print('PASS owner-injected/forged qualification refused, fixed active runtime, selected stale and release failure stop before preview')
     if '--apply-slice' in sys.argv[2:]:
         api.before[wrapper_route] = lambda: selected.write_bytes(original + b'\n')
         try:
@@ -536,7 +713,7 @@ with released_work() as temporary, server() as api:
         check(selected.read_bytes() == original and not list(work.glob('selected portfolio.xml.????-??-??.bak')), 'Rejected apply created financial/daily changes')
         request_count = len(api.requests)
         result = run(work, api, *purchase_args, '--apply', '--desktop-closed')
-        check(result.returncode == 0 and 'APPLIED PURCHASE' in result.stdout and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stderr + result.stdout)
+        check(result.returncode == 0 and 'APPLIED PURCHASE' in result.stdout and 'ENGINE RUNTIME ' + active['identity'] in result.stdout, result.stderr + result.stdout)
         check('/repos/medlor/portfolio-performance-pal/releases/latest' in api.requests[request_count:] and '/repos/portfolio-performance/portfolio/releases/latest' in api.requests[request_count:], 'Apply omitted mandatory release checks')
         check((work / 'selected portfolio.xml.2026-10-07.bak').read_bytes() == original, 'Owner application daily backup not exact original')
         check(metadata.read_bytes() == b'opaque adjacent import metadata sentinel\n', 'Owner application changed metadata')
@@ -545,7 +722,7 @@ with released_work() as temporary, server() as api:
         check('state=complete' in receipt.read_text(), 'Owner application receipt not finalized')
         result = run(work, api, 'purchase', '--file', str(selected), '--recover-write', '--desktop-closed')
         check(result.returncode == 2 and 'No pending' in result.stderr and selected.read_bytes() == output, 'Completed receipt allowed replay/recovery')
-        print('PASS actual released-owner apply uses mandatory fixed pair, exact original daily snapshot and completed nonreplay receipt on ' + active['image'])
+        print('PASS actual released-owner apply uses mandatory fixed pair, exact original daily snapshot and completed nonreplay receipt on ' + active['identity'])
         sys.exit(0)
     if '--purchase-slice' in sys.argv[2:]:
         sys.exit(0)
@@ -558,12 +735,12 @@ with released_work() as temporary, server() as api:
     check((work / 'state/active.json').read_bytes() == before, 'Unchanged pair rewrote active manifest')
     check(len(list(work.glob('selected portfolio.xml.pp-pal.update.*.bak'))) == expected_attempts, 'Unchanged pair created attempt snapshot')
     check(not any('/tarball/' in path or '/assets/' in path for path in api.requests[request_count:]), 'Unchanged pair downloaded/build sources again')
-    result = run(work, api, 'holdings', '--file', str(selected), PP_PAL_IMAGE='missing-development-image')
+    result = run(work, api, 'holdings', '--file', str(selected), PP_PAL_RUNTIME=str(work / 'missing-development-runtime'))
     check(result.returncode == 0, result.stderr)
     check('RELEASED-LAUNCHER-FIXTURE' in result.stderr, 'Dispatch failed to select activated launcher implementation')
     check('Synthetic Securities A | Synthetic Euro Instrument | 6 | 2025-02-02T11:00:01' in result.stdout, result.stdout)
     check(selected.read_bytes() == original, 'Cache/dispatch changed selected portfolio')
-    print('PASS unchanged released pair reuses image without attempt backup and dispatch pins activated launcher/image')
+    print('PASS unchanged released pair reuses runtime without attempt backup and dispatch pins activated launcher/runtime')
 
     # An asset may be replaced while its immutable source tag stays unchanged.
     # That is a changed pair, not permission to reuse old dependency validation.
@@ -629,17 +806,13 @@ with released_work() as temporary, server() as api:
     migration_daily.write_bytes(b'previous daily owner snapshot\n')
     result = run(work, api, *migration_args, '--apply', '--desktop-closed')
     check(result.returncode == 0 and 'INPUT MODEL 69\nOUTPUT MODEL 70' in result.stdout
-          and 'ENGINE IMAGE ' + active['image'] in result.stdout, result.stdout + result.stderr)
+          and 'ENGINE RUNTIME ' + active['identity'] in result.stdout, result.stdout + result.stderr)
     migration_backups = list(work.glob('owner migration.xml.pp-pal.migration.*.bak'))
     check(len(migration_backups) == 1 and migration_backups[0].read_bytes() == migration_input, 'Migration protection differs from operation input')
     check(migration_daily.read_bytes() == b'previous daily owner snapshot\n'
           and migration_metadata.read_bytes() == b'opaque migration metadata\n', 'Migration replaced daily/import data')
-    subprocess.run(['python3', str(ROOT/'tests/oracle.py'), 'run', '--rm', '--network', 'none',
-                    '--user', f'{os.getuid()}:{os.getgid()}', '-v', f'{ROOT}/fixtures:/fixtures:ro',
-                    '-v', f'{ROOT}/runtime/src/test/java:/tests:ro', '-v', f'{work}:/work:ro',
-                    '--entrypoint', 'java', active['image'], '-cp', '/opt/pp/classes:/opt/pp/lib/*',
-                    '/tests/pal/PurchaseAppliedOracle.java', '/fixtures/v1/migrations/model69.xml',
-                    '/work/owner migration.xml', '1'], check=True)
+    subprocess.run(['python3', str(ROOT/'tests/oracle.py'), active['runtime'], 'PurchaseAppliedOracle',
+                    str(ROOT/'fixtures/v1/migrations/model69.xml'), str(work/'owner migration.xml'), '1'], check=True)
     print('PASS released owner update/preview preserve model69; financial apply alone persists a protected migration')
 
     requests_before = len(api.requests)
@@ -651,7 +824,7 @@ with released_work() as temporary, server() as api:
     check((work / 'state/active.json').read_bytes() == before, 'Competing update changed active pair')
     print('PASS competing updater lock stops before release or financial processing')
 
-    for target in (pathlib.Path(active['launcher']).parent / 'tools/run-container', work / 'state/trusted-validation/fixtures/v1/baader-buy.expected'):
+    for target in (pathlib.Path(active['launcher']).parent / 'tools/run-engine', work / 'state/trusted-validation/fixtures/v1/baader-buy.expected'):
         content = target.read_bytes()
         target.write_bytes(content + b'\nchanged fixture release content\n')
         result = run(work, api, 'holdings', '--file', str(selected))
@@ -673,7 +846,7 @@ with released_work() as temporary, server() as api:
                     save(client, Path.of(args[2]));'''
         check(needle in text, 'Synthetic candidate transformation no longer matches reviewed fixture source')
         source.write_text(text.replace(needle, replacement))
-    attack_revision = released_snapshot(work, api, tag='v0.2.0', mutate=tamper_selected_only)
+    attack_revision = released_snapshot(work, api, tag='0.88.0-2', mutate=tamper_selected_only)
     result = run(work, api, '--update', '--file', str(selected))
     check(result.returncode == 3, 'Candidate overwrote independent selected-copy oracle and activated: ' + result.stdout)
     check('CHECK START ' not in result.stdout, 'Selected-copy refusal ran expensive fixture qualification')
@@ -684,7 +857,7 @@ with released_work() as temporary, server() as api:
     def changed_bootstrap(package):
         target = package / 'tools/update.py'
         target.write_text(target.read_text() + '\n# changed released host orchestration\n')
-    released_snapshot(work, api, tag='v0.3.0', mutate=changed_bootstrap)
+    released_snapshot(work, api, tag='0.88.0-3', mutate=changed_bootstrap)
     result = run(work, api, '--update', '--file', str(selected))
     check(result.returncode == 3 and 'trusted-bootstrap maintenance' in result.stderr, result.stderr)
     check((work / 'state/active.json').read_bytes() == before, 'Unsupported host bootstrap change activated')
@@ -694,18 +867,25 @@ with released_work() as temporary, server() as api:
     def changed_scheduler(package):
         target = package / 'tools/test_jobs.py'
         target.write_text(target.read_text() + '\n# changed released scheduling helper\n')
-    released_snapshot(work, api, tag='v0.3.1', mutate=changed_scheduler)
+    released_snapshot(work, api, tag='0.88.0-4', mutate=changed_scheduler)
     result = run(work, api, '--update', '--file', str(selected))
     check(result.returncode == 3 and 'trusted-bootstrap maintenance' in result.stderr, result.stderr)
     check((work / 'state/active.json').read_bytes() == before, 'Unsupported scheduling helper activated')
     check(selected.read_bytes() == original, 'Scheduling helper rejection changed portfolio')
     print('PASS changed host scheduling helper is rejected while retaining the released engine pair')
 
-    retained_id = subprocess.check_output(['docker', 'image', 'inspect', active['image'], '--format', '{{.Id}}'], text=True).strip()
-    check(retained_id == active['image'], 'Earlier active immutable image vanished after newer builds')
-    permanent = 'pp-pal:retained-' + active['image'][7:]
-    check(subprocess.check_output(['docker', 'image', 'inspect', permanent, '--format', '{{.Id}}'], text=True).strip() == active['image'], 'Active engine lacks permanent image-derived retention root')
-    print('PASS baseline/active images retain immutable identities after later candidate builds')
+    # Later candidate builds never remove or alter the active runtime directory.
+    check(runtime_dir.read_runtime(pathlib.Path(active['runtime']))['identity'] == active['identity'], 'Active runtime vanished after newer builds')
+    check(not [path for path in pathlib.Path(active['runtime']).rglob('*') if os.access(path, os.W_OK) and not path.is_dir()],
+          'Active runtime files are writable')
+    check(pathlib.Path(active['baselineRuntime']) == pathlib.Path(RUNTIME) and runtime_dir.read_runtime(pathlib.Path(RUNTIME)), 'Baseline runtime vanished')
+    # Read-only runtimes must stay removable by their owner (cleanup and pruning).
+    with tempfile.TemporaryDirectory(prefix='pp-pal-runtime-removal-') as removal:
+        copy = pathlib.Path(removal) / active['identity']
+        shutil.copytree(active['runtime'], copy)
+        runtime_dir.remove_runtime(copy)
+        check(not copy.exists(), 'Read-only runtime copy could not be removed')
+    print('PASS baseline/active runtimes stay intact and read-only after later candidate builds and remain removable')
 
     # External edits remain intact; the updater must not activate from a stale snapshot.
     released_snapshot(work, api)  # reset latest metadata to the known valid pair
@@ -727,7 +907,7 @@ with released_work() as temporary, server() as api:
         target.write_text(text)
         (package / 'tests/all.sh').write_text('#!/usr/bin/env bash\nexit 0\n')
         (package / 'fixtures/v1/baader-buy.expected').write_text('candidate-controlled expectation\n')
-    bad_revision = released_snapshot(work, api, tag='v0.4.0', mutate=wrong_query_and_own_tests)
+    bad_revision = released_snapshot(work, api, tag='0.88.0-5', mutate=wrong_query_and_own_tests)
     attempts = len(list(work.glob('selected portfolio.xml.pp-pal.update.*.bak')))
     for retry in range(2):
         result = run(work, api, '--update', '--file', str(selected))
@@ -746,8 +926,9 @@ with released_work() as temporary, server() as api:
         paused.set()
         resume.wait(15)
     api.before[route] = pause_download
-    environment = dict(os.environ, PP_PAL_IMAGE=IMAGE, PP_PAL_STATE_DIR=str(work / 'state'),
-                       PP_PAL_RELEASE_API=f'http://127.0.0.1:{api.server_port}', PP_PAL_NOW='2026-10-07T12:00:00Z')
+    environment = dict(os.environ, PP_PAL_RUNTIME=RUNTIME, PP_PAL_STATE_DIR=str(work / 'state'),
+                       PP_PAL_RELEASE_API=f'http://127.0.0.1:{api.server_port}', PP_PAL_NOW='2026-10-07T12:00:00Z',
+                       PP_PAL_ARCHIVE_CACHE=ARCHIVES)
     process = subprocess.Popen([str(ROOT / 'pp-pal'), '--update', '--file', str(selected)], cwd=work, env=environment, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
         check(paused.wait(10), 'Interrupted update never reached the actual-attempt download boundary')
@@ -762,4 +943,4 @@ with released_work() as temporary, server() as api:
             process.wait()
     check((work / 'state/active.json').read_bytes() == before, 'Interrupted update activated')
     check(selected.read_bytes() == original, 'Interrupted update changed selected file')
-    print('PASS interrupted protected update retains the previous activated implementation/image')
+    print('PASS interrupted protected update retains the previous activated implementation/runtime')

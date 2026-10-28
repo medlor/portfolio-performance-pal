@@ -3,8 +3,8 @@
 ## Choose the test boundary
 
 Run broad financial behavior cases (amounts, historical balances, timestamps,
-selectors, and persistence) through `tools/run-container`. In candidate gates,
-use `PP_PAL_BEHAVIOR_LAUNCHER` to exercise the exact released container launcher.
+selectors, and persistence) through `tools/run-engine`. In candidate gates,
+use `PP_PAL_BEHAVIOR_LAUNCHER` to exercise the exact released engine launcher.
 Keep representative successful preview/apply cases through `PP_PAL_LAUNCHER`
 (the owner `pp-pal` launcher), and keep release discovery, qualification identity,
 stale-input, cache, and refusal cases in `tests/updater.py` through that launcher.
@@ -15,15 +15,21 @@ combining these boundaries. Preserve all existing assertions and financial oracl
 
 ## Focused development and fixtures
 
-From the repository root, run a focused command suite against a local development
-image with:
+From the repository root, build a development runtime once (rootless, no Docker),
+then run a focused command suite against it:
 
 ```sh
-PP_PAL_LAUNCHER="$PWD/tools/run-container" bash tests/COMMAND.sh IMAGE
+tools/build-runtime --output ~/.local/state/pp-pal/runtimes/dev   # once; rebuild after Java changes
+PP_PAL_LAUNCHER="$PWD/tools/run-engine" bash tests/COMMAND.sh ~/.local/state/pp-pal/runtimes/dev
 ```
 
-This uses the container boundary for development; released owner-launcher checks
-remain part of cumulative qualification as described above.
+Runtimes are read-only. Delete one with `tools/runtime_dir.py`'s `remove_runtime`
+(or `chmod -R u+w` first) before rebuilding into the same path. Scripts take the
+runtime directory as `$1` (`PP_PAL_RUNTIME`). Invoke JDK tools through
+`tools/engine (main|java|javac|classpath)`, never through a host `java`. Use real
+per-run paths (`$root`, `$work`, `mktemp`); never hardcode container-style paths
+such as `/work` or `/fixtures`. Released owner-launcher checks remain part of
+cumulative qualification, as described above.
 
 ID-reference XML definitions can be nested inside linked entries or
 `referenceAccount`, while top-level lists contain references. Use upstream model
@@ -41,10 +47,10 @@ first, with holdings before expensive PDF/security-creation gates. Preserve
 readonly candidate input, isolated output, independent baseline evaluation,
 and live-parent/exact-pair qualification checks. `SelectedPortfolioOracle.java`
 compares both canonical roundtrips and financial relationships in one baseline
-JVM after isolated candidate output generation (two containers total). Never add
+JVM after isolated candidate output generation (two JVMs total). Never add
 a skip-update switch.
 
-`bash tests/all.sh IMAGE` delegates cumulative execution to the updater suite:
+`bash tests/all.sh RUNTIME` delegates cumulative execution to the updater suite:
 its fresh run checks the baseline once and qualifies the released candidate once.
 Standalone scripts remain available for focused development. Avoid adding gates
 to `all.sh` that qualification already runs; account for baseline and candidate
@@ -56,8 +62,7 @@ a release snapshot; keep its runtime, help, release policy, gate and test inputs
 unchanged while the suite runs. If those inputs need a correction, stop the stale
 run and restart after the focused checks pass.
 
-Invoke saved-model Java oracles through `tests/oracle.py` with their existing
-Docker arguments. Cumulative baseline and candidate runs compile trusted oracle
+Invoke saved-model Java oracles as `tests/oracle.py RUNTIME ORACLE [HOST-PATH ARGS…]`. Cumulative baseline and candidate runs compile trusted oracle
 sources once into temporary test-only classes, then reuse them through
 `PP_PAL_TEST_CLASSES`. Focused scripts fall back to Java source mode. Candidate
 qualification creates its own classes from the trusted bundle; candidate-owned
@@ -76,14 +81,15 @@ readonly. Baseline gates also own separate state directories. Drain active work
 after a failure and stop admitting later gates or cases.
 
 All shell test entry points and direct updater/oracle invocations use
-`tests/run.py`. Preserve its inherited Docker boundary: one shared budget covers
-all nested modules, cases, oracles, and validation containers. Build jobs take
+`tests/run.py`. Preserve its inherited JVM budget. One shared budget covers all
+nested modules, cases, oracles and validation JVMs; `tools/engine` and
+`tools/build-runtime` route them through `PP_PAL_JAVA_WRAPPER`. Build jobs take
 the entire budget. Modules acquire slots only for expensive child operations;
 holding a slot while waiting for children would deadlock the suite.
 
 Use `PP_PAL_TEST_JOBS=1` for serial execution or request a larger maximum with
 that variable. The runner clamps the request against CPU and available memory,
-applies per-container resource limits, and retains a host-memory reserve. Read
+applies per-JVM heap and processor limits, and retains a host-memory reserve. Read
 `docs/test-suite-performance.md` before tuning resource limits or benchmarking.
 Independent cases may use `tools/test_jobs.py`; give each case private mutable
 files and preserve preview/apply/oracle dependencies within the case. Include

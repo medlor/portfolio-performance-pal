@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/backups.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT

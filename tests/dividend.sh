@@ -4,7 +4,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/dividend.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
 launcher=${PP_PAL_LAUNCHER:-$root/pp-pal}
 export PP_PAL_NOW=2026-10-08T12:00:00Z
 work=$(mktemp -d)
@@ -27,7 +27,7 @@ echo 'PASS dividend amounts, fallback time and immutable preview without securit
 "$launcher" dividend --file portfolio.xml --security DE0000000001 --cash-account 'Synthetic Cash A' --date 2025-03-01 --gross 25 --fees 1 --taxes .5 --apply --desktop-closed > applied
 rg -q '^APPLIED DIVIDEND$' applied
 cp portfolio.xml owner-applied.xml
-launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-container}
+launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-$root/tools/run-engine}
 python3 -u - "$root" "$launcher" "$work" <<'PY'
 import os, pathlib, socket, subprocess, sys, threading, xml.etree.ElementTree as ET
 root, launcher, work = map(pathlib.Path, sys.argv[1:])
@@ -47,10 +47,8 @@ def reset(content=source):
     (work/'portfolio.xml').write_bytes(content)
     (work/'before.xml').write_bytes(content)
 def oracle(cash, security, date, relevance):
-    subprocess.run(['python3',str(root/'tests/oracle.py'),'run','--rm','--network','none','--user',f'{os.getuid()}:{os.getgid()}',
-        '-v',f'{root}/runtime/src/test/java:/tests:ro','-v',f'{work}:/work:ro',
-        '--entrypoint','java',os.environ['PP_PAL_IMAGE'],'-cp','/opt/pp/classes:/opt/pp/lib/*',
-        '/tests/pal/DividendAppliedOracle.java','/work/before.xml','/work/portfolio.xml',cash,security,date,relevance],check=True)
+    subprocess.run(['python3',str(root/'tests/oracle.py'),os.environ['PP_PAL_RUNTIME'],'DividendAppliedOracle',
+        f'{work}/before.xml',f'{work}/portfolio.xml',cash,security,date,relevance],check=True)
 tree = ET.fromstring(source)
 cash = tree.find('./accounts/account/uuid').text
 security = tree.find('./securities/security/uuid').text

@@ -4,13 +4,13 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [[ -z ${PP_PAL_TEST_BUDGET:-} ]]; then
   exec python3 "$root/tests/run.py" -- bash "$root/tests/upstream-reuse.sh" "$@"
 fi
-if [[ $# -gt 0 ]]; then export PP_PAL_IMAGE=$1; fi
-launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-${PP_PAL_LAUNCHER:-$root/tools/run-container}}
+if [[ $# -gt 0 ]]; then export PP_PAL_RUNTIME=$1; fi
+launcher=${PP_PAL_BEHAVIOR_LAUNCHER:-${PP_PAL_LAUNCHER:-$root/tools/run-engine}}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-python3 - "$root" "$work" "$launcher" "$PP_PAL_IMAGE" <<'PY'
+python3 - "$root" "$work" "$launcher" "$PP_PAL_RUNTIME" <<'PY'
 import os,pathlib,subprocess,sys
-ROOT,BASE=map(pathlib.Path,sys.argv[1:3]); LAUNCHER,IMAGE=sys.argv[3:]
+ROOT,BASE=map(pathlib.Path,sys.argv[1:3]); LAUNCHER,RUNTIME=sys.argv[3:]
 sys.path.insert(0, str(ROOT/'tools'))
 from test_jobs import parallel_cases
 SOURCE=(ROOT/'fixtures/v1/portfolio.xml').read_bytes()
@@ -19,7 +19,7 @@ def expect(r,code,text):
 def command(w,pdf,*extra):
     return subprocess.run([LAUNCHER,'import','--file',str(w/'portfolio.xml'),'--pdf',str(pdf),'--cash-account','Synthetic Cash A','--securities-account','Synthetic Securities A',*extra],cwd=w,text=True,capture_output=True)
 def oracle(w,pdf,date,saved=False):
-    r=subprocess.run(['python3',str(ROOT/'tests/oracle.py'),'run','--rm','--network','none','--user',f'{os.getuid()}:{os.getgid()}', '-v',f'{ROOT}/runtime/src/test/java:/tests:ro','-v',f'{ROOT}/fixtures:/fixtures:ro','-v',f'{w}:/work:ro','--entrypoint','java',IMAGE,'-cp','/opt/pp/classes:/opt/pp/lib/*','/tests/pal/UpstreamPdfAuthorityOracle.java','/work/before.xml','/fixtures/'+str(pdf.relative_to(ROOT/'fixtures')),date,*(['/work/portfolio.xml'] if saved else [])],text=True,capture_output=True)
+    r=subprocess.run(['python3',str(ROOT/'tests/oracle.py'),os.environ['PP_PAL_RUNTIME'],'UpstreamPdfAuthorityOracle',f'{w}/before.xml',f'{ROOT}/fixtures/'+str(pdf.relative_to(ROOT/'fixtures')),date,*([f'{w}/portfolio.xml'] if saved else [])],text=True,capture_output=True)
     expect(r,0,'PASS PP-authoritative')
 cases=[
  ('pdf-purchase/contradictory-gross','2025-01-03T09:30:00'),
@@ -84,5 +84,5 @@ print('PASS PP failures, extracted zero costs, conflicts, mandatory fields and i
 r=command(w,ROOT/'fixtures/v1/pdf-dividend/explicit.pdf');expect(r,0,'fallback time 11:00:00')
 r=command(w,ROOT/'fixtures/v1/pdf-dividend/basic.pdf','--time','11:00:00.1');expect(r,0,'2025-03-01T11:00:00.1')
 PY
-python3 "$root/tests/oracle.py" run --rm --network none --user "$(id -u):$(id -g)" -v "$root/fixtures:/fixtures:ro" -v "$root/runtime/src/test/java:/tests:ro" --entrypoint java "$PP_PAL_IMAGE" -cp '/opt/pp/classes:/opt/pp/lib/*' /tests/pal/PdfTextOracle.java /fixtures/v1/pp-extraction
+python3 "$root/tests/oracle.py" "$PP_PAL_RUNTIME" PdfTextOracle "$root/fixtures"/v1/pp-extraction
 echo 'PASS PP reuse gate'

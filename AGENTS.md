@@ -22,6 +22,13 @@ live in `runtime/src/test/java/pal`.
 
 Before implementing runtime commands, adding tests, running validation,
 or changing suite execution, read `docs/agents/test-execution.md`.
+Everything runs natively and rootless (no Docker). Build runtimes with
+`tools/build-runtime`.
+
+### Upgrades to a new Portfolio Performance release
+
+When pp-pal prints `UPGRADE REQUIRED` or you are asked to upgrade upstream
+support, follow `UPGRADE.md` exactly.
 
 ### Source inspection
 

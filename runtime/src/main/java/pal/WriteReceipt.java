@@ -32,7 +32,7 @@ final class WriteReceipt {
         data.setProperty("staging", staging.getParent().getFileName().toString());
         data.setProperty("transactions", String.join(" ", change.records().stream().map(AtomicWriter.Added::transactionId).toList()));
         data.setProperty("securities", String.join(" ", change.securities()));
-        data.setProperty("engine", System.getenv().getOrDefault("PP_PAL_ENGINE_IMAGE", "unknown"));
+        data.setProperty("engine", System.getenv().getOrDefault("PP_PAL_ENGINE_RUNTIME", "unknown"));
         if (change.imports() != null) change.imports().store(data);
         var receipt = new WriteReceipt(file.resolveSibling(file.getFileName() + ".pp-pal-write.properties"), data);
         receipt.save(); return receipt;
@@ -43,7 +43,7 @@ final class WriteReceipt {
     void state(String value) throws IOException { data.setProperty("state", value); save(); }
     String report() { return "APPLIED " + data.getProperty("description") + "\nTRANSACTIONS " + data.getProperty("transactions")
         + "\nDAILY BACKUP " + path.resolveSibling(data.getProperty("daily")) + "\nOUTPUT SHA256 " + data.getProperty("output")
-        + "\nINPUT SHA256 " + data.getProperty("input") + "\nENGINE IMAGE " + data.getProperty("engine")
+        + "\nINPUT SHA256 " + data.getProperty("input") + "\nENGINE RUNTIME " + data.getProperty("engine")
         + "\nINPUT MODEL " + data.getProperty("inputModel", "70") + "\nOUTPUT MODEL " + data.getProperty("outputModel", "70")
         + (data.containsKey("migration") ? "\nMIGRATION BACKUP " + path.resolveSibling(data.getProperty("migration")) : "")
         + "\nRECEIPT " + path + "\n"; }
