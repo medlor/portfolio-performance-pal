@@ -145,7 +145,7 @@ with tempfile.TemporaryDirectory(prefix='pp-pal-updater-') as temporary, server(
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
-def released_snapshot(work, api, tag='0.88.0', mutate=None):
+def released_snapshot(work, api, tag='0.89.0', mutate=None):
     package = work / ('released-' + tag)
     existing = package.exists()
     if not existing: package.mkdir()
@@ -185,26 +185,32 @@ def public_archive(name, url, digest, previous):
     return data
 
 def upstream_release(api):
-    revision = '8de1fe41d71a2c1b74a6bfbe913f885899aaf123'
+    revision = '20d7fb690ad532c5f4a8813f6c4f365745e37c7d'
     repo = '/repos/portfolio-performance/portfolio'
-    asset = 'PortfolioPerformance-0.88.0-linux.gtk.x86_64.tar.gz'
-    source = public_archive('source-8de1fe41.tar.gz', 'https://api.github.com/repos/portfolio-performance/portfolio/tarball/' + revision, 'ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656', '/tmp/pp-source.tar.gz')
-    dependency = public_archive(asset, 'https://github.com/portfolio-performance/portfolio/releases/download/0.88.0/' + asset, '1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2', '/tmp/pp-0.88.0.tar.gz')
-    check(sha(source) == 'ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656', 'Official upstream source cache digest differs')
-    check(sha(dependency) == '1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2', 'Official upstream dependency cache digest differs')
+    asset = 'PortfolioPerformance-0.89.0-linux.gtk.x86_64.tar.gz'
+    source = public_archive('source-20d7fb69.tar.gz', 'https://api.github.com/repos/portfolio-performance/portfolio/tarball/' + revision, 'c49a85ef1386759bae70fcb642de719bcc9a4c4adcc9e158fb43e28bdcb9ae89', '/tmp/pp-source.tar.gz')
+    dependency = public_archive(asset, 'https://github.com/portfolio-performance/portfolio/releases/download/0.89.0/' + asset, '01ee66debf2f52fc6e6c3eb353ecdff9cb3629cedbe9d31b1f7c103b750b322c', '/tmp/pp-0.89.0.tar.gz')
+    check(sha(source) == 'c49a85ef1386759bae70fcb642de719bcc9a4c4adcc9e158fb43e28bdcb9ae89', 'Official upstream source cache digest differs')
+    check(sha(dependency) == '01ee66debf2f52fc6e6c3eb353ecdff9cb3629cedbe9d31b1f7c103b750b322c', 'Official upstream dependency cache digest differs')
     base = f'http://127.0.0.1:{api.server_port}'
-    api.routes[repo + '/releases/latest'] = {'tag_name': '0.88.0', 'draft': False, 'prerelease': False,
-        'assets': [{'name': asset, 'digest': 'sha256:' + sha(dependency), 'browser_download_url': base + '/assets/' + asset}]}
-    api.routes[repo + '/git/ref/tags/0.88.0'] = {'object': {'type': 'commit', 'sha': revision}}
+    # Like the real release, other platform assets precede the Linux one.
+    other = 'PortfolioPerformance-0.89.0-aarch64.dmg'
+    api.routes[repo + '/releases/latest'] = {'tag_name': '0.89.0', 'draft': False, 'prerelease': False,
+        'assets': [{'name': other, 'digest': 'sha256:' + sha(b'other'), 'browser_download_url': base + '/assets/' + other},
+                   {'name': asset, 'digest': 'sha256:' + sha(dependency), 'browser_download_url': base + '/assets/' + asset}]}
+    # Like the real upstream release: an annotated tag object resolving to the commit.
+    tag_object = '3c4a47c2404a1ab7a252af08bdf799223d1c96c9'
+    api.routes[repo + '/git/ref/tags/0.89.0'] = {'object': {'type': 'tag', 'sha': tag_object}}
+    api.routes[repo + '/git/tags/' + tag_object] = {'object': {'type': 'commit', 'sha': revision}}
     api.routes[repo + '/tarball/' + revision] = source
     api.routes['/assets/' + asset] = dependency
 
 def relabel_upstream(api, tag):
     """Publish the pinned upstream source/assets under a new stable tag the wrapper does not support."""
     repo = '/repos/portfolio-performance/portfolio'
-    revision = '8de1fe41d71a2c1b74a6bfbe913f885899aaf123'
+    revision = '20d7fb690ad532c5f4a8813f6c4f365745e37c7d'
     latest = api.routes[repo + '/releases/latest']
-    data = api.routes['/assets/' + latest['assets'][0]['name']]
+    data = api.routes['/assets/' + next(a['name'] for a in latest['assets'] if a['name'].endswith('-linux.gtk.x86_64.tar.gz'))]
     asset = 'PortfolioPerformance-' + tag + '-linux.gtk.x86_64.tar.gz'
     api.routes['/assets/' + asset] = data
     api.routes[repo + '/releases/latest'] = {'tag_name': tag, 'draft': False, 'prerelease': False,
@@ -257,7 +263,7 @@ def local_upgrade():
         selected = work / 'owner portfolio.xml'
         shutil.copyfile(ROOT / 'fixtures/v1/portfolio.xml', selected)
         original = selected.read_bytes()
-        released = work / 'released-0.88.0'
+        released = work / 'released-0.89.0'
         released_snapshot(work, api)
         upstream_release(api)
         revision = relabel_upstream(api, '0.88.1-fixture')
@@ -304,8 +310,11 @@ def local_upgrade():
         print('PASS local upgrade refuses dirty checkouts and removed gates before building')
         # (c) A clean checkout with an adapted gate is qualified and activated locally.
         valid, commit = checkout('checkout', adapt_holdings)
+        api.requests.clear()
         result = upgrade(valid)
         check(result.returncode == 0, result.stderr + result.stdout)
+        # Gates qualify against the updater's frozen loopback release view, never the outer API.
+        check(api.requests.count('/repos/medlor/portfolio-performance-pal/releases/latest') == 1, api.requests)
         changes = result.stdout.split('TRUSTED CHANGES', 1)[1]
         check('changed tests/holdings.sh' in changes, result.stdout)
         check(f'ACTIVATED local-upgrade 0.88.1-fixture-{commit[:12]}' in result.stdout, result.stdout)
@@ -349,7 +358,7 @@ def mismatched_wrapper_tag():
         released_snapshot(work, api, tag='v0.1.0')
         upstream_release(api)
         result = run(work, api, '--update', '--file', str(selected))
-        check(result.returncode == 3 and 'Wrapper release tag v0.1.0 does not match its supported Portfolio Performance release 0.88.0' in result.stderr,
+        check(result.returncode == 3 and 'Wrapper release tag v0.1.0 does not match its supported Portfolio Performance release 0.89.0' in result.stderr,
               result.stderr)
         check(selected.read_bytes() == original and not list(work.glob('portfolio.xml.pp-pal.update.*.bak')), 'Tag refusal changed or backed up the portfolio')
         check(not (work / 'state/builds').exists() or not list((work / 'state/builds').iterdir()), 'Tag refusal started a build')
@@ -412,15 +421,18 @@ with released_work() as temporary, server() as api:
         parallel_cases(baseline_gate, ('runtime', 'holdings', 'history', 'backups'))
     revision = released_snapshot(work, api, mutate=marker)
     upstream_release(api)
+    api.requests.clear()
     result = run(work, api, '--update', '--file', str(selected))
     check(result.returncode == 0, f'Actual released pair failed: {result.stderr}\n{result.stdout}')
+    # Gates qualify against the updater's frozen loopback release view, never the outer API.
+    check(api.requests.count('/repos/medlor/portfolio-performance-pal/releases/latest') == 1, api.requests)
     active = json.loads((work / 'state/active.json').read_text())
     check(active['wrapper']['revision'] == revision, active)
-    check(active['upstream']['revision'] == '8de1fe41d71a2c1b74a6bfbe913f885899aaf123', active)
+    check(active['upstream']['revision'] == '20d7fb690ad532c5f4a8813f6c4f365745e37c7d', active)
     runtime = pathlib.Path(active['runtime'])
     check(runtime.parent == work / 'state/runtimes' and runtime.name == active['identity']
           and runtime_dir.read_runtime(runtime)['identity'] == active['identity'], active)
-    check(active['identity'] == '0.88.0-' + revision[:12], active)
+    check(active['identity'] == '0.89.0-' + revision[:12], active)
     check(selected.read_bytes() == original, 'Successful update replaced original')
     check(len(list(work.glob('selected portfolio.xml.pp-pal.update.*.bak'))) == prior_attempts + (0 if was_active else 1), 'Actual update attempt lacks exact snapshot')
     for context in (work / 'state/builds').iterdir():
@@ -745,15 +757,16 @@ with released_work() as temporary, server() as api:
     # An asset may be replaced while its immutable source tag stays unchanged.
     # That is a changed pair, not permission to reuse old dependency validation.
     upstream_metadata = api.routes['/repos/portfolio-performance/portfolio/releases/latest']
-    old_digest = upstream_metadata['assets'][0]['digest']
-    upstream_metadata['assets'][0]['digest'] = 'sha256:' + '0' * 64
+    linux = next(a for a in upstream_metadata['assets'] if a['name'].endswith('-linux.gtk.x86_64.tar.gz'))
+    old_digest = linux['digest']
+    linux['digest'] = 'sha256:' + '0' * 64
     result = run(work, api, '--update', '--file', str(selected))
     check(result.returncode == 3, 'Changed dependency digest silently reused old validation: ' + result.stdout + result.stderr)
     check('digest' in result.stderr.lower(), result.stderr)
     check((work / 'state/active.json').read_bytes() == before, 'Failed archive check replaced active pair')
     check(selected.read_bytes() == original, 'Failed archive check changed financial input')
     check(len(list(work.glob('selected portfolio.xml.pp-pal.update.*.bak'))) == expected_attempts + 1, 'Changed failed attempt lacks distinct protection')
-    upstream_metadata['assets'][0]['digest'] = old_digest
+    linux['digest'] = old_digest
     print('PASS changed official asset digest forces a protected attempt and cannot silently reuse old validation')
 
     wrapper_path = '/repos/medlor/portfolio-performance-pal/releases/latest'
@@ -846,7 +859,7 @@ with released_work() as temporary, server() as api:
                     save(client, Path.of(args[2]));'''
         check(needle in text, 'Synthetic candidate transformation no longer matches reviewed fixture source')
         source.write_text(text.replace(needle, replacement))
-    attack_revision = released_snapshot(work, api, tag='0.88.0-2', mutate=tamper_selected_only)
+    attack_revision = released_snapshot(work, api, tag='0.89.0-2', mutate=tamper_selected_only)
     result = run(work, api, '--update', '--file', str(selected))
     check(result.returncode == 3, 'Candidate overwrote independent selected-copy oracle and activated: ' + result.stdout)
     check('CHECK START ' not in result.stdout, 'Selected-copy refusal ran expensive fixture qualification')
@@ -857,7 +870,7 @@ with released_work() as temporary, server() as api:
     def changed_bootstrap(package):
         target = package / 'tools/update.py'
         target.write_text(target.read_text() + '\n# changed released host orchestration\n')
-    released_snapshot(work, api, tag='0.88.0-3', mutate=changed_bootstrap)
+    released_snapshot(work, api, tag='0.89.0-3', mutate=changed_bootstrap)
     result = run(work, api, '--update', '--file', str(selected))
     check(result.returncode == 3 and 'trusted-bootstrap maintenance' in result.stderr, result.stderr)
     check((work / 'state/active.json').read_bytes() == before, 'Unsupported host bootstrap change activated')
@@ -867,7 +880,7 @@ with released_work() as temporary, server() as api:
     def changed_scheduler(package):
         target = package / 'tools/test_jobs.py'
         target.write_text(target.read_text() + '\n# changed released scheduling helper\n')
-    released_snapshot(work, api, tag='0.88.0-4', mutate=changed_scheduler)
+    released_snapshot(work, api, tag='0.89.0-4', mutate=changed_scheduler)
     result = run(work, api, '--update', '--file', str(selected))
     check(result.returncode == 3 and 'trusted-bootstrap maintenance' in result.stderr, result.stderr)
     check((work / 'state/active.json').read_bytes() == before, 'Unsupported scheduling helper activated')
@@ -907,7 +920,7 @@ with released_work() as temporary, server() as api:
         target.write_text(text)
         (package / 'tests/all.sh').write_text('#!/usr/bin/env bash\nexit 0\n')
         (package / 'fixtures/v1/baader-buy.expected').write_text('candidate-controlled expectation\n')
-    bad_revision = released_snapshot(work, api, tag='0.88.0-5', mutate=wrong_query_and_own_tests)
+    bad_revision = released_snapshot(work, api, tag='0.89.0-5', mutate=wrong_query_and_own_tests)
     attempts = len(list(work.glob('selected portfolio.xml.pp-pal.update.*.bak')))
     for retry in range(2):
         result = run(work, api, '--update', '--file', str(selected))

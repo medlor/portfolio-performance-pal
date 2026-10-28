@@ -5,8 +5,8 @@
 > runtime is described in this introduction and in [ADR 0005](adr/0005-native-runtime.md).
 
 The initial Java boundary compiles Portfolio Performance core directly from
-[revision 8de1fe41d71a2c1b74a6bfbe913f885899aaf123](https://github.com/portfolio-performance/portfolio/tree/8de1fe41d71a2c1b74a6bfbe913f885899aaf123),
-release **0.88.0**, with `javac --release 21`. Maven, Tycho, an Eclipse application,
+[revision 20d7fb690ad532c5f4a8813f6c4f365745e37c7d](https://github.com/portfolio-performance/portfolio/tree/20d7fb690ad532c5f4a8813f6c4f365745e37c7d),
+release **0.89.0**, with `javac --release 21`. Maven, Tycho, an Eclipse application,
 and a display server are unnecessary for the exercised paths. Financial models,
 cross entries, XML persistence, PDF-to-text conversion and Baader extraction are
 upstream Java code. No financial model or serializer is recreated in Python.
@@ -204,3 +204,19 @@ preview/application batch validation were corrected. Qualification inputs stayed
 fixed during the full run; subsequent changes only record documentation/evidence.
 This adds application of the retained synthetic EUR purchase profiles, with tested
 transaction-only model69-to70 migration; it establishes no new statement layout.
+
+## Portfolio Performance 0.89.0
+
+On 2026-10-28 the runtime moved from 0.88.0 to
+[0.89.0, revision 20d7fb690ad532c5f4a8813f6c4f365745e37c7d](https://github.com/portfolio-performance/portfolio/tree/20d7fb690ad532c5f4a8813f6c4f365745e37c7d).
+The XML model stays 70 and `ClientFactory`, `Client` and the transaction classes are
+unchanged, so the supported input/output models and the protected model69-to-70
+migration carry over. The headless patch applied unchanged and the wrapper compiled
+without adaptation. Upstream Baader changes (per-broker document labels; a
+`Handelsplatzabhängige Gutschrift` larger than the `Finanzkommission` now offsets later
+fees) and the stricter `CheckValidTypesAction` unit checks do not affect the qualified
+fixtures. No layout, migration or feature was added.
+
+`PP_PAL_TEST_JOBS=3 bash tests/all.sh ~/.local/state/pp-pal/upgrades/0.89.0/runtime/dev`
+passed in **2032 seconds (33 minutes 52 seconds)**, with all 18 registered gates once per
+qualified candidate. Gates qualify against the updater's frozen loopback release view. See the 0.89.0 entry in the [support matrix](../runtime/support-matrix.json).

@@ -59,6 +59,12 @@ must not do.
 
    Use the revision from `request.json`, which the updater resolved from the release tag.
 
+   Some tests pin the current release too. Find the previous tag, revision and digests
+   with `rg -n '<old tag>|<old revision>|<old sourceSha256>|<old releaseSha256>' tests`
+   and update the ones that name the pinned release (`tests/build-runtime.sh`,
+   `tests/updater.py`). Leave invented tags such as `0.88.1-fixture` and the
+   self-contained packages in `tests/update_units.py` unchanged.
+
 3. **Build and adapt.** Read `docs/upgrading-version-support.md` and
    `docs/updating-broker-extractor.md` first. Then build:
 
@@ -89,6 +95,13 @@ must not do.
    bash tests/<focused>.sh "$R"
    PP_PAL_TEST_JOBS=4 bash tests/all.sh "$R"
    ```
+
+   Judge the run by the exit status and the final `SUITE PASS elapsed=…` line, not by
+   a wrapper's own exit code. The suite needs free memory: before each build the test
+   runner waits up to 120 seconds until at least RAM/4 + 2 GiB is available. Stop other
+   memory-heavy work first. `Test resource admission timed out under memory pressure`
+   is environmental, not a gate failure: rerun the suite unchanged, with a lower
+   `PP_PAL_TEST_JOBS` if needed, and never edit tests for it.
 
    Record the evidence in `runtime/support-matrix.json`, appending a new entry and
    keeping the earlier ones. Update `docs/headless-runtime.md` too.
@@ -128,6 +141,14 @@ must not do.
 
    The checkout must be committed and clean. On success the output ends with
    `TRUSTED CHANGES …` and `ACTIVATED local-upgrade <identity>`.
+
+   This does not wait for the PR. The updater builds an untagged local pair from the
+   checkout's `HEAD` (`local-<commit>`), and every later operation reuses it until a
+   stable wrapper release supporting this upstream qualifies and replaces it. After
+   pushing further fixes to the PR branch, run this step again from the new commit.
+   The checkout's `pp-pal`, `tools/update.py` and `tools/test_jobs.py` must equal those
+   of the running `pp-pal`. A change to them needs the owner to update the bootstrap
+   first.
 
 8. **Resume.** Re-run the original command exactly, as saved in `request.json`
    (`shlex.join(argv)` in `cwd`). This includes `--apply --desktop-closed` when present.

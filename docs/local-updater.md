@@ -167,6 +167,11 @@ pre-activation failure or interruption.
 API or a loopback HTTP fixture server. The integration gate serves actual tagged
 Git snapshots and pinned public upstream archives through this boundary; it does
 not bypass building, independent gates, selected-copy validation or activation.
+Qualification gates never use the outer API. The updater sets their
+`PP_PAL_RELEASE_API` to a loopback replay of the release metadata it resolved
+(`release_view` in `tools/update.py`). Each gate's owner-launcher commands re-resolve
+both releases, and against GitHub a qualification would exceed the unauthenticated
+rate limit.
 
 Purchase preview always calls `prepare_processing` before constructing its financial
 plan. Compatibility checks need to exercise that same boundary on a candidate

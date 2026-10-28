@@ -41,7 +41,7 @@ python3 - "$work/dev/runtime.json" <<'PY' || fail 'runtime.json labels'
 import json, sys
 data = json.load(open(sys.argv[1]))
 assert data['schema'] == 1 and data['identity'] == 'dev' and data['xmlModel'] == '70', data
-assert data['upstreamRevision'] == '8de1fe41d71a2c1b74a6bfbe913f885899aaf123' and data['upstreamRelease'] == '0.88.0', data
+assert data['upstreamRevision'] == '20d7fb690ad532c5f4a8813f6c4f365745e37c7d' and data['upstreamRelease'] == '0.89.0', data
 assert data['jdk'] == 'Temurin-21.0.11+10' and data['platform'] == 'linux/amd64', data
 PY
 "$work/dev/jdk/bin/java" -version 2>&1 | grep -q 'Temurin-21.0.11+10' || fail 'runtime JDK is not Temurin 21.0.11+10'

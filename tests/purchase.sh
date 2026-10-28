@@ -199,14 +199,20 @@ mode = None
 class Proxy(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         with urllib.request.urlopen(base + self.path) as response: data = response.read()
-        if '/git/tags/' in self.path and mode == 'wrapper-revision':
-            value = json.loads(data); value['object']['sha'] = '1' * 40; data = json.dumps(value).encode()
-        if '/portfolio/git/ref/tags/' in self.path and mode == 'upstream-revision':
-            value = json.loads(data); value['object']['sha'] = '2' * 40; data = json.dumps(value).encode()
+        # Mutate the commit a release tag resolves to: lightweight refs name it directly,
+        # annotated tags (as GitHub serves real releases) through a tag object.
+        target = {'wrapper-revision': ('/repos/medlor/portfolio-performance-pal/git/', '1'),
+                  'upstream-revision': ('/repos/portfolio-performance/portfolio/git/', '2')}.get(mode)
+        if target and self.path.startswith(target[0]):
+            value = json.loads(data)
+            if value['object']['type'] == 'commit':
+                value['object']['sha'] = target[1] * 40; data = json.dumps(value).encode()
         if '/portfolio/releases/latest' in self.path:
             value = json.loads(data)
-            value['assets'][0]['browser_download_url'] = value['assets'][0]['browser_download_url'].replace(base, f'http://127.0.0.1:{self.server.server_port}')
-            if mode == 'dependency-digest': value['assets'][0]['digest'] = 'sha256:' + '3' * 64
+            # Real releases carry many assets; the updater selects the Linux one by name.
+            for asset in value['assets']:
+                asset['browser_download_url'] = asset['browser_download_url'].replace(base, f'http://127.0.0.1:{self.server.server_port}')
+                if mode == 'dependency-digest': asset['digest'] = 'sha256:' + '3' * 64
             data = json.dumps(value).encode()
         self.send_response(200); self.send_header('Content-Length', str(len(data))); self.end_headers(); self.wfile.write(data)
     def log_message(self, *args): pass
