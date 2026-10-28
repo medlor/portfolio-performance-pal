@@ -209,8 +209,10 @@ class Proxy(http.server.BaseHTTPRequestHandler):
                 value['object']['sha'] = target[1] * 40; data = json.dumps(value).encode()
         if '/portfolio/releases/latest' in self.path:
             value = json.loads(data)
-            value['assets'][0]['browser_download_url'] = value['assets'][0]['browser_download_url'].replace(base, f'http://127.0.0.1:{self.server.server_port}')
-            if mode == 'dependency-digest': value['assets'][0]['digest'] = 'sha256:' + '3' * 64
+            # Real releases carry many assets; the updater selects the Linux one by name.
+            for asset in value['assets']:
+                asset['browser_download_url'] = asset['browser_download_url'].replace(base, f'http://127.0.0.1:{self.server.server_port}')
+                if mode == 'dependency-digest': asset['digest'] = 'sha256:' + '3' * 64
             data = json.dumps(value).encode()
         self.send_response(200); self.send_header('Content-Length', str(len(data))); self.end_headers(); self.wfile.write(data)
     def log_message(self, *args): pass

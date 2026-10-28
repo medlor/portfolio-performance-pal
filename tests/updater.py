@@ -193,8 +193,11 @@ def upstream_release(api):
     check(sha(source) == 'c49a85ef1386759bae70fcb642de719bcc9a4c4adcc9e158fb43e28bdcb9ae89', 'Official upstream source cache digest differs')
     check(sha(dependency) == '01ee66debf2f52fc6e6c3eb353ecdff9cb3629cedbe9d31b1f7c103b750b322c', 'Official upstream dependency cache digest differs')
     base = f'http://127.0.0.1:{api.server_port}'
+    # Like the real release, other platform assets precede the Linux one.
+    other = 'PortfolioPerformance-0.89.0-aarch64.dmg'
     api.routes[repo + '/releases/latest'] = {'tag_name': '0.89.0', 'draft': False, 'prerelease': False,
-        'assets': [{'name': asset, 'digest': 'sha256:' + sha(dependency), 'browser_download_url': base + '/assets/' + asset}]}
+        'assets': [{'name': other, 'digest': 'sha256:' + sha(b'other'), 'browser_download_url': base + '/assets/' + other},
+                   {'name': asset, 'digest': 'sha256:' + sha(dependency), 'browser_download_url': base + '/assets/' + asset}]}
     # Like the real upstream release: an annotated tag object resolving to the commit.
     tag_object = '3c4a47c2404a1ab7a252af08bdf799223d1c96c9'
     api.routes[repo + '/git/ref/tags/0.89.0'] = {'object': {'type': 'tag', 'sha': tag_object}}
@@ -207,7 +210,7 @@ def relabel_upstream(api, tag):
     repo = '/repos/portfolio-performance/portfolio'
     revision = '20d7fb690ad532c5f4a8813f6c4f365745e37c7d'
     latest = api.routes[repo + '/releases/latest']
-    data = api.routes['/assets/' + latest['assets'][0]['name']]
+    data = api.routes['/assets/' + next(a['name'] for a in latest['assets'] if a['name'].endswith('-linux.gtk.x86_64.tar.gz'))]
     asset = 'PortfolioPerformance-' + tag + '-linux.gtk.x86_64.tar.gz'
     api.routes['/assets/' + asset] = data
     api.routes[repo + '/releases/latest'] = {'tag_name': tag, 'draft': False, 'prerelease': False,
@@ -754,15 +757,16 @@ with released_work() as temporary, server() as api:
     # An asset may be replaced while its immutable source tag stays unchanged.
     # That is a changed pair, not permission to reuse old dependency validation.
     upstream_metadata = api.routes['/repos/portfolio-performance/portfolio/releases/latest']
-    old_digest = upstream_metadata['assets'][0]['digest']
-    upstream_metadata['assets'][0]['digest'] = 'sha256:' + '0' * 64
+    linux = next(a for a in upstream_metadata['assets'] if a['name'].endswith('-linux.gtk.x86_64.tar.gz'))
+    old_digest = linux['digest']
+    linux['digest'] = 'sha256:' + '0' * 64
     result = run(work, api, '--update', '--file', str(selected))
     check(result.returncode == 3, 'Changed dependency digest silently reused old validation: ' + result.stdout + result.stderr)
     check('digest' in result.stderr.lower(), result.stderr)
     check((work / 'state/active.json').read_bytes() == before, 'Failed archive check replaced active pair')
     check(selected.read_bytes() == original, 'Failed archive check changed financial input')
     check(len(list(work.glob('selected portfolio.xml.pp-pal.update.*.bak'))) == expected_attempts + 1, 'Changed failed attempt lacks distinct protection')
-    upstream_metadata['assets'][0]['digest'] = old_digest
+    linux['digest'] = old_digest
     print('PASS changed official asset digest forces a protected attempt and cannot silently reuse old validation')
 
     wrapper_path = '/repos/medlor/portfolio-performance-pal/releases/latest'
