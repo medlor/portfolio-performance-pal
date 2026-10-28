@@ -4,6 +4,7 @@ import fcntl
 import contextlib
 import datetime
 import hashlib
+import http.server
 import importlib.util
 import json
 import os
@@ -36,6 +37,8 @@ UPSTREAM = 'portfolio-performance/portfolio'
 SHA = re.compile(r'[a-f0-9]{40}')
 IDENTITY = re.compile(r'dev|[0-9A-Za-z._-]+-[a-f0-9]{12}')
 DIGEST = re.compile(r'[a-f0-9]{64}')
+# Release metadata resolved by this process, replayed to its gates (release_view).
+RELEASE_VIEW = {}
 
 class UpdateError(Exception):
     pass
@@ -69,10 +72,13 @@ def fetch(url):
         raise UpdateError(f'Release request failed: {failure}') from failure
 
 def request_json(path):
+    data = fetch(api_base() + path)
     try:
-        return json.loads(fetch(api_base() + path))
+        value = json.loads(data)
     except (ValueError, TypeError) as failure:
         raise UpdateError('Release service returned invalid JSON') from failure
+    RELEASE_VIEW[path] = data
+    return value
 
 def release(repository, label):
     try:
@@ -430,12 +436,52 @@ def qualifying_validator(temporary, qualification):
             stop.set()
             thread.join(timeout=2)
 
+@contextlib.contextmanager
+def release_view():
+    """Serve the release metadata this update resolved, frozen, on loopback.
+
+    Every owner-launcher command in a gate re-resolves both releases (about five API
+    requests each). Against the live GitHub API a qualification would exceed the
+    unauthenticated rate limit and could see a release published mid-run. Gates get
+    this frozen view instead; unknown paths are 404. A loopback fixture base inside
+    asset URLs is rebased so upstream_asset() still accepts them."""
+    outer = api_base()
+    responses = dict(RELEASE_VIEW)
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            data = responses.get(self.path)
+            if data is None:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header('Content-Length', str(len(data)))
+            self.end_headers()
+            try:
+                self.wfile.write(data)
+            except BrokenPipeError:
+                pass
+        def log_message(self, *args):
+            pass
+    server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+    base = f'http://127.0.0.1:{server.server_port}'
+    if outer != 'https://api.github.com':
+        responses = {path: data.replace(outer.encode() + b'/', base.encode() + b'/') for path, data in responses.items()}
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield base
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
 def fixed_checks(package, runtime, registry, trusted_root, qualification):
     # Import only the independent trusted runner, never a candidate-owned copy.
     spec = importlib.util.spec_from_file_location('pp_pal_test_runner', trusted_root / 'tests/run.py')
     runner = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(runner)
-    with runner.test_environment() as test_environment:
+    with runner.test_environment() as test_environment, release_view() as release_api:
+        test_environment = dict(test_environment, PP_PAL_RELEASE_API=release_api)
         return fixture_checks(package, runtime, registry, trusted_root, qualification, test_environment)
 
 

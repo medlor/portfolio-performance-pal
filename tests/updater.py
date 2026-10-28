@@ -304,8 +304,11 @@ def local_upgrade():
         print('PASS local upgrade refuses dirty checkouts and removed gates before building')
         # (c) A clean checkout with an adapted gate is qualified and activated locally.
         valid, commit = checkout('checkout', adapt_holdings)
+        api.requests.clear()
         result = upgrade(valid)
         check(result.returncode == 0, result.stderr + result.stdout)
+        # Gates qualify against the updater's frozen loopback release view, never the outer API.
+        check(api.requests.count('/repos/medlor/portfolio-performance-pal/releases/latest') == 1, api.requests)
         changes = result.stdout.split('TRUSTED CHANGES', 1)[1]
         check('changed tests/holdings.sh' in changes, result.stdout)
         check(f'ACTIVATED local-upgrade 0.88.1-fixture-{commit[:12]}' in result.stdout, result.stdout)
@@ -412,8 +415,11 @@ with released_work() as temporary, server() as api:
         parallel_cases(baseline_gate, ('runtime', 'holdings', 'history', 'backups'))
     revision = released_snapshot(work, api, mutate=marker)
     upstream_release(api)
+    api.requests.clear()
     result = run(work, api, '--update', '--file', str(selected))
     check(result.returncode == 0, f'Actual released pair failed: {result.stderr}\n{result.stdout}')
+    # Gates qualify against the updater's frozen loopback release view, never the outer API.
+    check(api.requests.count('/repos/medlor/portfolio-performance-pal/releases/latest') == 1, api.requests)
     active = json.loads((work / 'state/active.json').read_text())
     check(active['wrapper']['revision'] == revision, active)
     check(active['upstream']['revision'] == '20d7fb690ad532c5f4a8813f6c4f365745e37c7d', active)
