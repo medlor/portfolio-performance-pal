@@ -195,7 +195,10 @@ def upstream_release(api):
     base = f'http://127.0.0.1:{api.server_port}'
     api.routes[repo + '/releases/latest'] = {'tag_name': '0.89.0', 'draft': False, 'prerelease': False,
         'assets': [{'name': asset, 'digest': 'sha256:' + sha(dependency), 'browser_download_url': base + '/assets/' + asset}]}
-    api.routes[repo + '/git/ref/tags/0.89.0'] = {'object': {'type': 'commit', 'sha': revision}}
+    # Like the real upstream release: an annotated tag object resolving to the commit.
+    tag_object = '3c4a47c2404a1ab7a252af08bdf799223d1c96c9'
+    api.routes[repo + '/git/ref/tags/0.89.0'] = {'object': {'type': 'tag', 'sha': tag_object}}
+    api.routes[repo + '/git/tags/' + tag_object] = {'object': {'type': 'commit', 'sha': revision}}
     api.routes[repo + '/tarball/' + revision] = source
     api.routes['/assets/' + asset] = dependency
 
