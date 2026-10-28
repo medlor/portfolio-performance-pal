@@ -1722,6 +1722,103 @@
       "baselineImage": "sha256:8d2395390748008c69b5ea9017f36ebef7ebc5127344adaec3647ffeaf3e47a8",
       "previousQualifiedImage": "sha256:8d2395390748008c69b5ea9017f36ebef7ebc5127344adaec3647ffeaf3e47a8",
       "releasedWrapperArchiveSha256": "e22af6d55c3b14ac85e814f6c34685572e3dffde4d1de31cf92d9625b7b19171"
+    },
+    {
+      "upstreamRelease": "0.88.0",
+      "upstreamRevision": "8de1fe41d71a2c1b74a6bfbe913f885899aaf123",
+      "sourceArchiveSha256": "ce6d10fe45ce5484f8c4ee9ae36eb1654890b03f6adb2fbbd3f54077d93cc656",
+      "dependencyReleaseArchiveSha256": "1770d95488a383f3b97e5e7a1b30f9fd122200a16f88078caa4823951e9aeac2",
+      "jdk": "Temurin 21.0.11+10-LTS",
+      "jdkArchiveSha256": "4b2220e232a97997b436ca6ab15cbf70171ecff52958a46159dfa5a8c44ca4de",
+      "platform": "linux/amd64",
+      "fixtureVersion": "v1",
+      "runtime": "native runtime directory built by tools/build-runtime (no Docker); development identity \"dev\" from wrapper commit 7dddc4c",
+      "validatedOn": "2026-10-28",
+      "validatedBy": "tests/all.sh",
+      "input": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70,
+        "modelVersions": [
+          69,
+          70
+        ]
+      },
+      "output": {
+        "representation": "XML-ID-references",
+        "modelVersion": 70
+      },
+      "migrations": [
+        {
+          "inputModelVersion": 69,
+          "outputModelVersion": 70,
+          "representation": "XML-ID-references",
+          "semantics": "Optional client-filter weight; existing unweighted selections, financial records and unrelated persisted state unchanged",
+          "validatedBy": "tests/migrations.sh"
+        }
+      ],
+      "features": [
+        "holdings",
+        "history",
+        "configuration",
+        "monthly-launch-backups",
+        "exact-pre-upgrade-backups",
+        "released-pair-updates",
+        "same-currency-purchase-preview",
+        "baader-purchase-pdf-preview",
+        "atomic-same-currency-purchase-application",
+        "verified-financial-write-recovery",
+        "successful-write-backup-retention",
+        "explicit-purchase-security-creation",
+        "same-currency-sale-preview",
+        "atomic-same-currency-sale-application",
+        "complete-sale-quantity-history-validation",
+        "same-currency-dividend-preview",
+        "atomic-same-currency-dividend-application",
+        "explicit-manual-foreign-currency-transactions",
+        "transaction-only-model69-to70-migration",
+        "atomic-baader-purchase-pdf-application",
+        "duplicate-safe-import-bookkeeping-recovery",
+        "baader-sale-pdf-preview",
+        "atomic-baader-sale-pdf-application",
+        "same-timestamp-pdf-purchase-sale-admission",
+        "baader-dividend-pdf-preview",
+        "atomic-baader-dividend-pdf-application",
+        "mixed-purchase-dividend-pdf-admission",
+        "pp-authoritative-pdf-extraction",
+        "pp-import-actions",
+        "pp-holdings-and-dividend-relevance",
+        "baader-foreign-currency-pdf-import",
+        "single-statement-missing-fx-supplement",
+        "atomic-mixed-purchase-sale-dividend-fx-pdf",
+        "verified-current-smartbroker-layouts",
+        "native-rootless-runtime",
+        "unsupported-upstream-agent-upgrade-prompt",
+        "agent-local-upgrade-activation"
+      ],
+      "layouts": [
+        "Baader synthetic domestic purchase/sale/dividend PDF/text v1 only",
+        "baader-german-eur-purchase-flat-v1",
+        "baader-german-eur-purchase-page1-of1-v1",
+        "baader-german-eur-sale-flat-v1",
+        "baader-german-eur-sale-page1-of1-v1",
+        "baader-german-eur-purchase-sale-page1-of1-v1",
+        "baader-german-eur-dividend-page1-of1-v1",
+        "baader-german-eur-purchase-dividend-page1-of1-v1",
+        "baader-pp-authoritative-complete-page-sequences-v1",
+        "baader-synthetic-eur-usd-purchase-dividend-v1",
+        "baader-synthetic-eur-usd-purchase-sale-dividend-v1",
+        "baader-synthetic-mixed-fx-page-sequences-v1",
+        "baader-smartbroker-current-eur-purchase-execution-table-v1",
+        "baader-smartbroker-current-eur-sale-tax-continuation-v1",
+        "baader-smartbroker-current-chf-dividend-tax-continuation-v1",
+        "baader-smartbroker-current-mixed-eur-chf-complete-page-sequences-v1"
+      ],
+      "validationCommands": [
+        "tools/build-runtime --output ~/.local/state/pp-pal/runtimes/dev",
+        "bash tests/all.sh ~/.local/state/pp-pal/runtimes/dev"
+      ],
+      "validationElapsedSeconds": 2381,
+      "validationNotes": "First qualification on the native runtime (ADR 0005), rootless, Temurin 21.0.11+10 unpacked from the pinned archive. All 18 registered gates passed exactly once for each qualified candidate: the fixture local upgrade, the release replacing it, and the main released pair. Also passed: unsupported-upstream stop with agent prompt, local-upgrade refusals/activation/unattended resume (ADR 0006), and all updater attack scenarios. The runtime classpath is fixed in classes.jar's manifest (older PDFBox 1.8 jars last) and the runtime carries an AppCDS archive. Test budget: 2 jobs x 1 CPU (4-CPU cgroup quota). Earlier entries record Docker-image evidence and are kept unchanged."
     }
   ]
 }

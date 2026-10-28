@@ -729,11 +729,11 @@ It must tell the agent to read `docs/upgrading-version-support.md` and
   identical, and the assertion inventory from Task 4 Step 4 must still
   hold.
 
-- [ ] **Step 4: Record the evidence.** Append a support-matrix entry with
+- [x] **Step 4: Record the evidence.** Append a support-matrix entry with
   the native runtime identity, the JDK archive SHA-256 and the suite
   result. Earlier entries are kept unchanged.
 
-- [ ] **Step 5: Commit.** Message: `Document native runtime and agent
+- [x] **Step 5: Commit.** Message: `Document native runtime and agent
   upgrades; remove Docker`.
 
 ## Execution risk
